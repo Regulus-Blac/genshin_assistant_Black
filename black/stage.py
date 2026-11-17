@@ -26,10 +26,35 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from . import theme
+from . import theme as _theme
 from .characters import get_look
 from .paths import IMAGES, avatar_path
 from .widgets import Avatar, Dot, IconButton
+
+
+class _StagePalette:
+    """The stage is a night-sky portrait island.
+
+    Its type and symbols stay light even when the rest of the desk switches to
+    parchment daylight.  Fonts/icons are delegated to the global theme.
+    """
+
+    GOLD = "#d9bc7d"
+    GOLD_BRIGHT = "#f3ddaa"
+    GOLD_SOFT = "#a98e5c"
+    TEXT = "#eee7da"
+    TEXT_SOFT = "#d7cdbb"
+    MUTED = "#a89d8b"
+    FAINT = "#858a82"
+    TEAL = "#72d3ce"
+    ROSE = "#e39a91"
+    WHITE = "#fbf7ee"
+
+    def __getattr__(self, name):
+        return getattr(_theme, name)
+
+
+theme = _StagePalette()
 
 
 class ElidedLabel(QLabel):
@@ -108,6 +133,7 @@ class CharacterStage(QWidget):
 
     def __init__(self, art_name: str = "art_snow.jpg", parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setProperty("darkIsland", True)
         self.setFixedWidth(362)
         self.setMinimumHeight(540)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
@@ -132,13 +158,17 @@ class CharacterStage(QWidget):
             }
             for _ in range(24)
         ]
-        self._build_ui()
-        self.set_art(art_name)
-        self._timer = QTimer(self)
-        self._timer.setInterval(50)
-        self._timer.timeout.connect(self._animate)
-        self._timer.start()
-        self.setStyleSheet(self._local_qss())
+        _theme.begin_dark_island()
+        try:
+            self._build_ui()
+            self.set_art(art_name)
+            self._timer = QTimer(self)
+            self._timer.setInterval(50)
+            self._timer.timeout.connect(self._animate)
+            self._timer.start()
+            self.setStyleSheet(self._local_qss())
+        finally:
+            _theme.end_dark_island()
 
     # ------------------------------------------------------------------ ui
     def _local_qss(self) -> str:
@@ -248,7 +278,7 @@ class CharacterStage(QWidget):
         qlay.setSpacing(4)
         qtop = QHBoxLayout()
         qtop.setSpacing(7)
-        self.quote_avatar = Avatar("black.png", 24)
+        self.quote_avatar = Avatar("black.png", 24, ring=theme.GOLD_BRIGHT)
         qtop.addWidget(self.quote_avatar)
         self.quote_name = QLabel("Black")
         self.quote_name.setObjectName("StageName")

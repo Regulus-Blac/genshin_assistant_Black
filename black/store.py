@@ -47,6 +47,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "last_local_track": "",
     "character": "vodyanitsa",
     "look": "",
+    "appearance": "dark",
     "api_base": "https://api.deepseek.com",
     "api_model": "deepseek-flash",
     "api_key": "",
@@ -240,6 +241,8 @@ class Store:
             settings["api_model"] = "deepseek-flash"
         if not settings.get("character"):
             settings["character"] = "vodyanitsa"
+        if str(settings.get("appearance", "dark")).lower() not in ("dark", "light", "day"):
+            settings["appearance"] = "dark"
         if "exams" not in data or not isinstance(data.get("exams"), list):
             data["exams"] = _default_exams()
         if "subjects" not in data or not isinstance(data.get("subjects"), list):

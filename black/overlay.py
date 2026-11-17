@@ -7,7 +7,23 @@ from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen, QRadialGradient
 from PyQt5.QtWidgets import QWidget
 
-from . import theme
+from . import theme as _theme
+
+
+class _OverlayPalette:
+    GOLD = "#d9bc7d"
+    GOLD_BRIGHT = "#f3ddaa"
+    GOLD_SOFT = "#a98e5c"
+    TEXT_SOFT = "#d7cdbb"
+    MUTED = "#a89d8b"
+    FAINT = "#858a82"
+    TEAL = "#72d3ce"
+
+    def __getattr__(self, name):
+        return getattr(_theme, name)
+
+
+theme = _OverlayPalette()
 
 
 class LevelUpOverlay(QWidget):
@@ -15,6 +31,7 @@ class LevelUpOverlay(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setProperty("darkIsland", True)
         self._ups: list[dict] = []
         self._phase = 0.0
         self._timer = QTimer(self)

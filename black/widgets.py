@@ -57,10 +57,11 @@ class IconButton(QToolButton):
         *,
         size: int = 18,
         button_size: int = 34,
-        color: str = theme.GOLD,
+        color: str | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        color = color or theme.GOLD
         self.setIcon(theme.icon(icon_name, color, size))
         self.setIconSize(QSize(size, size))
         self.setFixedSize(button_size, button_size)
@@ -78,13 +79,13 @@ class Avatar(QWidget):
         source: str | Path | QPixmap,
         size: int = 48,
         *,
-        ring: str = theme.GOLD,
+        ring: str | None = None,
         show_status: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._size = size
-        self._ring = ring
+        self._ring = ring or theme.GOLD
         self._show_status = show_status
         self._active = False
         self._pix: QPixmap | None = None
@@ -196,13 +197,13 @@ class ProgressBar(QWidget):
         self,
         value: float = 0.0,
         *,
-        color: str = theme.GOLD,
+        color: str | None = None,
         height: int = 5,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._value = max(0.0, min(1.0, float(value)))
-        self._color = color
+        self._color = color or theme.GOLD
         self.setFixedHeight(height)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._anim: QPropertyAnimation | None = None
@@ -239,14 +240,20 @@ class ProgressBar(QWidget):
         p.setRenderHint(QPainter.Antialiasing, True)
         rect = QRectF(0, (self.height() - 4) / 2, self.width(), 4)
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor(255, 255, 255, 22))
+        if theme.is_light():
+            p.setBrush(QColor(53, 44, 32, 32))
+        else:
+            p.setBrush(QColor(255, 255, 255, 22))
         p.drawRoundedRect(rect, 2, 2)
         if self._value <= 0:
             return
         w = max(3.0, rect.width() * self._value)
         fill = QRectF(rect.left(), rect.top(), w, rect.height())
         grad = QLinearGradient(fill.topLeft(), fill.topRight())
-        grad.setColorAt(0.0, theme.mix(self._color, "#0b1119", 0.15))
+        if theme.is_light():
+            grad.setColorAt(0.0, theme.mix(self._color, theme.BG2, 0.20))
+        else:
+            grad.setColorAt(0.0, theme.mix(self._color, "#0b1119", 0.15))
         grad.setColorAt(0.7, QColor(self._color))
         grad.setColorAt(1.0, QColor(theme.GOLD_BRIGHT))
         p.setBrush(grad)
@@ -359,16 +366,16 @@ class ToggleSwitch(QAbstractButton):
         track = QColor(theme.GOLD_DARK)
         track.setAlpha(int(120 + 80 * self._position))
         if not self.isChecked():
-            track = QColor("#3b4750")
-        p.setPen(QPen(QColor(255, 255, 255, 35), 1))
+            track = QColor("#c9bda9" if theme.is_light() else "#3b4750")
+        p.setPen(QPen(QColor(53, 44, 32, 45) if theme.is_light() else QColor(255, 255, 255, 35), 1))
         p.setBrush(track)
         p.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
         knob_x = 4 + self._position * (self.width() - 22)
         knob = QRectF(knob_x, 4, 16, 16)
         grad = QRadialGradient(knob.center() - QPointF(2, 2), 12)
         grad.setColorAt(0, QColor("#fff8e6"))
-        grad.setColorAt(1, QColor(theme.GOLD if self.isChecked() else "#a8aaa5"))
-        p.setPen(QPen(QColor("#fff4d4" if self.isChecked() else "#c6c8c0"), 0.8))
+        grad.setColorAt(1, QColor(theme.GOLD if self.isChecked() else ("#b9ad99" if theme.is_light() else "#a8aaa5")))
+        p.setPen(QPen(QColor("#fff4d4" if self.isChecked() else ("#eee5d6" if theme.is_light() else "#c6c8c0")), 0.8))
         p.setBrush(grad)
         p.drawEllipse(knob)
 
@@ -449,7 +456,7 @@ class LevelBadge(QWidget):
         p.setPen(QPen(QColor(217, 188, 125, 80), 1.0))
         p.drawRoundedRect(rect, 8, 8)
         p.setFont(theme.font(10, theme.SERIF, 500))
-        p.setPen(QColor("#f0d9a5"))
+        p.setPen(QColor(theme.GOLD_SOFT if theme.is_light() else "#f0d9a5"))
         p.drawText(rect, Qt.AlignCenter, f"Lv.{self._level} {self._title}")
 
 

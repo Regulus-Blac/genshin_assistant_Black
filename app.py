@@ -21,7 +21,7 @@ from PyQt5.QtCore import QLockFile, Qt  # noqa: E402
 from PyQt5.QtGui import QIcon  # noqa: E402
 from PyQt5.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
-from black import __version__  # noqa: E402
+from black import __version__, theme  # noqa: E402
 from black.mainwindow import MainWindow  # noqa: E402
 from black.paths import DATA_DIR, IMAGES, ensure_dirs  # noqa: E402
 from black.store import Store  # noqa: E402
@@ -84,7 +84,6 @@ def run() -> int:
     app.setOrganizationName("Black")
     app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(QIcon(str(IMAGES / "app_icon.png")))
-    apply_theme(app)
     sys.excepthook = _exception_hook
 
     lock = QLockFile(str(DATA_DIR / "black.lock"))
@@ -103,6 +102,11 @@ def run() -> int:
         logging.exception("Failed to open the local store")
         QMessageBox.critical(None, "Black 无法启动", f"本地数据读取失败：\n{e}")
         return 1
+
+    # Read the appearance preference before constructing any window so a
+    # daylight start doesn't flash dark cards.
+    theme.set_mode(str(store.settings.get("appearance", "dark")))
+    apply_theme(app)
 
     try:
         window = MainWindow(store)

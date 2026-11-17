@@ -7,6 +7,7 @@ Black 是一个本地优先的 Windows 桌面学习助手：用提瓦特风格�
 - 修习计时、考试倒计时、等级与连续修习
 - 每日 Markdown 手札
 - 35 位角色、72 幅看板立绘，可自由切换
+- 夜晚 / 白天双主题：默认夜晚，导航栏太阳/月亮按钮或「设置 → 外观」切换
 - 本地曲库、在线寻音、B 站/视频链接转 MP3
 - 可选 AI 对话；不填 API Key 时使用离线陪伴模式
 - 派蒙主题桌面悄悄话、系统托盘、角色互动
@@ -41,6 +42,7 @@ python app.py
 3. 点某个修习方向右侧的播放按钮开始计时，关闭窗口默认收进托盘，计时继续。
 4. 左下角「角色」可以切换看板角色和立绘。
 5. 「乐音」页可以选择本地文件夹；顶部的「导入音乐」支持 B 站搜索或视频链接转 MP3。
+6. 导航栏右侧的太阳/月亮按钮可以在夜晚和白天之间切换；也可以在「设置 → 外观」里选择。选择会保存到本地 `data/black.json`。
 
 ## AI 对话与 API Key
 
@@ -93,6 +95,7 @@ python -m pip install -r requirements.txt
 python tools/test_core.py
 python tools/test_flows.py
 python tools/test_characters.py
+python tools/test_theme.py
 ```
 
 主要目录：

@@ -183,25 +183,49 @@ class JournalPage(QWidget):
             )
         except Exception:
             body = f"<pre>{text}</pre>"
+        if theme.is_light():
+            body_css = f"""
+            body {{ color: #2f261b; font-family: 'Noto Sans SC'; font-size: 12.5px; line-height: 1.75; }}
+            h1 {{ font-family: 'Noto Serif SC'; color: #7f5d28; font-size: 22px; margin: 2px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #d9cbb5; }}
+            h2 {{ font-family: 'Noto Serif SC'; color: {theme.GOLD_SOFT}; font-size: 16px; margin: 20px 0 6px 0; }}
+            h3 {{ font-family: 'Noto Serif SC'; color: #5f4b31; font-size: 13.5px; margin: 14px 0 4px 0; }}
+            p {{ margin: 5px 0; }}
+            blockquote {{ color: #6b583c; background: #f4ecde; border-left: 3px solid {theme.GOLD}; margin: 10px 0; padding: 8px 12px; }}
+            strong {{ color: {theme.GOLD_SOFT}; }}
+            em {{ color: {theme.MUTED}; }}
+            table {{ border-collapse: collapse; width: 100%; margin: 8px 0 10px 0; }}
+            th {{ background: #efe3d0; color: #4a3d2b; padding: 6px 7px; border: 1px solid #d9cbb5; font-weight: 600; text-align: left; }}
+            td {{ padding: 5px 7px; border: 1px solid #e0d4c0; color: #5a4d3b; }}
+            tr:nth-child(even) td {{ background: #f8f1e4; }}
+            code {{ color: #8a5f24; background: #f0e5d3; }}
+            hr {{ border: none; border-top: 1px solid #ddd0ba; margin: 18px 0; }}
+            ul, ol {{ margin: 5px 0 5px 18px; }}
+            li {{ margin: 2px 0; }}
+            a {{ color: {theme.GOLD_SOFT}; }}
+            """
+        else:
+            body_css = """
+            body { color: #e9e1d2; font-family: 'Noto Sans SC'; font-size: 12.5px; line-height: 1.75; }
+            h1 { font-family: 'Noto Serif SC'; color: #f3ddaa; font-size: 22px; margin: 2px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #4b432f; }
+            h2 { font-family: 'Noto Serif SC'; color: #d9bc7d; font-size: 16px; margin: 20px 0 6px 0; }
+            h3 { font-family: 'Noto Serif SC'; color: #cbbd9d; font-size: 13.5px; margin: 14px 0 4px 0; }
+            p { margin: 5px 0; }
+            blockquote { color: #d5c5a3; background: #182331; border-left: 3px solid #a98e5c; margin: 10px 0; padding: 8px 12px; }
+            strong { color: #f3ddaa; }
+            em { color: #a89d8b; }
+            table { border-collapse: collapse; width: 100%; margin: 8px 0 10px 0; }
+            th { background: #1b2838; color: #e6d6b4; padding: 6px 7px; border: 1px solid #39404a; font-weight: 600; text-align: left; }
+            td { padding: 5px 7px; border: 1px solid #303b47; color: #d9d1c2; }
+            tr:nth-child(even) td { background: #141f2b; }
+            code { color: #e5c98e; background: #17212c; }
+            hr { border: none; border-top: 1px solid #3a403d; margin: 18px 0; }
+            ul, ol { margin: 5px 0 5px 18px; }
+            li { margin: 2px 0; }
+            a { color: #d9bc7d; }
+            """
         html = f"""
         <html><head><style>
-        body {{ color: #e9e1d2; font-family: 'Noto Sans SC'; font-size: 12.5px; line-height: 1.75; }}
-        h1 {{ font-family: 'Noto Serif SC'; color: #f3ddaa; font-size: 22px; margin: 2px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #4b432f; }}
-        h2 {{ font-family: 'Noto Serif SC'; color: #d9bc7d; font-size: 16px; margin: 20px 0 6px 0; }}
-        h3 {{ font-family: 'Noto Serif SC'; color: #cbbd9d; font-size: 13.5px; margin: 14px 0 4px 0; }}
-        p {{ margin: 5px 0; }}
-        blockquote {{ color: #d5c5a3; background: #182331; border-left: 3px solid #a98e5c; margin: 10px 0; padding: 8px 12px; }}
-        strong {{ color: #f3ddaa; }}
-        em {{ color: #a89d8b; }}
-        table {{ border-collapse: collapse; width: 100%; margin: 8px 0 10px 0; }}
-        th {{ background: #1b2838; color: #e6d6b4; padding: 6px 7px; border: 1px solid #39404a; font-weight: 600; text-align: left; }}
-        td {{ padding: 5px 7px; border: 1px solid #303b47; color: #d9d1c2; }}
-        tr:nth-child(even) td {{ background: #141f2b; }}
-        code {{ color: #e5c98e; background: #17212c; }}
-        hr {{ border: none; border-top: 1px solid #3a403d; margin: 18px 0; }}
-        ul, ol {{ margin: 5px 0 5px 18px; }}
-        li {{ margin: 2px 0; }}
-        a {{ color: #d9bc7d; }}
+        {body_css}
         </style></head><body>{body}</body></html>
         """
         self.preview.setHtml(html)

@@ -1,6 +1,7 @@
 """Visual language for Black: midnight ink, pale gold and Teyvat glass."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from PyQt5.QtCore import QByteArray, QPointF, QRectF, Qt
@@ -24,27 +25,105 @@ from .paths import FONTS, IMAGES
 # ---------------------------------------------------------------------------
 # palette
 # ---------------------------------------------------------------------------
-INK = "#070b11"
-BG = "#0a1019"
-BG2 = "#0e1722"
-PANEL = "#121c28"
-PANEL2 = "#172333"
-PANEL3 = "#1c2a3b"
-GOLD = "#d9bc7d"
-GOLD_BRIGHT = "#f3ddaa"
-GOLD_SOFT = "#a98e5c"
-GOLD_DARK = "#6f5a36"
-TEXT = "#eee7da"
-TEXT_SOFT = "#d7cdbb"
-MUTED = "#a89d8b"
-FAINT = "#6f746f"
-TEAL = "#72d3ce"
-HYDRO = "#6fc7e8"
-GREEN = "#9aca84"
-PURPLE = "#bda0e8"
-ROSE = "#e39a91"
-RED = "#d87373"
-WHITE = "#fbf7ee"
+_DARK = {
+    "INK": "#070b11",
+    "BG": "#0a1019",
+    "BG2": "#0e1722",
+    "PANEL": "#121c28",
+    "PANEL2": "#172333",
+    "PANEL3": "#1c2a3b",
+    "GOLD": "#d9bc7d",
+    "GOLD_BRIGHT": "#f3ddaa",
+    "GOLD_SOFT": "#a98e5c",
+    "GOLD_DARK": "#6f5a36",
+    "TEXT": "#eee7da",
+    "TEXT_SOFT": "#d7cdbb",
+    "MUTED": "#a89d8b",
+    "FAINT": "#6f746f",
+    "TEAL": "#72d3ce",
+    "HYDRO": "#6fc7e8",
+    "GREEN": "#9aca84",
+    "PURPLE": "#bda0e8",
+    "ROSE": "#e39a91",
+    "RED": "#d87373",
+    "WHITE": "#fbf7ee",
+}
+
+# A warm, sunlit atelier.  Gold becomes a little deeper so it remains legible
+# on parchment; the character stage and Paimon popup intentionally stay as
+# dark "night glass" islands, which keeps the portraits dramatic in daylight.
+_LIGHT = {
+    "INK": "#f8f2e6",
+    "BG": "#f0e8d9",
+    "BG2": "#e8ddca",
+    "PANEL": "#fcf7ed",
+    "PANEL2": "#f4ecde",
+    "PANEL3": "#eadfca",
+    "GOLD": "#987536",
+    "GOLD_BRIGHT": "#b1873e",
+    "GOLD_SOFT": "#80612b",
+    "GOLD_DARK": "#c9b58d",
+    "TEXT": "#352c20",
+    "TEXT_SOFT": "#4a3d2d",
+    "MUTED": "#5b4d3a",
+    "FAINT": "#786853",
+    "TEAL": "#2f817d",
+    "HYDRO": "#2d7f9f",
+    "GREEN": "#5f8f4e",
+    "PURPLE": "#7658a8",
+    "ROSE": "#b05d59",
+    "RED": "#b24c4c",
+    "WHITE": "#fffaf0",
+}
+
+MODE = "dark"
+INK = _DARK["INK"]
+BG = _DARK["BG"]
+BG2 = _DARK["BG2"]
+PANEL = _DARK["PANEL"]
+PANEL2 = _DARK["PANEL2"]
+PANEL3 = _DARK["PANEL3"]
+GOLD = _DARK["GOLD"]
+GOLD_BRIGHT = _DARK["GOLD_BRIGHT"]
+GOLD_SOFT = _DARK["GOLD_SOFT"]
+GOLD_DARK = _DARK["GOLD_DARK"]
+TEXT = _DARK["TEXT"]
+TEXT_SOFT = _DARK["TEXT_SOFT"]
+MUTED = _DARK["MUTED"]
+FAINT = _DARK["FAINT"]
+TEAL = _DARK["TEAL"]
+HYDRO = _DARK["HYDRO"]
+GREEN = _DARK["GREEN"]
+PURPLE = _DARK["PURPLE"]
+ROSE = _DARK["ROSE"]
+RED = _DARK["RED"]
+WHITE = _DARK["WHITE"]
+
+
+def normalize_mode(mode: str | None) -> str:
+    return "light" if str(mode or "").lower() in ("light", "day", "白", "白天") else "dark"
+
+
+def set_mode(mode: str | None) -> str:
+    """Switch the palette used by new widgets and all custom painters."""
+    global MODE, INK, BG, BG2, PANEL, PANEL2, PANEL3
+    global GOLD, GOLD_BRIGHT, GOLD_SOFT, GOLD_DARK
+    global TEXT, TEXT_SOFT, MUTED, FAINT
+    global TEAL, HYDRO, GREEN, PURPLE, ROSE, RED, WHITE
+    MODE = normalize_mode(mode)
+    palette = _LIGHT if MODE == "light" else _DARK
+    for key, value in palette.items():
+        globals()[key] = value
+    return MODE
+
+
+def is_light() -> bool:
+    return MODE == "light"
+
+
+def mode_label() -> str:
+    return "白天" if MODE == "light" else "夜晚"
+
 
 SERIF = "Noto Serif SC"
 SANS = "Noto Sans SC"
@@ -154,6 +233,8 @@ _ICONS = {
     "calendar": '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
     "external": '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5H5V6h5"/>',
     "stop": '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="{c}" stroke="none"/>',
+    "sun": '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.2M12 19.6v2.2M2.2 12h2.2M19.6 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>',
+    "moon": '<path d="M20.2 15.2A8.3 8.3 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2z"/>',
 }
 
 _icon_cache: dict[tuple, QIcon] = {}
@@ -585,7 +666,215 @@ def stylesheet() -> str:
     out = _QSS
     for key, value in replacements.items():
         out = out.replace(key, value)
+    if MODE == "light":
+        out = lighten_qss(out) + _light_overrides()
     return out
+
+
+def _light_overrides() -> str:
+    """A few hand-tuned surfaces that benefit from more than a colour remap."""
+    return f"""
+QWidget#RootCard {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #fcf7ec, stop:0.46 #f4ead9, stop:1 #eadcc5);
+    border: 1px solid rgba(152, 117, 54, 115);
+    border-radius: 20px;
+}}
+QWidget#RootCard[maximized="true"] {{ border: none; border-radius: 0px; }}
+QFrame#GlassCard, QFrame[glass="true"] {{
+    background: rgba(255, 249, 238, 232);
+    border: 1px solid rgba(152, 117, 54, 62);
+}}
+QFrame#InnerCard {{
+    background: rgba(255, 251, 243, 190);
+    border: 1px solid rgba(152, 117, 54, 42);
+}}
+QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QComboBox, QDateEdit, QTimeEdit {{
+    background: rgba(255, 252, 247, 242);
+    color: {TEXT};
+    border: 1px solid rgba(152, 117, 54, 58);
+}}
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QSpinBox:focus,
+QComboBox:focus, QDateEdit:focus, QTimeEdit:focus {{
+    background: #fffdf8;
+    border: 1px solid rgba(152, 117, 54, 135);
+}}
+QPushButton#Ghost {{
+    background: rgba(255, 250, 240, 135);
+    border: 1px solid rgba(152, 117, 54, 78);
+    color: {TEXT_SOFT};
+}}
+QMenu, QComboBox QAbstractItemView {{
+    background: #fbf5e9;
+    border: 1px solid rgba(152, 117, 54, 85);
+    color: {TEXT};
+}}
+QToolTip {{
+    background: #fffaf0;
+    color: {TEXT};
+    border: 1px solid rgba(152, 117, 54, 95);
+}}
+QWidget#DialogCard {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #fdf8ef, stop:1 #f0e5d3);
+    border: 1px solid rgba(152, 117, 54, 105);
+}}
+QCalendarWidget QWidget {{ background: #fbf5e9; color: {TEXT}; }}
+QCalendarWidget QAbstractItemView:enabled {{
+    background: #fbf5e9;
+    color: {TEXT_SOFT};
+    selection-background-color: rgba(152, 117, 54, 35);
+    selection-color: {TEXT};
+}}
+"""
+
+
+# A few surfaces and text colours are still literal in the original dark QSS.
+# For daylight mode we remap them instead of duplicating the entire stylesheet.
+_HEX_MAP = {
+    "#070b11": "#f6efe2",
+    "#0a1019": "#f3ebdd",
+    "#0a1018": "#f6efe2",
+    "#0d1622": "#fcf8ef",
+    "#0b131d": "#f3ecde",
+    "#0a111a": "#f7f0e3",
+    "#0b1119": "#f1e7d5",
+    "#0b121b": "#f0e6d3",
+    "#0e1722": "#faf4e8",
+    "#101e2d": "#f3efe6",
+    "#111a24": "#fbf6ed",
+    "#111a25": "#fbf6ed",
+    "#111b26": "#f7f0e3",
+    "#111c29": "#fbf6ed",
+    "#121b27": "#fbf6ed",
+    "#121c28": "#fbf6ed",
+    "#141f2b": "#f4ebdc",
+    "#141f2d": "#f4ebdc",
+    "#152333": "#f3eadb",
+    "#16202d": "#f7f0e3",
+    "#172333": "#f1e8d8",
+    "#1b2838": "#f4e9d6",
+    "#1c2a3b": "#eadfca",
+    "#20344f": "#eef4ee",
+    "#14253c": "#f3eee4",
+    "#0b1628": "#f0e8da",
+    "#eee7da": "#3b3125",
+    "#d7cdbb": "#4a3d2d",
+    "#a89d8b": "#5b4d3a",
+    "#e9f2ee": "#352c20",
+    "#f0d9a5": "#87652c",
+    "#e6d49b": "#87652c",
+    "#f3ddaa": "#9b7838",
+    "#e8ddbd": "#6b583c",
+    "#fbf7ee": "#3a3024",
+    "#a98e5c": "#80612b",
+    "#e7b1a8": "#a75a56",
+    "#e5a19a": "#a75a56",
+    "#6f5a36": "#b9a37d",
+}
+
+_RGBA_MAP = {
+    (20, 31, 45, 190): (255, 250, 240, 235),
+    (20, 31, 45, 215): (255, 250, 240, 238),
+    (18, 28, 40, 175): (255, 250, 240, 228),
+    (27, 42, 59, 235): (255, 250, 240, 242),
+    (13, 21, 31, 235): (248, 240, 226, 242),
+    (24, 38, 53, 230): (255, 250, 240, 242),
+    (24, 38, 53, 220): (255, 250, 240, 240),
+    (33, 60, 64, 215): (226, 242, 237, 235),
+    (7, 12, 18, 210): (255, 250, 240, 242),
+    (7, 12, 18, 198): (255, 250, 240, 240),
+    (7, 12, 18, 170): (255, 250, 240, 235),
+    (10, 17, 26, 210): (255, 252, 246, 245),
+    (18, 28, 40, 175): (255, 250, 240, 228),
+    (8, 14, 22, 118): (255, 252, 246, 170),
+    (8, 14, 21, 75): (80, 65, 45, 10),
+    (8, 14, 21, 88): (80, 65, 45, 12),
+    (8, 14, 21, 100): (80, 65, 45, 14),
+    (8, 13, 20, 120): (255, 250, 240, 210),
+    (8, 13, 20, 130): (255, 250, 240, 215),
+    (8, 13, 20, 140): (255, 250, 240, 220),
+    (8, 14, 21, 165): (255, 250, 240, 228),
+    (8, 14, 21, 185): (255, 250, 240, 236),
+    (8, 13, 20, 180): (255, 252, 246, 235),
+    (255, 255, 255, 4): (70, 55, 35, 10),
+    (255, 255, 255, 5): (70, 55, 35, 12),
+    (255, 255, 255, 7): (70, 55, 35, 14),
+    (255, 255, 255, 8): (70, 55, 35, 16),
+    (255, 255, 255, 9): (70, 55, 35, 18),
+    (255, 255, 255, 22): (70, 55, 35, 34),
+    (255, 255, 255, 35): (70, 55, 35, 48),
+}
+
+_HEX_RE = re.compile(r"#[0-9a-fA-F]{6}")
+_RGBA_RE = re.compile(r"rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)")
+
+
+def lighten_qss(text: str) -> str:
+    """Turn a dark QSS snippet into its parchment equivalent.
+
+    Dark islands (the character stage, Paimon note and level-up veil) opt out
+    via the ``darkIsland`` widget property, so their night-sky look survives.
+    """
+    if not text or MODE != "light":
+        return text
+
+    def hex_sub(match: re.Match) -> str:
+        return _HEX_MAP.get(match.group(0).lower(), match.group(0))
+
+    def rgba_sub(match: re.Match) -> str:
+        key = tuple(int(x) for x in match.groups())
+        out = _RGBA_MAP.get(key)
+        if out is None:
+            return match.group(0)
+        return f"rgba({out[0]},{out[1]},{out[2]},{out[3]})"
+
+    return _RGBA_RE.sub(rgba_sub, _HEX_RE.sub(hex_sub, text))
+
+
+_DARK_BUILD_DEPTH = 0
+
+
+def begin_dark_island() -> None:
+    global _DARK_BUILD_DEPTH
+    _DARK_BUILD_DEPTH += 1
+
+
+def end_dark_island() -> None:
+    global _DARK_BUILD_DEPTH
+    _DARK_BUILD_DEPTH = max(0, _DARK_BUILD_DEPTH - 1)
+
+
+def _is_dark_island(widget: QWidget) -> bool:
+    if _DARK_BUILD_DEPTH:
+        return True
+    cur = widget
+    while cur is not None:
+        try:
+            if bool(cur.property("darkIsland")):
+                return True
+        except Exception:
+            pass
+        cur = cur.parentWidget()
+    return False
+
+
+def install_qss_hook() -> None:
+    if getattr(QWidget, "_black_light_qss_hook", False):
+        return
+    original = QWidget.setStyleSheet
+
+    def set_style_sheet(self, sheet):
+        if MODE == "light" and sheet and not _is_dark_island(self):
+            sheet = lighten_qss(str(sheet))
+        original(self, sheet)
+
+    QWidget.setStyleSheet = set_style_sheet
+    QWidget._black_light_qss_hook = True
+
+
+install_qss_hook()
+
 
 
 def apply_theme(app: QApplication) -> None:

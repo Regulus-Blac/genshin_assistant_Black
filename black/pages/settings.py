@@ -3,9 +3,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PyQt5.QtCore import Qt, QThread, QUrl
+from PyQt5.QtCore import QSize, Qt, QThread, QUrl
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import (
+    QButtonGroup,
     QComboBox,
     QFileDialog,
     QFrame,
@@ -16,6 +17,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -61,6 +63,44 @@ class SettingsDialog(GenshinDialog):
         lay.setSpacing(13)
         scroll.setWidget(host)
         self.body.addWidget(scroll)
+
+        # -- appearance --
+        lay.addWidget(self._section("外观", "APPEARANCE"))
+        ap = self._grid()
+        self.appearance_group = QButtonGroup(self)
+        self.appearance_group.setExclusive(True)
+        appearance_row = QHBoxLayout()
+        appearance_row.setContentsMargins(0, 0, 0, 0)
+        appearance_row.setSpacing(7)
+        current_appearance = theme.normalize_mode(self.store.settings.get("appearance", "dark"))
+        for mode, label, icon_name in (("dark", "夜晚模式", "moon"), ("light", "白天模式", "sun")):
+            btn = QToolButton()
+            btn.setCheckable(True)
+            btn.setChecked(mode == current_appearance)
+            btn.setText(label)
+            btn.setIcon(theme.icon(icon_name, theme.GOLD_SOFT, 14))
+            btn.setIconSize(QSize(14, 14))
+            btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedHeight(32)
+            btn.setProperty("mode", mode)
+            btn.setStyleSheet(
+                f"QToolButton {{ background: rgba(255,255,255,5); border: 1px solid rgba(217,188,125,35); "
+                "border-radius: 8px; padding: 3px 11px; color: #d7cdbb; font-size: 10px; } "
+                f"QToolButton:hover {{ border-color: rgba(217,188,125,90); color: {theme.GOLD_BRIGHT}; }} "
+                f"QToolButton:checked {{ border-color: {theme.GOLD}; background: rgba(217,188,125,16); "
+                f"color: {theme.GOLD_BRIGHT}; }}"
+            )
+            self.appearance_group.addButton(btn)
+            appearance_row.addWidget(btn)
+        appearance_row.addStretch(1)
+        ap.addWidget(self._label("主题"), 0, 0)
+        ap.addLayout(appearance_row, 0, 1)
+        theme_note = QLabel("夜晚模式是默认配色；白天模式使用暖色纸面与深金文字，左侧角色舞台和派蒙悄悄话会保留夜空感。切换立即生效，计时不会中断。")
+        theme_note.setWordWrap(True)
+        theme_note.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
+        ap.addWidget(theme_note, 1, 0, 1, 2)
+        lay.addWidget(self._wrap(ap))
 
         # -- companion --
         lay.addWidget(self._section("陪伴与低语", "COMPANION"))
@@ -354,8 +394,11 @@ class SettingsDialog(GenshinDialog):
 
     def _save(self) -> None:
         name = self.name_edit.text().strip() or "旅行者"
+        checked = self.appearance_group.checkedButton()
+        appearance = str(checked.property("mode")) if checked is not None else "dark"
         self.result_data = {
             "user_name": name[:18],
+            "appearance": appearance,
             "quote_interval_min": int(self.interval_spin.value()),
             "desktop_whisper": bool(self.whisper_toggle.isChecked()),
             "tts_enabled": bool(self.tts_toggle.isChecked()),

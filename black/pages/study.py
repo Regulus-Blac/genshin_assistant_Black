@@ -7,6 +7,7 @@ from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen, Q
 from PyQt5.QtWidgets import (
     QDialog,
     QFrame,
+    QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -46,6 +47,12 @@ class ExamCard(QFrame):
         self.setAttribute(Qt.WA_StyledBackground, False)
         self.setMinimumHeight(104)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        if theme.is_light():
+            shadow = QGraphicsDropShadowEffect(self)
+            shadow.setBlurRadius(22)
+            shadow.setOffset(0, 5)
+            shadow.setColor(QColor(91, 69, 38, 38))
+            self.setGraphicsEffect(shadow)
         self._build()
 
     def _build(self) -> None:
@@ -127,19 +134,29 @@ class ExamCard(QFrame):
         path.addRoundedRect(rect, 13, 13)
         color = QColor(self.exam.get("color", theme.GOLD))
         grad = QLinearGradient(rect.topLeft(), rect.bottomRight())
-        c1 = QColor(24, 37, 53, 230) if not self._hover else QColor(30, 46, 65, 240)
-        grad.setColorAt(0, c1)
-        grad.setColorAt(0.65, QColor(14, 23, 34, 230))
-        grad.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 22))
-        p.setBrush(grad)
-        p.setPen(QPen(QColor(color.red(), color.green(), color.blue(), 100 if self._hover else 44), 1.0))
-        p.drawPath(path)
+        if theme.is_light():
+            c1 = QColor(255, 251, 243, 248) if not self._hover else QColor(255, 247, 235, 252)
+            c2 = QColor(248, 239, 225, 246)
+            grad.setColorAt(0, c1)
+            grad.setColorAt(0.65, c2)
+            grad.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 28))
+            p.setBrush(grad)
+            p.setPen(QPen(QColor(color.red(), color.green(), color.blue(), 115 if self._hover else 62), 1.0))
+            p.drawPath(path)
+        else:
+            c1 = QColor(24, 37, 53, 230) if not self._hover else QColor(30, 46, 65, 240)
+            grad.setColorAt(0, c1)
+            grad.setColorAt(0.65, QColor(14, 23, 34, 230))
+            grad.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 22))
+            p.setBrush(grad)
+            p.setPen(QPen(QColor(color.red(), color.green(), color.blue(), 100 if self._hover else 44), 1.0))
+            p.drawPath(path)
 
         # faint elemental watermark
         p.save()
         p.setClipPath(path)
         water = QRectF(rect.right() - 118, rect.top() - 24, 144, 144)
-        theme.draw_orb(p, water, str(self.exam.get("element", "hydro")), glow=False, alpha=18)
+        theme.draw_orb(p, water, str(self.exam.get("element", "hydro")), glow=False, alpha=24 if theme.is_light() else 18)
         # corner ticks
         p.setPen(QPen(QColor(color.red(), color.green(), color.blue(), 90), 1.0))
         p.drawLine(QPoint(15, 9), QPoint(34, 9))
@@ -205,6 +222,12 @@ class SubjectCard(QFrame):
         self.setAttribute(Qt.WA_StyledBackground, False)
         self.setMinimumHeight(170)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        if theme.is_light():
+            shadow = QGraphicsDropShadowEffect(self)
+            shadow.setBlurRadius(24)
+            shadow.setOffset(0, 6)
+            shadow.setColor(QColor(91, 69, 38, 42))
+            self.setGraphicsEffect(shadow)
         self._build()
         self.update_info(info)
 
@@ -346,20 +369,38 @@ class SubjectCard(QFrame):
         path.addRoundedRect(rect, 14, 14)
         color = QColor(str(self.info.get("color", theme.GOLD)))
         grad = QLinearGradient(rect.topLeft(), rect.bottomRight())
-        base1 = QColor(26, 40, 56, 235) if self._hover else QColor(21, 33, 47, 235)
-        base2 = QColor(13, 21, 31, 235)
-        if self._active:
-            base1 = QColor(color.red() // 4 + 18, color.green() // 4 + 27, color.blue() // 4 + 35, 245)
-        grad.setColorAt(0, base1)
-        grad.setColorAt(0.7, base2)
-        grad.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 22 if self._active else 12))
-        p.setBrush(grad)
-        if self._active:
-            border = QColor(color.red(), color.green(), color.blue(), 170)
+        if theme.is_light():
+            if self._active:
+                base1 = theme.mix("#fffaf1", color, 0.14)
+                base2 = theme.mix("#f8f0e1", color, 0.06)
+            else:
+                base1 = QColor(255, 251, 243, 248) if not self._hover else QColor(255, 246, 234, 252)
+                base2 = QColor(248, 239, 225, 246)
+            grad.setColorAt(0, base1)
+            grad.setColorAt(0.7, base2)
+            grad.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 30))
+            p.setBrush(grad)
+            if self._active:
+                border = QColor(color.red(), color.green(), color.blue(), 180)
+            else:
+                border = QColor(217, 188, 125, 120 if self._hover else 62)
+            p.setPen(QPen(border, 1.2 if self._active else 1.0))
+            p.drawPath(path)
         else:
-            border = QColor(217, 188, 125, 80 if self._hover else 35)
-        p.setPen(QPen(border, 1.2 if self._active else 1.0))
-        p.drawPath(path)
+            base1 = QColor(26, 40, 56, 235) if self._hover else QColor(21, 33, 47, 235)
+            base2 = QColor(13, 21, 31, 235)
+            if self._active:
+                base1 = QColor(color.red() // 4 + 18, color.green() // 4 + 27, color.blue() // 4 + 35, 245)
+            grad.setColorAt(0, base1)
+            grad.setColorAt(0.7, base2)
+            grad.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 22 if self._active else 12))
+            p.setBrush(grad)
+            if self._active:
+                border = QColor(color.red(), color.green(), color.blue(), 170)
+            else:
+                border = QColor(217, 188, 125, 80 if self._hover else 35)
+            p.setPen(QPen(border, 1.2 if self._active else 1.0))
+            p.drawPath(path)
 
         p.save()
         p.setClipPath(path)

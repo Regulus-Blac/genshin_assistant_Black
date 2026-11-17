@@ -40,9 +40,28 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from . import theme
+from . import theme as _theme
 from .paths import AVATARS
 from .widgets import IconButton
+
+
+class _PaimonPalette:
+    """Paimon's note stays a dark little night-sky even in daylight mode."""
+
+    GOLD = "#d9bc7d"
+    GOLD_BRIGHT = "#f3ddaa"
+    GOLD_SOFT = "#a98e5c"
+    TEXT = "#eee7da"
+    TEXT_SOFT = "#d7cdbb"
+    MUTED = "#a89d8b"
+    FAINT = "#8a9188"
+    TEAL = "#72d3ce"
+
+    def __getattr__(self, name):
+        return getattr(_theme, name)
+
+
+theme = _PaimonPalette()
 
 PAIMON_ICON = AVATARS / "paimon_official.png"
 CREAM = "#f7edda"
@@ -236,6 +255,7 @@ class PaimonWhisperPopup(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(None, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setProperty("darkIsland", True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         self.setWindowTitle("派蒙的悄悄话")
@@ -243,7 +263,11 @@ class PaimonWhisperPopup(QWidget):
         self._auto_timer = QTimer(self)
         self._auto_timer.setSingleShot(True)
         self._auto_timer.timeout.connect(self._fade_close)
-        self._build()
+        _theme.begin_dark_island()
+        try:
+            self._build()
+        finally:
+            _theme.end_dark_island()
 
     def _build(self) -> None:
         outer = QVBoxLayout(self)

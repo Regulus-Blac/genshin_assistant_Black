@@ -5,7 +5,16 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from PyQt5.QtCore import QPoint, QPointF, QRect, QSize, Qt, QTimer
+from PyQt5.QtCore import (
+    QEasingCurve,
+    QPoint,
+    QPointF,
+    QPropertyAnimation,
+    QRect,
+    QSize,
+    Qt,
+    QTimer,
+)
 from PyQt5.QtGui import QColor, QIcon, QPixmap
 from PyQt5.QtWidgets import (
     QApplication,
@@ -150,6 +159,15 @@ class MainWindow(QMainWindow):
         self.whisper_btn = IconButton("sparkle", "让 Black 说一句", size=16, button_size=30, color=theme.GOLD_SOFT)
         self.whisper_btn.clicked.connect(lambda: self._show_whisper(manual=True))
         nav_lay.addWidget(self.whisper_btn)
+        self.theme_btn = IconButton(
+            "moon" if theme.is_light() else "sun",
+            "切换到夜晚模式" if theme.is_light() else "切换到白天模式",
+            size=16,
+            button_size=30,
+            color=theme.GOLD_SOFT,
+        )
+        self.theme_btn.clicked.connect(self._toggle_appearance)
+        nav_lay.addWidget(self.theme_btn)
         self.settings_btn = IconButton("settings", "设置", size=16, button_size=30, color=theme.MUTED)
         self.settings_btn.clicked.connect(self._open_settings)
         nav_lay.addWidget(self.settings_btn)
@@ -193,6 +211,11 @@ class MainWindow(QMainWindow):
         self.study_page.note_preview_requested.connect(self._open_journal)
         self.study_page.data_changed.connect(self._on_data_changed)
         self.chat_page.open_settings_requested.connect(self._open_settings)
+        # The timer and music engine outlive a theme rebuild.  Connect their
+        # signals only once so a palette switch cannot duplicate callbacks.
+        if getattr(self, "_engine_wired", False):
+            return
+        self._engine_wired = True
         self.timer.tick.connect(self._on_timer_tick)
         self.timer.active_changed.connect(self._on_active_changed)
         self.timer.session_finished.connect(self._on_session_finished)
@@ -556,9 +579,14 @@ class MainWindow(QMainWindow):
             self.setWindowFlag(Qt.WindowStaysOnTopHint, top)
             if visible:
                 self.show()
+        wanted_appearance = data.get("appearance")
+        if wanted_appearance and theme.normalize_mode(wanted_appearance) != theme.MODE:
+            # Rebuild after all settings are saved.  The new widgets read the
+            # updated store and the new palette.
+            self._set_appearance(str(wanted_appearance), persist=False)
+            return
         self.titlebar.set_pinned(top)
         self.chat_page.refresh_status()
-        old_folder = str(self.store.settings.get("music_folder", ""))
         self.music_page.load_local(initial=False)
         self.music_engine.set_volume(int(self.store.settings.get("music_volume", 42) or 42))
         self._schedule_whisper(False)
@@ -567,6 +595,86 @@ class MainWindow(QMainWindow):
         self._refresh_global()
         if data.get("auto_play_bgm") and not self.music_engine.is_playing():
             self.music_page.start_default()
+
+    def _toggle_appearance(self) -> None:
+        self._set_appearance("light" if not theme.is_light() else "dark")
+
+    def _set_appearance(self, mode: str, *, persist: bool = True) -> None:
+        mode = theme.normalize_mode(mode)
+        if mode == theme.MODE:
+            return
+        if persist:
+            self.store.settings["appearance"] = mode
+            self.store.save()
+        theme.set_mode(mode)
+        app = QApplication.instance()
+        if app is not None:
+            theme.apply_theme(app)
+        self._rebuild_for_theme()
+        if self.isVisible():
+            anim = QPropertyAnimation(self, b"windowOpacity", self)
+            anim.setDuration(220)
+            anim.setStartValue(0.58)
+            anim.setEndValue(1.0)
+            anim.setEasingCurve(QEasingCurve.OutCubic)
+            anim.start()
+            self._theme_fade = anim
+
+    def _rebuild_for_theme(self) -> None:
+        """Rebuild the visible UI in place while keeping engines and state.
+
+        The timer, music player, tray and current sessions stay alive; only the
+        widget tree is recreated so every inline style and custom painter picks
+        up the new palette.
+        """
+        page = self.stack.currentIndex() if hasattr(self, "stack") else 0
+        clock = getattr(self, "_clock", None)
+        if clock is not None:
+            clock.stop()
+        old_central = self.takeCentralWidget()
+        if old_central is not None:
+            old_central.hide()
+            old_central.setParent(None)
+            old_central.deleteLater()
+        self._recreate_whisper_popup()
+        self._build_ui()
+        self._wire_signals()
+        self.titlebar.set_pinned(bool(self.store.settings.get("always_on_top", False)))
+        if self._maximized:
+            self.outer.setContentsMargins(0, 0, 0, 0)
+            self.root.setProperty("maximized", "true")
+            self.size_grip.hide()
+        else:
+            self.outer.setContentsMargins(18, 18, 18, 18)
+            self.root.setProperty("maximized", "false")
+        theme.set_prop(self.root, "maximized", "true" if self._maximized else "false")
+        self.setProperty("customMaximized", self._maximized)
+        self.titlebar.set_maximized_icon(self._maximized)
+        self._restore_character()
+        self._refresh_global()
+        self._set_initial_quote()
+        self._goto_page(page)
+        self._update_tray_status()
+        self._update_clock()
+        self._update_music_initial()
+        if self.overlay.isVisible():
+            self.overlay.setGeometry(self.rect())
+            self.overlay.raise_()
+        self._schedule_whisper(False)
+        if clock is not None:
+            clock.start()
+
+    def _recreate_whisper_popup(self) -> None:
+        old = getattr(self, "_whisper_popup", None)
+        if old is not None:
+            try:
+                old.close()
+                old.deleteLater()
+            except Exception:
+                pass
+        self._whisper_popup = PaimonWhisperPopup()
+        self._whisper_popup.another_requested.connect(self._whisper_another)
+        self._whisper_popup.accepted.connect(lambda: self.sounds.interact())
 
     def _on_pin_toggled(self, checked: bool) -> None:
         self.store.settings["always_on_top"] = bool(checked)
