@@ -1,0 +1,53 @@
+# Python / build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+build/
+.venv/
+.vscode/
+.idea/
+
+# Local/private runtime state
+data/
+journal/
+cache/
+*.log
+*.lock
+
+# Raw source art and 3D models (large, personal)
+model/
+Vodyanitsa_image/
+除了沃雅妮莎之外/
+
+# Screenshots can contain personal exams, journal entries or local music
+docs/screenshots/
+
+# Downloaded / personal music (generated WAVs live in assets/music and are kept)
+*.mp3
+*.m4a
+*.flac
+*.aac
+*.ogg
+*.wma
+*.opus
+
+# Secrets and credentials
+.env
+.env.*
+secrets/
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+credentials*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp

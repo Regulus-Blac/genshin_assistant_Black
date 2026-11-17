@@ -1,0 +1,829 @@
+{
+  "version": 1,
+  "generated_at": "2026-11-17T12:13:15",
+  "sources": {
+    "metadata": "https://gi.yatta.moe/api/v2/chs/avatar",
+    "official_art": "https://github.com/ScobbleQ/HoYo-Assets",
+    "fallback_art": "https://enka.network/",
+    "local_art": "Vodyanitsa_image/"
+  },
+  "characters": [
+    {
+      "id": "vodyanitsa",
+      "name": "沃雅妮莎",
+      "title": "潮声中的歌者",
+      "element": "hydro",
+      "color": "#7fd3d1",
+      "looks": [
+        {
+          "id": "snow",
+          "label": "雪窗",
+          "art": "art_snow.jpg",
+          "thumb": "gallery/thumbs/vody_snow.jpg"
+        },
+        {
+          "id": "wisteria",
+          "label": "紫藤",
+          "art": "art_wisteria.jpg",
+          "thumb": "gallery/thumbs/vody_wisteria.jpg"
+        },
+        {
+          "id": "picnic",
+          "label": "野餐",
+          "art": "art_picnic.jpg",
+          "thumb": "gallery/thumbs/vody_picnic.jpg"
+        },
+        {
+          "id": "tea",
+          "label": "茶会",
+          "art": "art_tea.jpg",
+          "thumb": "gallery/thumbs/vody_tea.jpg"
+        }
+      ],
+      "default_look": "snow",
+      "source": "workspace / user-supplied illustrations"
+    },
+    {
+      "id": "furina",
+      "name": "芙宁娜",
+      "title": "水之国度的大明星",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/furina_splash.jpg",
+          "thumb": "gallery/thumbs/furina_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/furina_wish.jpg",
+          "thumb": "gallery/thumbs/furina_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "neuvillette",
+      "name": "那维莱特",
+      "title": "谕告的潮音",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/neuvillette_splash.jpg",
+          "thumb": "gallery/thumbs/neuvillette_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/neuvillette_wish.jpg",
+          "thumb": "gallery/thumbs/neuvillette_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "arlecchino",
+      "name": "阿蕾奇诺",
+      "title": "壁炉之家的父亲",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/arlecchino_splash.jpg",
+          "thumb": "gallery/thumbs/arlecchino_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/arlecchino_wish.jpg",
+          "thumb": "gallery/thumbs/arlecchino_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "navia",
+      "name": "娜维娅",
+      "title": "刺玫会会长",
+      "element": "geo",
+      "color": "#e0bd78",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/navia_splash.jpg",
+          "thumb": "gallery/thumbs/navia_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/navia_wish.jpg",
+          "thumb": "gallery/thumbs/navia_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "clorinde",
+      "name": "克洛琳德",
+      "title": "枫丹的决斗代理人",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/clorinde_splash.jpg",
+          "thumb": "gallery/thumbs/clorinde_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/clorinde_wish.jpg",
+          "thumb": "gallery/thumbs/clorinde_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "wriothesley",
+      "name": "莱欧斯利",
+      "title": "梅洛彼得堡公爵",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/wriothesley_splash.jpg",
+          "thumb": "gallery/thumbs/wriothesley_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/wriothesley_wish.jpg",
+          "thumb": "gallery/thumbs/wriothesley_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "sigewinne",
+      "name": "希格雯",
+      "title": "梅洛彼得堡护士长",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/sigewinne_splash.jpg",
+          "thumb": "gallery/thumbs/sigewinne_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/sigewinne_wish.jpg",
+          "thumb": "gallery/thumbs/sigewinne_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "chiori",
+      "name": "千织",
+      "title": "千织屋店主",
+      "element": "geo",
+      "color": "#e0bd78",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/chiori_splash.jpg",
+          "thumb": "gallery/thumbs/chiori_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/chiori_wish.jpg",
+          "thumb": "gallery/thumbs/chiori_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "xianyun",
+      "name": "闲云",
+      "title": "尘外身闲",
+      "element": "anemo",
+      "color": "#82d6c6",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/xianyun_splash.jpg",
+          "thumb": "gallery/thumbs/xianyun_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/xianyun_wish.jpg",
+          "thumb": "gallery/thumbs/xianyun_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "hutao",
+      "name": "胡桃",
+      "title": "往生堂第七十七代堂主",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/hutao_splash.jpg",
+          "thumb": "gallery/thumbs/hutao_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/hutao_wish.jpg",
+          "thumb": "gallery/thumbs/hutao_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "zhongli",
+      "name": "钟离",
+      "title": "往生堂客卿",
+      "element": "geo",
+      "color": "#e0bd78",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/zhongli_splash.jpg",
+          "thumb": "gallery/thumbs/zhongli_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/zhongli_wish.jpg",
+          "thumb": "gallery/thumbs/zhongli_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "xiao",
+      "name": "魈",
+      "title": "护法夜叉",
+      "element": "anemo",
+      "color": "#82d6c6",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/xiao_splash.jpg",
+          "thumb": "gallery/thumbs/xiao_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/xiao_wish.jpg",
+          "thumb": "gallery/thumbs/xiao_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "ganyu",
+      "name": "甘雨",
+      "title": "月海亭秘书",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/ganyu_splash.jpg",
+          "thumb": "gallery/thumbs/ganyu_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/ganyu_wish.jpg",
+          "thumb": "gallery/thumbs/ganyu_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "shenhe",
+      "name": "申鹤",
+      "title": "孤辰茕怀",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/shenhe_splash.jpg",
+          "thumb": "gallery/thumbs/shenhe_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/shenhe_wish.jpg",
+          "thumb": "gallery/thumbs/shenhe_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "yelan",
+      "name": "夜兰",
+      "title": "兰生幽谷",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/yelan_splash.jpg",
+          "thumb": "gallery/thumbs/yelan_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/yelan_wish.jpg",
+          "thumb": "gallery/thumbs/yelan_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "keqing",
+      "name": "刻晴",
+      "title": "玉衡星",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/keqing_splash.jpg",
+          "thumb": "gallery/thumbs/keqing_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/keqing_wish.jpg",
+          "thumb": "gallery/thumbs/keqing_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "nahida",
+      "name": "纳西妲",
+      "title": "小吉祥草王",
+      "element": "dendro",
+      "color": "#96cc8e",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/nahida_splash.jpg",
+          "thumb": "gallery/thumbs/nahida_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/nahida_wish.jpg",
+          "thumb": "gallery/thumbs/nahida_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "nilou",
+      "name": "妮露",
+      "title": "祖拜尔剧场的舞者",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/nilou_splash.jpg",
+          "thumb": "gallery/thumbs/nilou_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/nilou_wish.jpg",
+          "thumb": "gallery/thumbs/nilou_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "wanderer",
+      "name": "流浪者",
+      "title": "久世浮倾",
+      "element": "anemo",
+      "color": "#82d6c6",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/wanderer_splash.jpg",
+          "thumb": "gallery/thumbs/wanderer_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/wanderer_wish.jpg",
+          "thumb": "gallery/thumbs/wanderer_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "cyno",
+      "name": "赛诺",
+      "title": "大风纪官",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/cyno_splash.jpg",
+          "thumb": "gallery/thumbs/cyno_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/cyno_wish.jpg",
+          "thumb": "gallery/thumbs/cyno_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "tighnari",
+      "name": "提纳里",
+      "title": "巡林官",
+      "element": "dendro",
+      "color": "#96cc8e",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/tighnari_splash.jpg",
+          "thumb": "gallery/thumbs/tighnari_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/tighnari_wish.jpg",
+          "thumb": "gallery/thumbs/tighnari_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "dehya",
+      "name": "迪希雅",
+      "title": "炽鬃之狮",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/dehya_splash.jpg",
+          "thumb": "gallery/thumbs/dehya_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/dehya_wish.jpg",
+          "thumb": "gallery/thumbs/dehya_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "raiden",
+      "name": "雷电将军",
+      "title": "一心净土",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/raiden_splash.jpg",
+          "thumb": "gallery/thumbs/raiden_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/raiden_wish.jpg",
+          "thumb": "gallery/thumbs/raiden_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "yae",
+      "name": "八重神子",
+      "title": "鸣神大社宫司",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/yae_splash.jpg",
+          "thumb": "gallery/thumbs/yae_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/yae_wish.jpg",
+          "thumb": "gallery/thumbs/yae_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "kazuha",
+      "name": "枫原万叶",
+      "title": "红叶逐荒波",
+      "element": "anemo",
+      "color": "#82d6c6",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/kazuha_splash.jpg",
+          "thumb": "gallery/thumbs/kazuha_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/kazuha_wish.jpg",
+          "thumb": "gallery/thumbs/kazuha_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "ayaka",
+      "name": "神里绫华",
+      "title": "白鹭霜华",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/ayaka_splash.jpg",
+          "thumb": "gallery/thumbs/ayaka_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/ayaka_wish.jpg",
+          "thumb": "gallery/thumbs/ayaka_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "yoimiya",
+      "name": "宵宫",
+      "title": "夏祭的女王",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/yoimiya_splash.jpg",
+          "thumb": "gallery/thumbs/yoimiya_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/yoimiya_wish.jpg",
+          "thumb": "gallery/thumbs/yoimiya_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "kokomi",
+      "name": "珊瑚宫心海",
+      "title": "现人神巫女",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/kokomi_splash.jpg",
+          "thumb": "gallery/thumbs/kokomi_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/kokomi_wish.jpg",
+          "thumb": "gallery/thumbs/kokomi_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "venti",
+      "name": "温迪",
+      "title": "风色诗人",
+      "element": "anemo",
+      "color": "#82d6c6",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/venti_splash.jpg",
+          "thumb": "gallery/thumbs/venti_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/venti_wish.jpg",
+          "thumb": "gallery/thumbs/venti_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "klee",
+      "name": "可莉",
+      "title": "火花骑士",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/klee_splash.jpg",
+          "thumb": "gallery/thumbs/klee_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/klee_wish.jpg",
+          "thumb": "gallery/thumbs/klee_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "mona",
+      "name": "莫娜",
+      "title": "星天水镜",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/mona_splash.jpg",
+          "thumb": "gallery/thumbs/mona_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/mona_wish.jpg",
+          "thumb": "gallery/thumbs/mona_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "eula",
+      "name": "优菈",
+      "title": "浪沫的旋舞",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/eula_splash.jpg",
+          "thumb": "gallery/thumbs/eula_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/eula_wish.jpg",
+          "thumb": "gallery/thumbs/eula_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "tartaglia",
+      "name": "达达利亚",
+      "title": "愚人众执行官「公子」",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/tartaglia_splash.jpg",
+          "thumb": "gallery/thumbs/tartaglia_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/tartaglia_wish.jpg",
+          "thumb": "gallery/thumbs/tartaglia_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "albedo",
+      "name": "阿贝多",
+      "title": "白垩之子",
+      "element": "geo",
+      "color": "#e0bd78",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "art": "gallery/albedo_splash.jpg",
+          "thumb": "gallery/thumbs/albedo_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "art": "gallery/albedo_wish.jpg",
+          "thumb": "gallery/thumbs/albedo_wish.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    }
+  ]
+}

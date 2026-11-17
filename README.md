@@ -1,0 +1,121 @@
+# Black · 提瓦特驻留终端
+
+<img src="docs/icon_512.png" width="88" align="right" alt="Black 的小王子图标">
+
+Black 是一个本地优先的 Windows 桌面学习助手：用提瓦特风格的界面陪你计时、记录手札、看考试倒计时，也会在桌角偶尔说一句话。
+
+- 修习计时、考试倒计时、等级与连续修习
+- 每日 Markdown 手札
+- 35 位角色、72 幅看板立绘，可自由切换
+- 本地曲库、在线寻音、B 站/视频链接转 MP3
+- 可选 AI 对话；不填 API Key 时使用离线陪伴模式
+- 派蒙主题桌面悄悄话、系统托盘、角色互动
+
+## 系统要求
+
+- Windows 10/11
+- Python 3.10+（开发与测试环境为 3.13）
+- 需要联网才能使用在线寻音、视频转 MP3 和 AI 对话
+- 中文 TTS 可选，使用 Windows 自带语音
+
+## 安装与启动
+
+```powershell
+git clone https://github.com/Regulus-Blac/genshin_assistant_Black.git
+cd genshin_assistant_Black
+python -m pip install -r requirements.txt
+```
+
+安装完成后双击 `启动Black.bat`，或运行：
+
+```powershell
+python app.py
+```
+
+如果缺少依赖，也可以双击 `安装依赖.bat`。`launch_black.vbs` 是不弹出控制台的启动方式。
+
+## 第一次使用
+
+1. 启动后会看到「修习、手札、乐音、交谈」四个页面。
+2. 点考试卡片可以改名称、日期和备注；默认的算法考试日期只是示例。
+3. 点某个修习方向右侧的播放按钮开始计时，关闭窗口默认收进托盘，计时继续。
+4. 左下角「角色」可以切换看板角色和立绘。
+5. 「乐音」页可以选择本地文件夹；顶部的「导入音乐」支持 B 站搜索或视频链接转 MP3。
+
+## AI 对话与 API Key
+
+不填 Key 时，Black 会使用本地规则回应。要启用 AI：
+
+1. 打开「设置 → AI 对话」；
+2. 填写兼容 OpenAI `/chat/completions` 的接口地址、模型名和**你自己的 API Key**；
+3. 点「测试连接」。
+
+API Key 只保存在本机的 `data/black.json`。这个目录已在 `.gitignore` 中排除，不会被提交或分享。**请不要把 API Key 写进 README、代码或任何提交文件。**
+
+## 音乐导入
+
+乐音页的「导入音乐」支持：
+
+- 关键词搜索 B 站公开视频；
+- 直接粘贴 Bilibili、YouTube 等 yt-dlp 支持的视频链接；
+- 选择本地 `mp4 / mkv / m4a / wav` 转换为 MP3。
+
+导入的 MP3 保存到当前本地曲库，默认是 `assets/music/`；可以在乐音页更换曲库目录。转换后的文件不是 MP4，原始音频/视频临时文件会在转换后删除。
+
+也可以使用命令行：
+
+```powershell
+python tools/fetch_music.py --query "原神 钢琴" --limit 10
+python tools/fetch_music.py --query "原神 钢琴" --pick 1
+python tools/fetch_music.py --url "https://www.bilibili.com/video/BV..."
+python tools/fetch_music.py --convert "D:\Videos\video.mp4"
+```
+
+B 站部分视频需要登录或大会员权限；下载内容请仅用于个人合法用途。
+
+## 数据与隐私
+
+以下内容默认不进入 Git：
+
+- `data/`：设置、考试、聊天记录、API Key
+- `journal/`：每日手札
+- `cache/`、`build/`：缓存与构建产物
+- `model/`、`Vodyanitsa_image/`、`除了沃雅妮莎之外/`：原始模型和素材
+- `docs/screenshots/`：可能包含个人学习状态的截图
+- `.mp3` 等本地音乐、日志、锁文件和密钥
+
+如果你要提交 PR，请先确认没有把 `data/`、`journal/`、API Key 或个人截图加入提交。
+
+## 开发与 PR
+
+```powershell
+python -m pip install -r requirements.txt
+python tools/test_core.py
+python tools/test_flows.py
+python tools/test_characters.py
+```
+
+主要目录：
+
+```text
+app.py                 启动入口
+black/                 应用源码
+  mainwindow.py        主窗口
+  pages/               修习、手札、乐音、交谈、设置
+  theme.py             颜色、字体、图标和全局样式
+  stage.py             左侧角色舞台
+  paimon_popup.py      派蒙主题弹窗
+assets/                图片、头像、字体、音频
+tools/                 素材生成、音乐导入、测试和截图脚本
+```
+
+欢迎提交 Issue 或 PR。提交前请先跑过至少 `tools/test_core.py` 和 `tools/test_characters.py`；涉及界面的改动请附截图，但截图不要包含个人考试、手札或曲库信息。
+
+## 素材与致谢
+
+- 角色立绘来自 [ScobbleQ/HoYo-Assets](https://github.com/ScobbleQ/HoYo-Assets)，角色中文信息来自 [Project Amber](https://gi.yatta.moe/)，仅供个人本地使用。
+- 派蒙头像来自 [Enka Network](https://enka.network/) 的公开静态资源。
+- 字体 Cinzel 来自 Google Fonts，遵循 SIL Open Font License，见 `assets/fonts/OFL.txt`。
+- 《原神》及相关角色、图片权利归 HoYoverse 所有；本项目与米哈游/HoYoverse 无关联。
+
+本项目用于个人本地学习陪伴，不包含、不分发第三方歌曲。
