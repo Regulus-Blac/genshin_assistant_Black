@@ -428,6 +428,8 @@ class StudyPage(QWidget):
         self.cards: dict[str, SubjectCard] = {}
         self.exam_cards: list[ExamCard] = []
         self._last_day = ""
+        self._compact = False
+        self._expanded = False
         self._build()
         self.rebuild()
         self.timer.tick.connect(self.refresh_live)
@@ -587,19 +589,20 @@ class StudyPage(QWidget):
     def rebuild(self) -> None:
         self._clear_layout(self.exam_grid)
         self.exam_cards = []
+        cols = 1 if self._compact else 2
         exams = self.store.exams()
         if not exams:
             empty = QLabel("还没有考试日期。点击「+ 新增考试」，为自己立一个路标。")
             empty.setStyleSheet(f"font-size: 10px; color: {theme.FAINT}; padding: 9px;")
-            self.exam_grid.addWidget(empty, 0, 0, 1, 2)
+            self.exam_grid.addWidget(empty, 0, 0, 1, cols)
         for i, exam in enumerate(exams[:6]):
             card = ExamCard(exam)
             card.clicked.connect(lambda e=exam: self._open_exam(e))
             card.edit_clicked.connect(lambda e=exam: self._edit_exam(e))
             self.exam_cards.append(card)
-            self.exam_grid.addWidget(card, i // 2, i % 2)
+            self.exam_grid.addWidget(card, i // cols, i % cols)
         self.exam_grid.setColumnStretch(0, 1)
-        self.exam_grid.setColumnStretch(1, 1)
+        self.exam_grid.setColumnStretch(1, 0 if self._compact else 1)
 
         self._clear_layout(self.grid)
         self.cards = {}
@@ -609,21 +612,52 @@ class StudyPage(QWidget):
             self.empty_label.setAlignment(Qt.AlignCenter)
             self.empty_label.setStyleSheet(f"color: {theme.FAINT}; font-family: '{theme.SERIF}'; font-size: 13px;")
             self.empty_label.setMinimumHeight(160)
-            self.grid.addWidget(self.empty_label, 0, 0, 1, 2)
+            self.grid.addWidget(self.empty_label, 0, 0, 1, cols)
         for i, info in enumerate(subjects):
             card = SubjectCard(info)
             card.toggle_requested.connect(self._toggle_subject)
             card.edit_requested.connect(self._edit_subject)
             card.delete_requested.connect(self._delete_subject)
             self.cards[info["id"]] = card
-            self.grid.addWidget(card, i // 2, i % 2)
+            self.grid.addWidget(card, i // cols, i % cols)
         if subjects:
             add = AddSubjectCard()
             add.clicked.connect(self._add_subject)
-            self.grid.addWidget(add, len(subjects) // 2, len(subjects) % 2)
+            self.grid.addWidget(add, len(subjects) // cols, len(subjects) % cols)
         self.grid.setColumnStretch(0, 1)
-        self.grid.setColumnStretch(1, 1)
+        self.grid.setColumnStretch(1, 0 if self._compact else 1)
         self.refresh_live()
+        self._update_expanded_height()
+
+    def set_compact(self, compact: bool) -> None:
+        compact = bool(compact)
+        if compact == self._compact:
+            return
+        self._compact = compact
+        self.rebuild()
+
+    def set_expanded(self, expanded: bool) -> None:
+        expanded = bool(expanded)
+        if expanded == self._expanded:
+            return
+        self._expanded = expanded
+        if not expanded:
+            self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            self.scroll.setMinimumHeight(0)
+            self.scroll.setMaximumHeight(16777215)
+            self.scroll.updateGeometry()
+        self._update_expanded_height()
+
+    def _update_expanded_height(self) -> None:
+        if not hasattr(self, "scroll"):
+            return
+        if not self._expanded:
+            return
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setMinimumHeight(max(320, self.grid_host.sizeHint().height() + 16))
+        self.scroll.setMaximumHeight(16777215)
+        self.scroll.updateGeometry()
+
 
     def refresh_live(self) -> None:
         now = datetime.now()

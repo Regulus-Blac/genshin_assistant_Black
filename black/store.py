@@ -46,6 +46,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "auto_play_bgm": False,
     "music_mode": "sequence",
     "music_rate": 1.0,
+    "local_order": [],
     "last_local_track": "",
     "whisper_avatar": "派蒙",
     "character": "vodyanitsa",
@@ -495,6 +496,31 @@ class Store:
         item["tracks"] = list(tracks)
         self.save()
         return True
+
+    def set_local_order(self, paths: list[str]) -> None:
+        self.settings["local_order"] = [str(p) for p in paths]
+        self.save()
+
+    def update_local_path(self, old: str, new: str) -> None:
+        old_path = str(old)
+        new_path = str(new)
+        order = [new_path if str(p) == old_path else str(p) for p in self.settings.get("local_order", [])]
+        self.settings["local_order"] = order
+        for item in self.playlists():
+            if item.get("builtin"):
+                continue
+            changed = False
+            tracks = list(item.get("tracks", []))
+            for entry in tracks:
+                if not isinstance(entry, dict) or entry.get("kind") != "local":
+                    continue
+                if str(entry.get("path", "")) == old_path:
+                    entry["path"] = new_path
+                    entry["title"] = Path(new_path).stem
+                    changed = True
+            if changed:
+                self.set_playlist_tracks(str(item["id"]), tracks)
+        self.save()
 
     def move_track_between_playlists(self, source_id: str, target_id: str, index: int) -> bool:
         source = self.playlist(source_id)

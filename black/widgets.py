@@ -551,6 +551,8 @@ class TitleBar(QWidget):
         sub = QLabel("提瓦特驻留终端 · TEYVAT DESK")
         sub.setObjectName("BrandSub")
         sub.setStyleSheet(f"font-family: '{theme.SERIF}'; font-size: 9px; color: {theme.MUTED}; letter-spacing: 1px;")
+        self.brand_title = title
+        self.brand_sub = sub
         brand_box.addWidget(title)
         brand_box.addWidget(sub)
         lay.addLayout(brand_box)
@@ -595,6 +597,11 @@ class TitleBar(QWidget):
         self.status.setVisible(bool(active))
         if active:
             self.status.set_status(text, True)
+
+    def set_compact(self, compact: bool) -> None:
+        wanted = not compact
+        if self.brand_sub.isVisible() != wanted:
+            self.brand_sub.setVisible(wanted)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:

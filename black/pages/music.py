@@ -335,6 +335,7 @@ class MusicPage(QWidget):
         self._online_tracks: list[Track] = []
         self._current_playlist_id = "local"
         self._playlist_mode = "browse"
+        self._compact = False
         self.engine.set_play_mode(str(self.store.settings.get("music_mode", "sequence")))
         self._build()
         self.engine.state_changed.connect(self._on_state)
@@ -418,9 +419,12 @@ class MusicPage(QWidget):
         speed_label.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         status_row.addWidget(speed_label)
         self.speed_combo = QComboBox()
-        self.speed_combo.setFixedWidth(74)
-        self.speed_combo.setFixedHeight(23)
+        self.speed_combo.setFixedWidth(120)
+        self.speed_combo.setFixedHeight(26)
         self.speed_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.speed_combo.setStyleSheet(
+            "QComboBox { padding: 1px 4px; } QComboBox::drop-down { width: 16px; border: none; }"
+        )
         for label, rate in (("0.5x", 0.5), ("0.75x", 0.75), ("1.0x", 1.0), ("1.5x", 1.5), ("2.0x", 2.0)):
             self.speed_combo.addItem(label, rate)
         current_rate = float(self.store.settings.get("music_rate", 1.0) or 1.0)
@@ -578,20 +582,26 @@ class MusicPage(QWidget):
         self.playlist_sort_btn = QPushButton("排序")
         self.playlist_add_btn = QPushButton("添加歌曲")
         self.playlist_remove_btn = QPushButton("移除歌曲")
-        for btn in (self.playlist_sort_btn, self.playlist_add_btn, self.playlist_remove_btn):
+        self.playlist_local_rename_btn = QPushButton("重命名")
+        light = theme.is_light()
+        for btn in (self.playlist_sort_btn, self.playlist_add_btn, self.playlist_remove_btn, self.playlist_local_rename_btn):
             btn.setObjectName("TextButton")
             btn.setCursor(Qt.PointingHandCursor)
             btn.setFixedHeight(28)
             btn.setStyleSheet(
-                f"QPushButton {{ background: rgba(8,14,21,150); border: 1px solid rgba(217,188,125,42); "
-                f"border-radius: 8px; padding: 3px 13px; font-size: 11px; color: {theme.GOLD_SOFT}; }} "
-                f"QPushButton:hover {{ border-color: rgba(217,188,125,95); color: {theme.GOLD}; }}"
+                f"QPushButton {{ background: {'rgba(228,211,178,240)' if light else 'rgba(8,14,21,150)'}; "
+                f"border: 1px solid {'rgba(120,88,36,165)' if light else 'rgba(217,188,125,42)'}; "
+                f"border-radius: 8px; padding: 3px 13px; font-size: 11px; color: {'#4a3618' if light else theme.GOLD_SOFT}; }} "
+                f"QPushButton:hover {{ background: {'#f1dfbf' if light else 'rgba(217,188,125,22)'}; "
+                f"border-color: {theme.GOLD}; color: {'#2f2518' if light else theme.GOLD_BRIGHT}; }}"
             )
             manage.addWidget(btn)
         manage.addStretch(1)
         self.playlist_sort_btn.clicked.connect(lambda: self._set_playlist_mode("sort"))
         self.playlist_add_btn.clicked.connect(self._open_add_songs)
         self.playlist_remove_btn.clicked.connect(lambda: self._set_playlist_mode("remove"))
+        self.playlist_local_rename_btn.clicked.connect(self._rename_local_track)
+        self.playlist_local_rename_btn.setVisible(False)
         ptl.addLayout(manage)
 
         self.remove_bar = QWidget()
@@ -605,12 +615,24 @@ class MusicPage(QWidget):
         self.remove_cancel_btn = QPushButton("取消")
         self.remove_confirm_btn = QPushButton("确认移除")
         self.remove_confirm_btn.setObjectName("Primary")
-        self.remove_cancel_btn.setMinimumWidth(64)
-        self.remove_confirm_btn.setMinimumWidth(124)
+        self.remove_cancel_btn.setMinimumWidth(66)
+        self.remove_confirm_btn.setMinimumWidth(134)
         for btn in (self.remove_cancel_btn, self.remove_confirm_btn):
             btn.setCursor(Qt.PointingHandCursor)
-            btn.setFixedHeight(28)
+            btn.setFixedHeight(40)
             rbl.addWidget(btn)
+        self.remove_cancel_btn.setStyleSheet(
+            f"QPushButton {{ background: {'rgba(255,250,240,235)' if theme.is_light() else 'rgba(8,14,21,110)'}; "
+            f"border: 1px solid {'rgba(152,117,54,75)' if theme.is_light() else 'rgba(217,188,125,60)'}; "
+            f"border-radius: 8px; padding: 0 12px; color: {theme.TEXT_SOFT}; font-size: 12px; }} "
+            f"QPushButton:hover {{ border-color: {theme.GOLD}; color: {theme.GOLD_BRIGHT}; }}"
+        )
+        self.remove_confirm_btn.setStyleSheet(
+            "QPushButton { background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+            "stop:0 #efdfb4, stop:0.5 #d9bc7d, stop:1 #bfa063); border: 1px solid #f4e2b6; "
+            "border-radius: 8px; padding: 0 14px; color: #201b12; font-size: 12px; font-weight: 600; } "
+            "QPushButton:hover { background: #f4e3b8; }"
+        )
         self.remove_cancel_btn.clicked.connect(lambda: self._set_playlist_mode("browse"))
         self.remove_confirm_btn.clicked.connect(self._confirm_remove_checked)
         self.remove_bar.setVisible(False)
@@ -717,6 +739,20 @@ class MusicPage(QWidget):
         self.tabs.addTab(online_tab, "在线寻音")
         root.addWidget(self.tabs, 1)
 
+    def set_compact(self, compact: bool) -> None:
+        compact = bool(compact)
+        if compact == self._compact:
+            return
+        self._compact = compact
+        if hasattr(self, "album"):
+            self.album.setVisible(not compact)
+        if hasattr(self, "playlist_count"):
+            self.playlist_count.setVisible(not compact)
+        if hasattr(self, "mode_text"):
+            self.mode_text.setVisible(not compact)
+        if hasattr(self, "playlist_combo"):
+            self.playlist_combo.setMinimumWidth(118 if compact else 150)
+
     def _small_toggle(self, name: str, tip: str) -> QToolButton:
         btn = QToolButton()
         btn.setCheckable(True)
@@ -778,17 +814,21 @@ class MusicPage(QWidget):
         builtin = bool(pl.get("builtin"))
         self.playlist_rename_btn.setEnabled(not builtin)
         self.playlist_delete_btn.setEnabled(not builtin)
-        self.playlist_sort_btn.setEnabled(not builtin)
-        self.playlist_add_btn.setEnabled(not builtin)
-        self.playlist_remove_btn.setEnabled(not builtin)
-        if builtin:
+        self.playlist_sort_btn.setEnabled(True)
+        self.playlist_add_btn.setVisible(not builtin)
+        self.playlist_remove_btn.setVisible(not builtin)
+        self.playlist_local_rename_btn.setVisible(builtin)
+        self.playlist_local_rename_btn.setEnabled(builtin)
+        if builtin and self._playlist_mode == "remove":
             self._playlist_mode = "browse"
         self._apply_playlist_mode_ui()
         self._refresh_playlist_tracks()
 
     def _apply_playlist_mode_ui(self) -> None:
+        pl = self._selected_playlist()
+        builtin = bool(pl and pl.get("builtin"))
         sort_active = self._playlist_mode == "sort"
-        remove_active = self._playlist_mode == "remove"
+        remove_active = self._playlist_mode == "remove" and not builtin
         self.playlist_sort_btn.setText("完成排序" if sort_active else "排序")
         self.playlist_remove_btn.setText("取消移除" if remove_active else "移除歌曲")
         self.remove_bar.setVisible(remove_active)
@@ -811,8 +851,7 @@ class MusicPage(QWidget):
         pl = self._selected_playlist()
         if not pl:
             return
-        if mode in ("sort", "remove") and pl.get("builtin"):
-            QMessageBox.information(self, "歌单", "本地曲库会自动跟随音乐文件夹，请先选择或新建一个自定义歌单。")
+        if mode == "remove" and pl.get("builtin"):
             return
         if self._playlist_mode == mode:
             mode = "browse"
@@ -833,17 +872,19 @@ class MusicPage(QWidget):
                 {"kind": "local", "path": str(p), "title": p.stem, "subtitle": "本地曲库"}
                 for p in self._local_paths
             ]
-            self.playlist_hint.setText("本地曲库 · 默认歌单（跟随音乐文件夹）")
+            mode = "sort" if self._playlist_mode == "sort" else "browse"
+            self.playlist_hint.setText(
+                "本地曲库 · 拖动条目调整顺序" if mode == "sort" else "本地曲库 · 双击播放；下方可重命名单曲"
+            )
             self.playlist_empty.setText("这个文件夹里还没有音频。把 mp3 / wav / flac 放进音乐文件夹后会自动出现。")
-            mode = "browse"
         else:
             entries = list(pl.get("tracks", []))
-            self.playlist_empty.setText("这个歌单还没有歌。点「添加歌曲」从其他歌单里选几首吧。")
             mode = self._playlist_mode
             hint = "拖动左侧标志调整顺序" if mode == "sort" else (
                 "勾选歌曲后点击下方确认移除" if mode == "remove" else "双击播放 · 右键管理"
             )
             self.playlist_hint.setText(f"{pl.get('name', '歌单')} · {hint}")
+            self.playlist_empty.setText("这个歌单还没有歌。点「添加歌曲」从其他歌单里选几首吧。")
         for entry in entries:
             item = QListWidgetItem()
             kind = str(entry.get("kind", "local"))
@@ -902,14 +943,19 @@ class MusicPage(QWidget):
         if self._playlist_mode != "sort":
             return
         pl = self._selected_playlist()
-        if not pl or pl.get("builtin"):
+        if not pl:
             return
         entries = []
         for i in range(self.playlist_list.count()):
             entry = self.playlist_list.item(i).data(Qt.UserRole)
             if isinstance(entry, dict):
                 entries.append(entry)
-        self.store.set_playlist_tracks(str(pl["id"]), entries)
+        if pl.get("builtin"):
+            paths = [str(Path(str(entry.get("path", "")))) for entry in entries]
+            self.store.set_local_order(paths)
+            self._local_paths = [Path(p) for p in paths if Path(p).exists()]
+        else:
+            self.store.set_playlist_tracks(str(pl["id"]), entries)
         QTimer.singleShot(0, self._refresh_playlist_tracks)
 
     def _confirm_remove_checked(self) -> None:
@@ -1179,6 +1225,56 @@ class MusicPage(QWidget):
         if self.playlist_list.count():
             self.playlist_list.setCurrentRow(min(row, self.playlist_list.count() - 1))
 
+    def _rename_local_track(self) -> None:
+        pl = self._selected_playlist()
+        if not pl or not pl.get("builtin"):
+            return
+        item = self.playlist_list.currentItem()
+        if not item:
+            QMessageBox.information(self, "重命名本地音乐", "先在本地曲库列表里选中一首歌。")
+            return
+        entry = item.data(Qt.UserRole)
+        if not isinstance(entry, dict):
+            return
+        path = Path(str(entry.get("path", "")))
+        if not path.exists():
+            QMessageBox.information(self, "重命名本地音乐", "这个音频文件不存在。")
+            return
+        name, ok = QInputDialog.getText(self, "重命名本地音乐", "新的文件名", text=path.stem)
+        if not ok:
+            return
+        name = (name or "").strip()
+        if not name:
+            return
+        if any(ch in name for ch in '<>:"/\\|?*'):
+            QMessageBox.warning(self, "重命名本地音乐", "文件名不能包含 < > : \" / \\ | ? * 这些字符。")
+            return
+        suffix = path.suffix
+        if suffix and name.lower().endswith(suffix.lower()):
+            name = name[: -len(suffix)].rstrip()
+        if not name:
+            return
+        target = path.with_name(name + suffix)
+        if target == path:
+            return
+        if target.exists():
+            QMessageBox.warning(self, "重命名本地音乐", "同目录下已经有同名文件了。")
+            return
+        try:
+            path.rename(target)
+        except OSError as e:
+            QMessageBox.warning(self, "重命名本地音乐", f"重命名失败：{e}")
+            return
+        self.store.update_local_path(str(path), str(target))
+        self.load_local(initial=False)
+        self._refresh_playlist_tracks()
+        for i in range(self.playlist_list.count()):
+            row_item = self.playlist_list.item(i)
+            row_entry = row_item.data(Qt.UserRole)
+            if isinstance(row_entry, dict) and str(row_entry.get("path", "")) == str(target):
+                self.playlist_list.setCurrentRow(i)
+                break
+
     def _move_playlist_item(self, delta: int) -> None:
         item = self.playlist_list.currentItem()
         if not item:
@@ -1220,6 +1316,13 @@ class MusicPage(QWidget):
         self.folder_label.setText(folder)
         self.folder_label.setToolTip(folder)
         paths = scan_folder(folder)
+        order = [str(p) for p in self.store.settings.get("local_order", []) if str(p)]
+        order_index = {p: i for i, p in enumerate(order)}
+        paths.sort(key=lambda p: (order_index.get(str(p), len(order)), p.name.casefold()))
+        new_order = [str(p) for p in paths]
+        if new_order != order:
+            self.store.settings["local_order"] = new_order
+            self.store.save()
         self._local_paths = paths
         self.local_list.clear()
         for p in paths:

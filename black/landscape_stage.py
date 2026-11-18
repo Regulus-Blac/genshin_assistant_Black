@@ -32,7 +32,7 @@ class LandscapeStage(CharacterStage):
         light = theme.is_light()
         self.setMinimumWidth(0)
         self.setMaximumWidth(16777215)
-        self.setFixedHeight(400)
+        self.setFixedHeight(360)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setAttribute(Qt.WA_StyledBackground, False)
 
@@ -273,7 +273,7 @@ class LandscapeStage(CharacterStage):
             return
         left = getattr(self, "art_panel", None)
         w = left.width() if left is not None and left.width() > 0 else int(self.width() * 0.58)
-        h = self.height() if self.height() > 0 else 400
+        h = self.height() if self.height() > 0 else 360
         # Contain, not cover: the whole wide illustration should be visible.
         self._cover = self._art.scaled(QSize(max(1, w), max(1, h)), Qt.KeepAspectRatio, Qt.SmoothTransformation)
 

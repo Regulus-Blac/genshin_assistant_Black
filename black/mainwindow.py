@@ -9,6 +9,7 @@ from pathlib import Path
 
 from PyQt5.QtCore import (
     QEasingCurve,
+    QEvent,
     QPoint,
     QPointF,
     QPropertyAnimation,
@@ -30,6 +31,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizeGrip,
+    QSizePolicy,
     QStackedWidget,
     QSystemTrayIcon,
     QToolButton,
@@ -110,8 +112,11 @@ class _ResizeHandle(QWidget):
             x = inset if "left" in self.edges else w - inset - b
             y = inset if "top" in self.edges else h - inset - b
             ww = hh = b
-        self.setGeometry(x, y, ww, hh)
-        self.raise_()
+        changed = self.geometry() != QRect(x, y, ww, hh)
+        if changed:
+            self.setGeometry(x, y, ww, hh)
+        if changed or not self.isVisible():
+            self.raise_()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
@@ -128,8 +133,8 @@ class _ResizeHandle(QWidget):
         dx = event.globalPos().x() - self._start.x()
         dy = event.globalPos().y() - self._start.y()
         geo = QRect(self._start_geo)
-        min_w = max(960, parent.minimumWidth())
-        min_h = max(620, parent.minimumHeight())
+        min_w = max(560, parent.minimumWidth())
+        min_h = max(260, parent.minimumHeight())
         if "left" in self.edges:
             new_left = min(self._start_geo.left() + dx, self._start_geo.right() - min_w + 1)
             geo.setLeft(new_left)
@@ -153,6 +158,7 @@ class MainWindow(QMainWindow):
         self.store = store
         self._shutting_down = False
         self._maximized = False
+        self._compact = False
         self._normal_geometry: QRect | None = None
         self._recent_quotes: list[str] = []
         self._last_greeting_key = ""
@@ -170,7 +176,7 @@ class MainWindow(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setWindowTitle("Black · 提瓦特驻留终端")
         self.setWindowIcon(QIcon(str(IMAGES / "app_icon.png")))
-        self.setMinimumSize(1120, 740)
+        self.setMinimumSize(560, 260)
 
         self.timer = TimerEngine(self.store, self)
         self.sounds = Sounds(self)
@@ -198,6 +204,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app is not None:
             app.aboutToQuit.connect(self._about_to_quit)
+            app.installEventFilter(self)
         QTimer.singleShot(400, self._startup)
 
     # ------------------------------------------------------------------ UI
@@ -274,8 +281,12 @@ class MainWindow(QMainWindow):
         self.stack_scroll.setFrameShape(QFrame.NoFrame)
         self.stack_scroll.setWidgetResizable(True)
         self.stack_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.stack_scroll.setMinimumWidth(0)
+        self.stack_scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
         self.stack_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
         self.stack_scroll.setWidget(self.stack)
+        self.stack.setMinimumWidth(0)
+        self.stack.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
         content_lay.addWidget(self.stack_scroll, 1)
         self.nav_tabs[0].setChecked(True)
         self.nav_group.idClicked.connect(self._goto_page)
@@ -298,6 +309,51 @@ class MainWindow(QMainWindow):
         self.titlebar.set_pinned(bool(self.store.settings.get("always_on_top", False)))
 
         self._connect_stage_signals(self.stage)
+        QTimer.singleShot(0, self._apply_compact_mode)
+
+    def _schedule_compact(self) -> None:
+        if not hasattr(self, "_compact_timer"):
+            self._compact_timer = QTimer(self)
+            self._compact_timer.setSingleShot(True)
+            self._compact_timer.setInterval(24)
+            self._compact_timer.timeout.connect(self._apply_compact_mode)
+        self._compact_timer.start()
+
+    def _apply_compact_mode(self) -> None:
+        if not hasattr(self, "stage") or not hasattr(self, "study_page"):
+            return
+        compact = self.width() < 980 or self.height() < 620
+        if compact != self._compact:
+            self._compact = compact
+            self.stage.setVisible(not compact)
+        if hasattr(self, "titlebar"):
+            self.titlebar.set_compact(self.width() < 760)
+        self.study_page.set_compact(self.width() < 760)
+        self.music_page.set_compact(self.width() < 760)
+        expanded = self.body_orientation == "landscape" and not compact
+        self.study_page.set_expanded(expanded)
+        if self.stack_scroll.horizontalScrollBarPolicy() != Qt.ScrollBarAlwaysOff:
+            self.stack_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._sync_stack_min_height()
+        if expanded:
+            QTimer.singleShot(0, self._sync_stack_min_height)
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        if (
+            event.type() == QEvent.Wheel
+            and getattr(self, "body_orientation", "portrait") == "landscape"
+            and not self._compact
+            and isinstance(obj, QWidget)
+        ):
+            on_stage = obj is self.stage or (self.stage.isVisible() and self.stage.isAncestorOf(obj))
+            on_study = obj is self.study_page or self.study_page.isAncestorOf(obj)
+            if on_stage or on_study:
+                bar = self.stack_scroll.verticalScrollBar()
+                if bar.maximum() > 0:
+                    bar.setValue(bar.value() - event.angleDelta().y())
+                    event.accept()
+                    return True
+        return super().eventFilter(obj, event)
 
     def _layout_body(self, orientation: str) -> None:
         """Switch the main body between portrait (side-by-side) and landscape
@@ -333,13 +389,16 @@ class MainWindow(QMainWindow):
         self.body_orientation = orientation
         self.body_lay.activate()
         self._position_resize_handles()
+        self._apply_compact_mode()
 
     def _sync_stack_min_height(self) -> None:
         if not hasattr(self, "stack"):
             return
         page = self.stack.currentWidget()
         if page is not None:
-            self.stack.setMinimumHeight(max(1, page.sizeHint().height(), page.minimumSizeHint().height()))
+            needed = max(1, page.sizeHint().height(), page.minimumSizeHint().height())
+            if self.stack.minimumHeight() != needed:
+                self.stack.setMinimumHeight(needed)
 
     def _wire_signals(self) -> None:
         self.study_page.note_preview_requested.connect(self._open_journal)
@@ -364,8 +423,8 @@ class MainWindow(QMainWindow):
         screen = QApplication.primaryScreen()
         if screen:
             avail = screen.availableGeometry()
-            w = min(1380, max(1120, avail.width() - 60))
-            h = min(864, max(740, avail.height() - 60))
+            w = min(1380, max(560, avail.width() - 60))
+            h = min(864, max(260, avail.height() - 60))
             self.resize(w, h)
             self.move(
                 avail.left() + max(0, (avail.width() - w) // 2),
@@ -394,9 +453,11 @@ class MainWindow(QMainWindow):
             return
         for handle in self._resize_handles:
             if self._maximized:
-                handle.hide()
+                if handle.isVisible():
+                    handle.hide()
             else:
-                handle.show()
+                if not handle.isVisible():
+                    handle.show()
                 handle.update_zone()
 
     def _stored_character_look(self) -> tuple[dict, dict]:
@@ -1134,11 +1195,14 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         if hasattr(self, "size_grip"):
-            self.size_grip.move(self.width() - 22, self.height() - 22)
-            self.size_grip.raise_()
+            grip_pos = QPoint(self.width() - 22, self.height() - 22)
+            if self.size_grip.pos() != grip_pos:
+                self.size_grip.move(grip_pos)
+                self.size_grip.raise_()
         self._position_resize_handles()
         if hasattr(self, "overlay") and self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
+        self._schedule_compact()
 
     def nativeEvent(self, event_type, message):  # noqa: N802
         """Let Windows perform hit-testing on the frameless edges.

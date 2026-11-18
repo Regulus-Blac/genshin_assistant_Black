@@ -198,6 +198,10 @@ class CharacterStage(QWidget):
             self._timer.setInterval(50)
             self._timer.timeout.connect(self._animate)
             self._timer.start()
+            self._cover_timer = QTimer(self)
+            self._cover_timer.setSingleShot(True)
+            self._cover_timer.setInterval(35)
+            self._cover_timer.timeout.connect(self._refresh_cover)
             self.setStyleSheet(self._local_qss())
             self.set_orientation(self.ORIENTATION)
         finally:
@@ -482,10 +486,17 @@ class CharacterStage(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        self._cover = None
-        self._build_cover()
+        # Rebuild the large illustration only after the drag has settled; doing
+        # it on every mouse-move was the main source of resize flicker.
+        if hasattr(self, "_cover_timer"):
+            self._cover_timer.start()
         if hasattr(self, "quote_text"):
             QTimer.singleShot(0, self._fit_quote_text)
+
+    def _refresh_cover(self) -> None:
+        self._cover = None
+        self._build_cover()
+        self.update()
 
     def _fit_quote_text(self) -> None:
         if not hasattr(self, "quote_text"):

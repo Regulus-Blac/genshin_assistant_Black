@@ -406,11 +406,14 @@ class PaimonWhisperPopup(QWidget):
             self.attribution.setText(f"—— 来自 {speaker} 的一句话")
         self.setMinimumHeight(0)
         self.setMaximumHeight(16777215)
-        self.adjustSize()
+        if not self.isVisible():
+            self.adjustSize()
         if self.layout():
             self.layout().activate()
 
     def pop(self, quote: dict, avatar: str = "", role: str = "", accent: str = theme.GOLD, duration_ms: int = 18000) -> None:
+        was_visible = self.isVisible()
+        old_pos = self.pos()
         self.setFixedWidth(470)
         self.update_quote(quote, avatar, role, accent)
         screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
@@ -424,30 +427,36 @@ class PaimonWhisperPopup(QWidget):
         h = min(h, max(240, geo.height() - 30))
         self.setFixedHeight(h)
         self.adjustSize()
+        if was_visible:
+            # "再听一句" must not replay the entrance slide: clicking the
+            # whisper made the whole card jump upward.  Keep the top-left
+            # anchor and only refresh the words in place.
+            if hasattr(self, "_show_anim"):
+                self._show_anim.stop()
+            x = max(geo.left() + 8, min(old_pos.x(), geo.right() - self.width() - 8))
+            y = max(geo.top() + 8, min(old_pos.y(), geo.bottom() - self.height() - 8))
+            self.setWindowOpacity(1.0)
+            self.move(x, y)
+            self.show()
+            self.raise_()
+            self.portrait.start()
+            self.card.start()
+            self._auto_timer.start(duration_ms)
+            return
         x = geo.right() - self.width() - 14
         y = geo.bottom() - self.height() - 14
-        self.move(x, y + 16)
+        self.move(x, y)
         self.setWindowOpacity(0.0)
         self.show()
         self.raise_()
         self.portrait.start()
         self.card.start()
-        from PyQt5.QtCore import QParallelAnimationGroup
-
-        group = QParallelAnimationGroup(self)
         op = QPropertyAnimation(self, b"windowOpacity", self)
-        op.setDuration(220)
+        op.setDuration(200)
         op.setStartValue(0.0)
         op.setEndValue(1.0)
-        mv = QPropertyAnimation(self, b"pos", self)
-        mv.setDuration(330)
-        mv.setStartValue(QPoint(x, y + 16))
-        mv.setEndValue(QPoint(x, y))
-        mv.setEasingCurve(QEasingCurve.OutCubic)
-        group.addAnimation(op)
-        group.addAnimation(mv)
-        group.start()
-        self._show_anim = group
+        op.start()
+        self._show_anim = op
         self._auto_timer.start(duration_ms)
 
     def _accept(self) -> None:
