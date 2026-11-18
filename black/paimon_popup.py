@@ -7,6 +7,7 @@ from the lower-right without stealing keyboard focus.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 from PyQt5.QtCore import (
     QEasingCurve,
@@ -77,17 +78,27 @@ class PaimonPortrait(QWidget):
         super().__init__(parent)
         self.setFixedSize(88, 98)
         self._phase = 0.0
-        self._pix = QPixmap(str(PAIMON_ICON))
-        if not self._pix.isNull():
-            side = min(self._pix.width(), self._pix.height())
-            x = (self._pix.width() - side) // 2
-            y = (self._pix.height() - side) // 2
-            self._pix = self._pix.copy(x, y, side, side).scaled(
-                180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
+        self._pix = QPixmap()
+        self.set_source(PAIMON_ICON)
         self._timer = QTimer(self)
         self._timer.setInterval(45)
         self._timer.timeout.connect(self._tick)
+
+    def set_source(self, source: str | Path) -> None:
+        pix = QPixmap(str(source))
+        if pix.isNull():
+            pix = QPixmap(str(PAIMON_ICON))
+        if pix.isNull():
+            self._pix = QPixmap()
+            self.update()
+            return
+        side = min(pix.width(), pix.height())
+        x = (pix.width() - side) // 2
+        y = (pix.height() - side) // 2
+        self._pix = pix.copy(x, y, side, side).scaled(
+            180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        self.update()
 
     def start(self) -> None:
         if not self._timer.isActive():
@@ -296,12 +307,12 @@ class PaimonWhisperPopup(QWidget):
         self.subtitle.setStyleSheet(f"font-size: 9px; color: {theme.TEAL};")
         head.addWidget(self.subtitle, 0, Qt.AlignBottom)
         head.addStretch(1)
-        tag = QLabel("PAIMON'S NOTE")
-        tag.setStyleSheet(
+        self.tag = QLabel("PAIMON'S NOTE")
+        self.tag.setStyleSheet(
             f"font-family: '{theme.DISPLAY}'; font-size: 8px; color: {theme.GOLD_SOFT}; letter-spacing: 1px; "
             "background: rgba(217,188,125,16); border: 1px solid rgba(217,188,125,45); border-radius: 7px; padding: 2px 6px;"
         )
-        head.addWidget(tag, 0, Qt.AlignVCenter)
+        head.addWidget(self.tag, 0, Qt.AlignVCenter)
         close = IconButton("close", "收起", size=12, button_size=23, color=theme.MUTED)
         close.clicked.connect(self._fade_close)
         head.addWidget(close, 0, Qt.AlignTop)
@@ -373,11 +384,17 @@ class PaimonWhisperPopup(QWidget):
         speaker = str(quote.get("speaker", "派蒙"))
         text = str(quote.get("text", ""))
         self.quote.setText(text)
+        if avatar:
+            self.portrait.set_source(str(avatar))
+        self.title.setText(f"{speaker}的悄悄话")
+
+        role_text = str(role or "").strip()
+        self.subtitle.setText(f"· {role_text}" if role_text else "· 提瓦特的朋友")
+        self.tag.setText("PAIMON'S NOTE" if speaker == "派蒙" else "TEYVAT WHISPER")
         if speaker == "派蒙":
             self.attribution.setText("—— 派蒙")
         else:
             self.attribution.setText(f"—— 来自 {speaker} 的一句话")
-        self.title.setText("派蒙的悄悄话")
         self.adjustSize()
 
     def pop(self, quote: dict, avatar: str = "", role: str = "", accent: str = theme.GOLD, duration_ms: int = 18000) -> None:

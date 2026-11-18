@@ -116,7 +116,7 @@ def main() -> int:
 
     # online search in the UI
     window._goto_page(2)
-    window.music_page.tabs.setCurrentIndex(1)
+    window.music_page.tabs.setCurrentIndex(2)
     window.music_page.search_edit.setText("原神")
     window.music_page.search_online()
     ok = wait_until(lambda: window.music_page.search_btn.isEnabled(), 30000)

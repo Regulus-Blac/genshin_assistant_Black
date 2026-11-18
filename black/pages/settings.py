@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from PyQt5.QtCore import QSize, Qt, QThread, QUrl
-from PyQt5.QtGui import QDesktopServices
+from PyQt5.QtGui import QDesktopServices, QIcon
 from PyQt5.QtWidgets import (
     QButtonGroup,
     QComboBox,
@@ -25,6 +25,7 @@ from PyQt5.QtWidgets import (
 from .. import ai, theme
 from ..dialogs import GenshinDialog
 from ..paths import MUSIC
+from ..whispers import WHISPER_AVATARS, get_whisper_avatar
 from ..widgets import IconButton, ToggleSwitch
 
 
@@ -110,21 +111,32 @@ class SettingsDialog(GenshinDialog):
         s.addWidget(self._label("你怎么称呼"), 0, 0)
         s.addWidget(self.name_edit, 0, 1)
 
+        self.whisper_avatar_combo = QComboBox()
+        self.whisper_avatar_combo.setIconSize(QSize(22, 22))
+        current_persona = get_whisper_avatar(str(self.store.settings.get("whisper_avatar", "派蒙")))
+        for item in WHISPER_AVATARS:
+            self.whisper_avatar_combo.addItem(QIcon(str(item["path"])), item["name"], item["speaker"])
+        avatar_idx = self.whisper_avatar_combo.findData(current_persona["speaker"])
+        self.whisper_avatar_combo.setCurrentIndex(max(0, avatar_idx))
+        self.whisper_avatar_combo.setToolTip("头像会决定右下角悄悄话的配图、名字和台词。")
+        s.addWidget(self._label("悄悄话头像"), 1, 0)
+        s.addWidget(self.whisper_avatar_combo, 1, 1)
+
         self.interval_spin = QSpinBox()
         self.interval_spin.setRange(1, 180)
         self.interval_spin.setSingleStep(5)
         self.interval_spin.setSuffix(" 分钟")
         self.interval_spin.setValue(int(self.store.settings.get("quote_interval_min", 20) or 20))
-        s.addWidget(self._label("低语间隔"), 1, 0)
-        s.addWidget(self.interval_spin, 1, 1)
+        s.addWidget(self._label("弹出间隔"), 2, 0)
+        s.addWidget(self.interval_spin, 2, 1)
 
         self.whisper_toggle = ToggleSwitch(bool(self.store.settings.get("desktop_whisper", True)))
-        s.addWidget(self._label("桌面低语"), 2, 0)
-        s.addWidget(self._with_desc(self.whisper_toggle, "间隔一段时间后，在原神风格的弹窗里出现一句台词或鼓励。"), 2, 1)
+        s.addWidget(self._label("自动弹出"), 3, 0)
+        s.addWidget(self._with_desc(self.whisper_toggle, "关闭后不再自动弹出，但仍可以用顶部的星星按钮手动叫 Black 说话。"), 3, 1)
 
         self.tts_toggle = ToggleSwitch(bool(self.store.settings.get("tts_enabled", False)))
-        s.addWidget(self._label("朗读台词"), 3, 0)
-        s.addWidget(self._with_desc(self.tts_toggle, "调用 Windows 自带中文语音。无需联网，声音取决于系统语音包。"), 3, 1)
+        s.addWidget(self._label("朗读台词"), 4, 0)
+        s.addWidget(self._with_desc(self.tts_toggle, "调用 Windows 自带中文语音。无需联网，声音取决于系统语音包。"), 4, 1)
 
         self.tts_rate = QComboBox()
         self.tts_rate.addItem("慢一些", -2)
@@ -138,8 +150,8 @@ class SettingsDialog(GenshinDialog):
         if idx == 0 and cur_rate == -1:
             idx = 1
         self.tts_rate.setCurrentIndex(idx)
-        s.addWidget(self._label("朗读语速"), 4, 0)
-        s.addWidget(self.tts_rate, 4, 1)
+        s.addWidget(self._label("朗读语速"), 5, 0)
+        s.addWidget(self.tts_rate, 5, 1)
         lay.addWidget(self._wrap(s))
 
         # -- behavior --
@@ -399,6 +411,7 @@ class SettingsDialog(GenshinDialog):
         self.result_data = {
             "user_name": name[:18],
             "appearance": appearance,
+            "whisper_avatar": self.whisper_avatar_combo.currentData() or "派蒙",
             "quote_interval_min": int(self.interval_spin.value()),
             "desktop_whisper": bool(self.whisper_toggle.isChecked()),
             "tts_enabled": bool(self.tts_toggle.isChecked()),

@@ -29,6 +29,8 @@ SPEAKERS: dict[str, dict] = {
     "菲谢尔": {"avatar": "fischl.jpg", "color": "#b799da", "title": "断罪皇女"},
     "桑多涅": {"avatar": "sandrone.jpg", "color": "#c7b5ce", "title": "木偶"},
     "沃雅妮莎": {"avatar": "black.png", "color": "#7fd3d1", "title": "潮声中的歌者"},
+    "小王子": {"avatar": "brand_night.png", "color": "#d9bc7d", "title": "猫尾酒馆的黑色小王子"},
+    "彩特琳德": {"avatar": "brand_day.png", "color": "#b9c7e8", "title": "白鸦的旅人"},
 }
 
 # (speaker, text, tags)
@@ -82,6 +84,12 @@ QUOTES: list[dict] = [
     {"speaker": "芙宁娜", "tags": ["exam"], "text": "考试是舞台，不是审判。把你练过的那一段，优雅地演完就好。"},
     {"speaker": "胡桃", "tags": ["night"], "text": "还不睡？再熬下去，明天见到的本堂主可就要打哈欠啦。"},
     {"speaker": "刻晴", "tags": ["rest"], "text": "休息不是偷懒，是为了让下一段时间真正属于你。"},
+    {"speaker": "小王子", "tags": ["cute", "default"], "text": "猫尾酒馆今天也很安静。我把最靠窗的位置留给你了，书翻到哪一页了？"},
+    {"speaker": "小王子", "tags": ["focus"], "text": "杯子里的酒会见底，专注的时间不会。再坐一会儿吧，我陪你。"},
+    {"speaker": "小王子", "tags": ["night"], "text": "夜里的猫不催人。困了就收工，明天再把没做完的事叼回来。"},
+    {"speaker": "彩特琳德", "tags": ["courage", "default"], "text": "白鸦会替旅人记住方向。别怕走慢，只要还在往前。"},
+    {"speaker": "彩特琳德", "tags": ["focus"], "text": "桌前的灯已经替你亮着了。先把这一页看完，再想下一段路。"},
+    {"speaker": "彩特琳德", "tags": ["rest"], "text": "风从窗外经过时，不妨抬头看一眼。休息也是旅途的一部分。"},
 ]
 
 TAG_LABELS = {
@@ -111,14 +119,19 @@ def pick_quote(
     tags: list[str] | None = None,
     exclude: set[str] | None = None,
     rng: random.Random | None = None,
+    speaker: str | None = None,
 ) -> dict:
     """Pick a quote appropriate for the current moment.
 
     Context supports ``active`` (bool), ``late`` (bool), ``today_seconds`` and
-    ``exams`` (each with ``name`` and ``days``).
+    ``exams`` (each with ``name`` and ``days``).  When ``speaker`` is given,
+    prefer that character's own lines (used by the whisper-avatar setting).
     """
     rng = rng or random.Random()
     exclude = exclude or set()
+    source_pool = [q for q in QUOTES if not speaker or q["speaker"] == speaker]
+    if not source_pool:
+        source_pool = list(QUOTES)
     now_tags = list(tags or [])
     if context:
         if context.get("late"):
@@ -132,12 +145,12 @@ def pick_quote(
     if not now_tags:
         now_tags = ["default", "focus"]
 
-    pool = [q for q in QUOTES if any(t in q["tags"] for t in now_tags) and q["text"] not in exclude]
+    pool = [q for q in source_pool if any(t in q["tags"] for t in now_tags) and q["text"] not in exclude]
     if not pool:
-        pool = [q for q in QUOTES if q["text"] not in exclude] or QUOTES
+        pool = [q for q in source_pool if q["text"] not in exclude] or source_pool
 
     # Exam proximity deserves a tailored line every now and then.
-    if context and "exam" in now_tags and rng.random() < 0.45:
+    if context and "exam" in now_tags and rng.random() < 0.45 and not speaker:
         exams = sorted(_exam_days(context), key=lambda x: x["days"])
         if exams:
             e = exams[0]

@@ -44,7 +44,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "music_folder": str(MUSIC),
     "music_volume": 42,
     "auto_play_bgm": False,
+    "music_mode": "sequence",
     "last_local_track": "",
+    "whisper_avatar": "派蒙",
     "character": "vodyanitsa",
     "look": "",
     "appearance": "dark",
@@ -131,6 +133,9 @@ def _default_data() -> dict:
         "subjects": _default_subjects(),
         "active": None,
         "sessions": [],
+        "playlists": [
+            {"id": "local", "name": "本地曲库", "builtin": True, "tracks": []},
+        ],
         "launches": 1,
     }
 
@@ -250,6 +255,7 @@ class Store:
         if not isinstance(data.get("sessions"), list):
             data["sessions"] = []
         data["sessions"] = data["sessions"][-MAX_SESSIONS:]
+        self._normalise_playlists(data)
         if not isinstance(data.get("active"), dict):
             data["active"] = None
         elif not data["active"].get("subject_id") or not data["active"].get("started_at"):
@@ -303,6 +309,45 @@ class Store:
                     sub["seen_level"] = max(1, int(sub["seen_level"]))
                 except (TypeError, ValueError):
                     sub["seen_level"] = 1
+
+    def _normalise_playlists(self, data: dict) -> None:
+        raw = data.get("playlists")
+        if not isinstance(raw, list):
+            raw = []
+        clean: list[dict] = []
+        seen: set[str] = set()
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            pid = str(item.get("id") or "").strip()
+            if not pid or pid in seen:
+                continue
+            if pid == "local":
+                clean.append(
+                    {
+                        "id": "local",
+                        "name": "本地曲库",
+                        "builtin": True,
+                        "tracks": [],
+                    }
+                )
+                seen.add(pid)
+                continue
+            tracks = item.get("tracks")
+            if not isinstance(tracks, list):
+                tracks = []
+            clean.append(
+                {
+                    "id": pid,
+                    "name": str(item.get("name") or "未命名歌单")[:40],
+                    "builtin": False,
+                    "tracks": [t for t in tracks if isinstance(t, dict)],
+                }
+            )
+            seen.add(pid)
+        if "local" not in seen:
+            clean.insert(0, {"id": "local", "name": "本地曲库", "builtin": True, "tracks": []})
+        data["playlists"] = clean
 
     def _recover_active(self, *, now: datetime) -> None:
         active = self.data.get("active")
@@ -360,6 +405,103 @@ class Store:
     def update_settings(self, **values) -> None:
         self.settings.update(values)
         self.save()
+
+    # ------------------------------------------------------------------ playlists
+    def playlists(self) -> list[dict]:
+        return [dict(item) for item in self.data.get("playlists", [])]
+
+    def playlist(self, playlist_id: str) -> dict | None:
+        for item in self.data.get("playlists", []):
+            if item.get("id") == playlist_id:
+                return item
+        return None
+
+    def create_playlist(self, name: str) -> dict:
+        name = (name or "未命名歌单").strip()[:40] or "未命名歌单"
+        item = {
+            "id": "pl-" + uuid.uuid4().hex[:10],
+            "name": name,
+            "builtin": False,
+            "tracks": [],
+        }
+        self.data.setdefault("playlists", []).append(item)
+        self.save()
+        return item
+
+    def rename_playlist(self, playlist_id: str, name: str) -> bool:
+        item = self.playlist(playlist_id)
+        if not item or item.get("builtin"):
+            return False
+        item["name"] = (name or "").strip()[:40] or item.get("name", "未命名歌单")
+        self.save()
+        return True
+
+    def delete_playlist(self, playlist_id: str) -> bool:
+        item = self.playlist(playlist_id)
+        if not item or item.get("builtin"):
+            return False
+        self.data["playlists"] = [p for p in self.data["playlists"] if p.get("id") != playlist_id]
+        self.save()
+        return True
+
+    @staticmethod
+    def playlist_entry_key(entry: dict) -> str:
+        if str(entry.get("kind")) == "online":
+            track = entry.get("track") or {}
+            return f"online:{track.get('source', '')}:{track.get('id', '')}"
+        return "local:" + str(entry.get("path", ""))
+
+    def add_to_playlist(self, playlist_id: str, entry: dict) -> bool:
+        item = self.playlist(playlist_id)
+        if not item or item.get("builtin") or not isinstance(entry, dict):
+            return False
+        key = self.playlist_entry_key(entry)
+        if not key or key == "local:":
+            return False
+        if any(self.playlist_entry_key(t) == key for t in item.get("tracks", [])):
+            return False
+        item.setdefault("tracks", []).append(entry)
+        self.save()
+        return True
+
+    def remove_from_playlist(self, playlist_id: str, index: int) -> bool:
+        item = self.playlist(playlist_id)
+        if not item or item.get("builtin"):
+            return False
+        tracks = item.get("tracks", [])
+        if not 0 <= index < len(tracks):
+            return False
+        tracks.pop(index)
+        self.save()
+        return True
+
+    def move_playlist_track(self, playlist_id: str, index: int, delta: int) -> bool:
+        item = self.playlist(playlist_id)
+        if not item or item.get("builtin"):
+            return False
+        tracks = item.get("tracks", [])
+        target = index + delta
+        if not 0 <= index < len(tracks) or not 0 <= target < len(tracks):
+            return False
+        tracks[index], tracks[target] = tracks[target], tracks[index]
+        self.save()
+        return True
+
+    def move_track_between_playlists(self, source_id: str, target_id: str, index: int) -> bool:
+        source = self.playlist(source_id)
+        target = self.playlist(target_id)
+        if not source or not target or target.get("builtin"):
+            return False
+        tracks = source.get("tracks", [])
+        if not 0 <= index < len(tracks):
+            return False
+        entry = tracks[index]
+        if any(self.playlist_entry_key(t) == self.playlist_entry_key(entry) for t in target.get("tracks", [])):
+            return False
+        target.setdefault("tracks", []).append(entry)
+        tracks.pop(index)
+        self.save()
+        return True
 
     # ------------------------------------------------------------------ active
     def active(self) -> dict | None:

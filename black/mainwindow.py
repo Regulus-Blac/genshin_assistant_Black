@@ -42,6 +42,7 @@ from .characters import (
     get_look,
     legacy_look_id,
 )
+from .landscape_stage import LandscapeStage
 from .levels import format_duration, format_short_duration
 from .music_service import MusicEngine
 from .overlay import LevelUpOverlay
@@ -57,9 +58,88 @@ from .stage import CharacterStage
 from .store import Store
 from .timer import TimerEngine
 from .tts import TTSService
+from .whispers import get_whisper_avatar
 from .widgets import Divider, IconButton, NavTab, TitleBar
 
 WEEKDAYS = "一二三四五六日"
+
+
+class _ResizeHandle(QWidget):
+    """Invisible edge/corner grip for the frameless main window."""
+
+    def __init__(self, parent: "MainWindow", edges: tuple[str, ...]) -> None:
+        super().__init__(parent)
+        self.edges = set(edges)
+        self._start = None
+        self._start_geo = None
+        self.setMouseTracking(True)
+        self.setStyleSheet("background: transparent;")
+        self.setCursor(self._cursor_for_edges())
+        self.setToolTip("拖动边缘调整窗口大小")
+
+    def _cursor_for_edges(self):
+        if {"left", "right"} & self.edges and {"top", "bottom"} & self.edges:
+            return Qt.SizeFDiagCursor if ("left" in self.edges) == ("top" in self.edges) else Qt.SizeBDiagCursor
+        if {"left", "right"} & self.edges:
+            return Qt.SizeHorCursor
+        return Qt.SizeVerCursor
+
+    def update_zone(self) -> None:
+        parent = self.parentWidget()
+        if parent is None:
+            return
+        w, h = parent.width(), parent.height()
+        b, c = 8, 14
+        x, y, ww, hh = 0, 0, w, h
+        if self.edges == {"left"}:
+            x, y, ww, hh = 0, c, b, max(1, h - 2 * c)
+        elif self.edges == {"right"}:
+            x, y, ww, hh = w - b, c, b, max(1, h - 2 * c)
+        elif self.edges == {"top"}:
+            x, y, ww, hh = c, 0, max(1, w - 2 * c), b
+        elif self.edges == {"bottom"}:
+            x, y, ww, hh = c, h - b, max(1, w - 2 * c), b
+        else:
+            x = 0 if "left" in self.edges else w - c
+            y = 0 if "top" in self.edges else h - c
+            ww = hh = c
+        self.setGeometry(x, y, ww, hh)
+        self.raise_()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.LeftButton:
+            self._start = event.globalPos()
+            self._start_geo = self.parentWidget().geometry()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        if self._start is None or self._start_geo is None or not (event.buttons() & Qt.LeftButton):
+            return super().mouseMoveEvent(event)
+        parent = self.parentWidget()
+        dx = event.globalPos().x() - self._start.x()
+        dy = event.globalPos().y() - self._start.y()
+        geo = QRect(self._start_geo)
+        min_w = max(960, parent.minimumWidth())
+        min_h = max(620, parent.minimumHeight())
+        if "left" in self.edges:
+            new_left = min(self._start_geo.left() + dx, self._start_geo.right() - min_w + 1)
+            geo.setLeft(new_left)
+        if "right" in self.edges:
+            geo.setRight(max(self._start_geo.right() + dx, self._start_geo.left() + min_w - 1))
+        if "top" in self.edges:
+            new_top = min(self._start_geo.top() + dy, self._start_geo.bottom() - min_h + 1)
+            geo.setTop(new_top)
+        if "bottom" in self.edges:
+            geo.setBottom(max(self._start_geo.bottom() + dy, self._start_geo.top() + min_h - 1))
+        parent.setGeometry(geo)
+        event.accept()
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        self._start = None
+        self._start_geo = None
+        super().mouseReleaseEvent(event)
 class MainWindow(QMainWindow):
     def __init__(self, store: Store) -> None:
         super().__init__(None)
@@ -82,7 +162,7 @@ class MainWindow(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setWindowTitle("Black · 提瓦特驻留终端")
         self.setWindowIcon(QIcon(str(IMAGES / "app_icon.png")))
-        self.setMinimumSize(1180, 748)
+        self.setMinimumSize(1120, 740)
 
         self.timer = TimerEngine(self.store, self)
         self.sounds = Sounds(self)
@@ -92,6 +172,8 @@ class MainWindow(QMainWindow):
         )
 
         self._build_ui()
+        self._resize_handles: list[_ResizeHandle] = []
+        self._build_resize_handles()
         self._setup_tray()
         self._wire_signals()
         self._apply_window_size()
@@ -128,15 +210,16 @@ class MainWindow(QMainWindow):
         self.titlebar = TitleBar()
         root_lay.addWidget(self.titlebar)
         self.body = QWidget()
-        body_lay = QHBoxLayout(self.body)
-        body_lay.setContentsMargins(16, 0, 16, 15)
-        body_lay.setSpacing(18)
+        self.body_lay = QHBoxLayout(self.body)
+        self.body_lay.setContentsMargins(16, 0, 16, 15)
+        self.body_lay.setSpacing(18)
         root_lay.addWidget(self.body, 1)
 
-        art = str(self.store.settings.get("art", "art_snow.jpg") or "art_snow.jpg")
-        self.stage = CharacterStage(art)
-        body_lay.addWidget(self.stage)
+        _meta, _look = self._stored_character_look()
+        self.stage = self._make_stage(str(_look.get("art") or "art_snow.jpg"), _look)
+        self.body_lay.addWidget(self.stage)
 
+        body_lay = self.body_lay
         content_host = QWidget()
         content_lay = QVBoxLayout(content_host)
         content_lay.setContentsMargins(0, 0, 0, 0)
@@ -201,11 +284,7 @@ class MainWindow(QMainWindow):
         self.titlebar.pin_toggled.connect(self._on_pin_toggled)
         self.titlebar.set_pinned(bool(self.store.settings.get("always_on_top", False)))
 
-        self.stage.petted.connect(self._on_stage_petted)
-        self.stage.chat_requested.connect(lambda: self._goto_page(3))
-        self.stage.character_requested.connect(self._open_character_picker)
-        self.stage.music_toggle_requested.connect(self.music_page.toggle_playback)
-        self.stage.music_next_requested.connect(self.music_page.next_track)
+        self._connect_stage_signals(self.stage)
 
     def _wire_signals(self) -> None:
         self.study_page.note_preview_requested.connect(self._open_journal)
@@ -230,8 +309,8 @@ class MainWindow(QMainWindow):
         screen = QApplication.primaryScreen()
         if screen:
             avail = screen.availableGeometry()
-            w = min(1380, max(1180, avail.width() - 60))
-            h = min(864, max(748, avail.height() - 60))
+            w = min(1380, max(1120, avail.width() - 60))
+            h = min(864, max(740, avail.height() - 60))
             self.resize(w, h)
             self.move(
                 avail.left() + max(0, (avail.width() - w) // 2),
@@ -240,12 +319,78 @@ class MainWindow(QMainWindow):
         else:
             self.resize(1380, 860)
 
-    def _restore_character(self) -> None:
+    def _build_resize_handles(self) -> None:
+        for edges in (
+            ("left",),
+            ("right",),
+            ("top",),
+            ("bottom",),
+            ("left", "top"),
+            ("right", "top"),
+            ("left", "bottom"),
+            ("right", "bottom"),
+        ):
+            handle = _ResizeHandle(self, edges)
+            self._resize_handles.append(handle)
+        self._position_resize_handles()
+
+    def _position_resize_handles(self) -> None:
+        if not hasattr(self, "_resize_handles"):
+            return
+        for handle in self._resize_handles:
+            if self._maximized:
+                handle.hide()
+            else:
+                handle.show()
+                handle.update_zone()
+
+    def _stored_character_look(self) -> tuple[dict, dict]:
         meta = get_character(self.store.settings.get("character", DEFAULT_CHARACTER_ID))
         look_id = str(self.store.settings.get("look", "") or "")
         if not look_id:
             look_id = legacy_look_id(meta["id"], self.store.settings.get("art")) or ""
-        look = get_look(meta, look_id)
+        return meta, get_look(meta, look_id)
+
+    def _make_stage(self, art: str, look: dict):
+        stage_cls = LandscapeStage if str(look.get("orientation", "portrait")) == "landscape" else CharacterStage
+        return stage_cls(art)
+
+    def _connect_stage_signals(self, stage) -> None:
+        stage.petted.connect(self._on_stage_petted)
+        stage.chat_requested.connect(lambda: self._goto_page(3))
+        stage.character_requested.connect(self._open_character_picker)
+        stage.music_toggle_requested.connect(self.music_page.toggle_playback)
+        stage.music_next_requested.connect(self.music_page.next_track)
+
+    def _apply_stage_look(self, meta: dict, look: dict) -> None:
+        self._character_meta = meta
+        orientation = str(look.get("orientation", "portrait"))
+        desired = LandscapeStage if orientation == "landscape" else CharacterStage
+        if getattr(self.stage, "ORIENTATION", "portrait") != orientation:
+            old = self.stage
+            idx = self.body_lay.indexOf(old)
+            if idx >= 0:
+                self.body_lay.removeWidget(old)
+            new = desired(str(look.get("art") or "art_snow.jpg"))
+            self.body_lay.insertWidget(idx if idx >= 0 else 0, new)
+            self.stage = new
+            self._connect_stage_signals(new)
+            old.setParent(None)
+            old.deleteLater()
+            self.stage.set_character(meta, look["id"])
+            self._last_greeting_key = ""
+            self._refresh_global()
+            self._set_initial_quote()
+            self._update_clock()
+            self._update_music_initial()
+            if self.overlay.isVisible():
+                self.overlay.setGeometry(self.rect())
+                self.overlay.raise_()
+        else:
+            self.stage.set_character(meta, look["id"])
+
+    def _restore_character(self) -> None:
+        meta, look = self._stored_character_look()
         self._character_meta = meta
         self.store.settings["character"] = meta["id"]
         self.store.settings["look"] = look["id"]
@@ -266,7 +411,7 @@ class MainWindow(QMainWindow):
         self.store.settings["character"] = meta["id"]
         self.store.settings["look"] = look["id"]
         self.store.save()
-        self.stage.set_character(meta, look["id"])
+        self._apply_stage_look(meta, look)
         self._last_greeting_key = ""
         self._update_clock()
         self.stage.add_hearts(QPointF(self.stage.width() * 0.55, self.stage.height() * 0.48))
@@ -464,16 +609,30 @@ class MainWindow(QMainWindow):
         self._set_stage_quote(quote)
         self._recent_quotes.append(str(quote.get("text", "")))
 
-    def _choose_quote(self, tags: list[str] | None = None, context: dict | None = None) -> dict:
+    def _choose_quote(
+        self,
+        tags: list[str] | None = None,
+        context: dict | None = None,
+        speaker: str | None = None,
+    ) -> dict:
         context = context or self.store.context()
         exclude = set(self._recent_quotes[-10:])
         for _ in range(4):
-            quote = content.pick_quote(context=context, tags=tags, exclude=exclude, rng=self._rng)
+            quote = content.pick_quote(
+                context=context,
+                tags=tags,
+                exclude=exclude,
+                rng=self._rng,
+                speaker=speaker,
+            )
             if str(quote.get("text", "")) not in exclude:
                 break
         self._recent_quotes.append(str(quote.get("text", "")))
         self._recent_quotes = self._recent_quotes[-12:]
         return quote
+
+    def _whisper_persona(self) -> dict:
+        return get_whisper_avatar(str(self.store.settings.get("whisper_avatar", "派蒙")))
 
     def _schedule_whisper(self, first: bool = False) -> None:
         try:
@@ -498,15 +657,14 @@ class MainWindow(QMainWindow):
     def _show_whisper(self, manual: bool = False) -> None:
         if not manual and not self.store.settings.get("desktop_whisper", True):
             return
-        quote = self._choose_quote(context=self.store.context())
+        persona = self._whisper_persona()
+        quote = self._choose_quote(context=self.store.context(), speaker=persona["speaker"])
         self._set_stage_quote(quote)
-        speaker = str(quote.get("speaker", "Black"))
-        meta = self._speaker_meta(speaker)
         self._whisper_popup.pop(
             quote,
-            str(avatar_path(meta.get("avatar", "black.png"))),
-            str(meta.get("title", "提瓦特的朋友")),
-            str(meta.get("color", theme.GOLD)),
+            str(persona["path"]),
+            str(persona.get("role", "提瓦特的朋友")),
+            str(persona.get("color", theme.GOLD)),
             duration_ms=18000,
         )
         if self.store.settings.get("tts_enabled", False):
@@ -515,15 +673,14 @@ class MainWindow(QMainWindow):
             self.sounds.interact()
 
     def _whisper_another(self) -> None:
-        quote = self._choose_quote(context=self.store.context())
+        persona = self._whisper_persona()
+        quote = self._choose_quote(context=self.store.context(), speaker=persona["speaker"])
         self._set_stage_quote(quote)
-        speaker = str(quote.get("speaker", "Black"))
-        meta = self._speaker_meta(speaker)
         self._whisper_popup.pop(
             quote,
-            str(avatar_path(meta.get("avatar", "black.png"))),
-            str(meta.get("title", "提瓦特的朋友")),
-            str(meta.get("color", theme.GOLD)),
+            str(persona["path"]),
+            str(persona.get("role", "提瓦特的朋友")),
+            str(persona.get("color", theme.GOLD)),
             duration_ms=18000,
         )
         if self.store.settings.get("tts_enabled", False):
@@ -638,6 +795,7 @@ class MainWindow(QMainWindow):
             old_central.deleteLater()
         self._recreate_whisper_popup()
         self._build_ui()
+        self._position_resize_handles()
         self._wire_signals()
         self.titlebar.set_pinned(bool(self.store.settings.get("always_on_top", False)))
         if self._maximized:
@@ -704,6 +862,7 @@ class MainWindow(QMainWindow):
         theme.set_prop(self.root, "maximized", "true" if self._maximized else "false")
         self.setProperty("customMaximized", self._maximized)
         self.titlebar.set_maximized_icon(self._maximized)
+        self._position_resize_handles()
         if self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
 
@@ -791,6 +950,7 @@ class MainWindow(QMainWindow):
         self.show()
         self.raise_()
         self.activateWindow()
+        self._position_resize_handles()
 
     def _tray_journal(self) -> None:
         self._show_from_tray()
@@ -875,8 +1035,13 @@ class MainWindow(QMainWindow):
         if hasattr(self, "size_grip"):
             self.size_grip.move(self.width() - 22, self.height() - 22)
             self.size_grip.raise_()
+        self._position_resize_handles()
         if hasattr(self, "overlay") and self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        QTimer.singleShot(0, self._position_resize_handles)
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)

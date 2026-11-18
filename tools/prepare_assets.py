@@ -392,7 +392,7 @@ def sound_effects() -> None:
 def main() -> None:
     prepare_art()
     prepare_font()
-    subprocess.run([sys.executable, str(Path(__file__).with_name("make_icon.py"))], check=True)
+    subprocess.run([sys.executable, str(Path(__file__).with_name("make_brand_icon.py"))], check=True)
     make_chevron()
     if not (MUSIC / "星落之庭.wav").exists():
         ambient_track(

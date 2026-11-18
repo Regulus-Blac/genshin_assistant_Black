@@ -43,7 +43,7 @@ from PyQt5.QtWidgets import (
 )
 
 from . import theme
-from .paths import avatar_path
+from .paths import IMAGES, avatar_path
 
 
 # ---------------------------------------------------------------------------
@@ -532,9 +532,12 @@ class TitleBar(QWidget):
         lay.setContentsMargins(22, 8, 14, 6)
         lay.setSpacing(10)
 
-        mark = QLabel()
-        mark.setPixmap(QPixmap(str(Path(__file__).resolve().parents[1] / "assets" / "images" / "app_icon.png")).scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        mark.setFixedSize(38, 38)
+        mark = Avatar(
+            IMAGES / ("brand_day.png" if theme.is_light() else "brand_night.png"),
+            42,
+            ring=theme.GOLD,
+        )
+        mark.setFixedSize(42, 42)
         lay.addWidget(mark)
 
         brand_box = QVBoxLayout()

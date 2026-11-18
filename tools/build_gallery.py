@@ -98,10 +98,11 @@ VODY = {
     "element": "hydro",
     "color": "#7fd3d1",
     "looks": [
-        {"id": "snow", "label": "雪窗", "art": "art_snow.jpg", "thumb": "gallery/thumbs/vody_snow.jpg"},
-        {"id": "wisteria", "label": "紫藤", "art": "art_wisteria.jpg", "thumb": "gallery/thumbs/vody_wisteria.jpg"},
-        {"id": "picnic", "label": "野餐", "art": "art_picnic.jpg", "thumb": "gallery/thumbs/vody_picnic.jpg"},
-        {"id": "tea", "label": "茶会", "art": "art_tea.jpg", "thumb": "gallery/thumbs/vody_tea.jpg"},
+        {"id": "snow", "label": "雪窗", "orientation": "portrait", "art": "art_snow.jpg", "thumb": "gallery/thumbs/vody_snow.jpg"},
+        {"id": "wisteria", "label": "紫藤", "orientation": "portrait", "art": "art_wisteria.jpg", "thumb": "gallery/thumbs/vody_wisteria.jpg"},
+        {"id": "picnic", "label": "野餐", "orientation": "portrait", "art": "art_picnic.jpg", "thumb": "gallery/thumbs/vody_picnic.jpg"},
+        {"id": "tea", "label": "茶会", "orientation": "portrait", "art": "art_tea.jpg", "thumb": "gallery/thumbs/vody_tea.jpg"},
+        {"id": "wide", "label": "横屏", "orientation": "landscape", "art": "gallery/vody_wide.jpg", "thumb": "gallery/thumbs/vody_wide.jpg"},
     ],
     "default_look": "snow",
     "source": "workspace / user-supplied illustrations",
@@ -138,6 +139,21 @@ def download(url: str, cache_name: str) -> bytes:
             return r.content
         except Exception as e:
             last = e
+            # jsDelivr occasionally rate-limits large art; the GitHub raw
+            # endpoint serves the same official mirror.
+            if "cdn.jsdelivr.net/gh/ScobbleQ/HoYo-Assets@main/" in url:
+                raw = url.replace(
+                    "https://cdn.jsdelivr.net/gh/ScobbleQ/HoYo-Assets@main/",
+                    "https://raw.githubusercontent.com/ScobbleQ/HoYo-Assets/main/",
+                )
+                try:
+                    r = requests.get(raw, headers=H, timeout=60)
+                    r.raise_for_status()
+                    if len(r.content) >= 5000:
+                        path.write_bytes(r.content)
+                        return r.content
+                except Exception as raw_error:
+                    last = raw_error
             time.sleep(1.2 + attempt)
     raise RuntimeError(f"download failed {url}: {last}")
 
@@ -264,10 +280,58 @@ def make_thumb(im: Image.Image, focus_y: float = 0.12) -> Image.Image:
     return t.resize((300, 400), Image.LANCZOS)
 
 
+def compose_wide(source_bytes: bytes, accent: str, seed: int, focus_y: float = 0.5) -> Image.Image:
+    """1600x900 cinematic crop used by LandscapeStage."""
+    w, h = 1600, 900
+    src = Image.open(io.BytesIO(source_bytes)).convert("RGBA")
+    accent_rgb = np.array(
+        [int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)],
+        dtype=np.float32,
+    )
+    base = np.zeros((h, w, 3), dtype=np.float32)
+    base[..., 0] = 5
+    base[..., 1] = 10
+    base[..., 2] = 16
+    yy = np.linspace(0, 1, h, dtype=np.float32)[:, None]
+    base += (accent_rgb[None, None, :] * 0.11) * yy[..., None]
+    canvas = Image.fromarray(np.clip(base, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+
+    scale = max(w / src.width, h / src.height)
+    sw, sh = max(1, round(src.width * scale)), max(1, round(src.height * scale))
+    art = src.resize((sw, sh), Image.LANCZOS)
+    x = max(0, (sw - w) // 2)
+    y = max(0, int((sh - h) * max(0.0, min(1.0, focus_y))))
+    art = art.crop((x, y, x + w, y + h))
+    canvas.alpha_composite(art)
+
+    # cinematic edge treatment + a subtle gold breath at the top
+    d = ImageDraw.Draw(canvas, "RGBA")
+    for i in range(7):
+        d.rectangle((i * 4, i * 6, w - i * 4, h - i * 6), outline=(3, 7, 11, 14 + i * 6), width=4)
+    top = Image.new("RGBA", (w, 150), (4, 8, 13, 0))
+    td = ImageDraw.Draw(top, "RGBA")
+    for y in range(150):
+        td.line((0, y, w, y), fill=(4, 8, 13, int(120 * (1 - y / 150) ** 1.5)))
+    canvas.alpha_composite(top, (0, 0))
+    bottom = Image.new("RGBA", (w, 180), (4, 8, 13, 0))
+    bd = ImageDraw.Draw(bottom, "RGBA")
+    for y in range(180):
+        bd.line((0, y, w, y), fill=(4, 8, 13, int(150 * (y / 180) ** 1.2)))
+    canvas.alpha_composite(bottom, (0, h - 180))
+    d = ImageDraw.Draw(canvas, "RGBA")
+    d.line((0, h - 6, w, h - 6), fill=(217, 188, 125, 50), width=1)
+    return canvas.convert("RGB")
+
+
+
 def build() -> int:
     print("fetch yatta")
     by_route = fetch_yatta()
     characters = [VODY]
+    # Vodyanitsa landscape crop comes from her snow portrait.
+    wide = compose_wide((IMAGES / "art_snow.jpg").read_bytes(), "#7fd3d1", seed=41, focus_y=0.04)
+    wide.save(IMAGES / "gallery/vody_wide.jpg", quality=92, optimize=True)
+    make_thumb(wide, 0.12).save(IMAGES / "gallery/thumbs/vody_wide.jpg", quality=88, optimize=True)
     # Vodyanitsa thumbs from the local paintings
     for look in VODY["looks"]:
         im = Image.open(IMAGES / look["art"]).convert("RGB")
@@ -327,20 +391,57 @@ def build() -> int:
         # studio look.
         for kind, label in (("splash", "全景"), ("wish", "全身")):
             data = downloaded.get((cid, kind))
-            if not data:
-                continue
-            try:
-                im = compose(data, kind, color, seed=sum(ord(c) for c in cid) + (0 if kind == "wish" else 7))
-                art_name = f"gallery/{cid}_{kind}.jpg"
-                thumb_name = f"gallery/thumbs/{cid}_{kind}.jpg"
-                im.save(IMAGES / art_name, quality=92, optimize=True)
-                make_thumb(im, 0.12).save(IMAGES / thumb_name, quality=88, optimize=True)
+            if data:
+                try:
+                    im = compose(data, kind, color, seed=sum(ord(c) for c in cid) + (0 if kind == "wish" else 7))
+                    art_name = f"gallery/{cid}_{kind}.jpg"
+                    thumb_name = f"gallery/thumbs/{cid}_{kind}.jpg"
+                    im.save(IMAGES / art_name, quality=92, optimize=True)
+                    make_thumb(im, 0.12).save(IMAGES / thumb_name, quality=88, optimize=True)
+                    print("page", cid, kind, (IMAGES / art_name).stat().st_size // 1024, "KB")
+                except Exception as e:
+                    print("compose failed", cid, kind, e)
+                    data = None
+            # Keep an already-built portrait if the CDN rate-limits a re-run.
+            art_path = IMAGES / f"gallery/{cid}_{kind}.jpg"
+            thumb_path = IMAGES / f"gallery/thumbs/{cid}_{kind}.jpg"
+            if art_path.exists() and thumb_path.exists():
                 if cid == "skirk" and not looks:
                     label = "官方"
-                looks.append({"id": kind, "label": label, "art": art_name, "thumb": thumb_name})
-                print("page", cid, kind, (IMAGES / art_name).stat().st_size // 1024, "KB")
-            except Exception as e:
-                print("compose failed", cid, kind, e)
+                looks.append({
+                    "id": kind,
+                    "label": label,
+                    "orientation": "portrait",
+                    "art": f"gallery/{cid}_{kind}.jpg",
+                    "thumb": f"gallery/thumbs/{cid}_{kind}.jpg",
+                })
+        wide_data = downloaded.get((cid, "splash"))
+        try:
+            if wide_data:
+                im = compose_wide(wide_data, color, seed=sum(ord(c) for c in cid) + 19)
+            else:
+                # Fall back to the already-composed splash portrait if the
+                # source mirror refused this request.
+                fallback = IMAGES / f"gallery/{cid}_splash.jpg"
+                if not fallback.exists():
+                    fallback = IMAGES / f"gallery/{cid}_wish.jpg"
+                if not fallback.exists():
+                    raise RuntimeError("no wide source")
+                im = compose_wide(fallback.read_bytes(), color, seed=sum(ord(c) for c in cid) + 19)
+            art_name = f"gallery/{cid}_wide.jpg"
+            thumb_name = f"gallery/thumbs/{cid}_wide.jpg"
+            im.save(IMAGES / art_name, quality=92, optimize=True)
+            make_thumb(im, 0.12).save(IMAGES / thumb_name, quality=88, optimize=True)
+            looks.append({
+                "id": "wide",
+                "label": "横屏",
+                "orientation": "landscape",
+                "art": art_name,
+                "thumb": thumb_name,
+            })
+            print("wide", cid, (IMAGES / art_name).stat().st_size // 1024, "KB")
+        except Exception as e:
+            print("wide failed", cid, e)
         if not looks:
             print("NO LOOKS", route)
             continue

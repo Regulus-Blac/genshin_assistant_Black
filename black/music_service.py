@@ -310,6 +310,7 @@ class MusicEngine(QObject):
     error_occurred = pyqtSignal(str)
     queue_changed = pyqtSignal()
     about_to_play = pyqtSignal(object)
+    mode_changed = pyqtSignal(str)
 
     def __init__(self, parent: QObject | None = None, volume: int = 42) -> None:
         super().__init__(parent)
@@ -322,8 +323,7 @@ class MusicEngine(QObject):
         self.player.error.connect(self._on_error)
         self.queue: list[Playable] = []
         self.index = -1
-        self.repeat_mode = 1  # 0 off, 1 all, 2 one
-        self.shuffle = False
+        self.play_mode = "sequence"  # sequence | shuffle | single
         self._download: DownloadThread | None = None
         self._threads: list[DownloadThread] = []
         self._generation = 0
@@ -337,6 +337,18 @@ class MusicEngine(QObject):
     # ------------------------------------------------------------------
     def set_volume(self, value: int) -> None:
         self.player.setVolume(max(0, min(100, int(value))))
+
+    def set_play_mode(self, mode: str) -> str:
+        mode = str(mode or "sequence").lower()
+        if mode not in ("sequence", "shuffle", "single"):
+            mode = "sequence"
+        if mode != self.play_mode:
+            self.play_mode = mode
+            self.mode_changed.emit(mode)
+        return mode
+
+    def play_mode_label(self) -> str:
+        return {"sequence": "顺序播放", "shuffle": "随机播放", "single": "单曲循环"}[self.play_mode]
 
     @property
     def volume(self) -> int:
@@ -405,21 +417,20 @@ class MusicEngine(QObject):
     def next(self, *, automatic: bool = False) -> None:
         if not self.queue:
             return
-        if self.repeat_mode == 2 and automatic:
+        if self.play_mode == "single" and automatic:
             self.player.setPosition(0)
             self.player.play()
             return
-        if self.shuffle and len(self.queue) > 1:
+        if self.play_mode == "shuffle":
             import random
 
             choices = [i for i in range(len(self.queue)) if i != self.index]
-            self.index = random.choice(choices)
+            self.index = random.choice(choices) if choices else self.index
         else:
             nxt = self.index + 1
             if nxt >= len(self.queue):
-                if self.repeat_mode == 0:
-                    if automatic:
-                        self.player.stop()
+                if automatic:
+                    self.player.stop()
                     return
                 nxt = 0
             self.index = nxt

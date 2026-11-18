@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-11-17T12:13:15",
+  "generated_at": "2026-11-18T09:23:39",
   "sources": {
     "metadata": "https://gi.yatta.moe/api/v2/chs/avatar",
     "official_art": "https://github.com/ScobbleQ/HoYo-Assets",
@@ -18,26 +18,37 @@
         {
           "id": "snow",
           "label": "雪窗",
+          "orientation": "portrait",
           "art": "art_snow.jpg",
           "thumb": "gallery/thumbs/vody_snow.jpg"
         },
         {
           "id": "wisteria",
           "label": "紫藤",
+          "orientation": "portrait",
           "art": "art_wisteria.jpg",
           "thumb": "gallery/thumbs/vody_wisteria.jpg"
         },
         {
           "id": "picnic",
           "label": "野餐",
+          "orientation": "portrait",
           "art": "art_picnic.jpg",
           "thumb": "gallery/thumbs/vody_picnic.jpg"
         },
         {
           "id": "tea",
           "label": "茶会",
+          "orientation": "portrait",
           "art": "art_tea.jpg",
           "thumb": "gallery/thumbs/vody_tea.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/vody_wide.jpg",
+          "thumb": "gallery/thumbs/vody_wide.jpg"
         }
       ],
       "default_look": "snow",
@@ -53,14 +64,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/furina_splash.jpg",
           "thumb": "gallery/thumbs/furina_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/furina_wish.jpg",
           "thumb": "gallery/thumbs/furina_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/furina_wide.jpg",
+          "thumb": "gallery/thumbs/furina_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -76,14 +96,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/neuvillette_splash.jpg",
           "thumb": "gallery/thumbs/neuvillette_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/neuvillette_wish.jpg",
           "thumb": "gallery/thumbs/neuvillette_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/neuvillette_wide.jpg",
+          "thumb": "gallery/thumbs/neuvillette_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -99,14 +128,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/arlecchino_splash.jpg",
           "thumb": "gallery/thumbs/arlecchino_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/arlecchino_wish.jpg",
           "thumb": "gallery/thumbs/arlecchino_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/arlecchino_wide.jpg",
+          "thumb": "gallery/thumbs/arlecchino_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -122,14 +160,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/navia_splash.jpg",
           "thumb": "gallery/thumbs/navia_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/navia_wish.jpg",
           "thumb": "gallery/thumbs/navia_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/navia_wide.jpg",
+          "thumb": "gallery/thumbs/navia_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -145,14 +192,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/clorinde_splash.jpg",
           "thumb": "gallery/thumbs/clorinde_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/clorinde_wish.jpg",
           "thumb": "gallery/thumbs/clorinde_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/clorinde_wide.jpg",
+          "thumb": "gallery/thumbs/clorinde_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -168,14 +224,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/wriothesley_splash.jpg",
           "thumb": "gallery/thumbs/wriothesley_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/wriothesley_wish.jpg",
           "thumb": "gallery/thumbs/wriothesley_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/wriothesley_wide.jpg",
+          "thumb": "gallery/thumbs/wriothesley_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -191,14 +256,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/sigewinne_splash.jpg",
           "thumb": "gallery/thumbs/sigewinne_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/sigewinne_wish.jpg",
           "thumb": "gallery/thumbs/sigewinne_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/sigewinne_wide.jpg",
+          "thumb": "gallery/thumbs/sigewinne_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -214,14 +288,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/chiori_splash.jpg",
           "thumb": "gallery/thumbs/chiori_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/chiori_wish.jpg",
           "thumb": "gallery/thumbs/chiori_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/chiori_wide.jpg",
+          "thumb": "gallery/thumbs/chiori_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -237,14 +320,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/xianyun_splash.jpg",
           "thumb": "gallery/thumbs/xianyun_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/xianyun_wish.jpg",
           "thumb": "gallery/thumbs/xianyun_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/xianyun_wide.jpg",
+          "thumb": "gallery/thumbs/xianyun_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -260,14 +352,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/hutao_splash.jpg",
           "thumb": "gallery/thumbs/hutao_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/hutao_wish.jpg",
           "thumb": "gallery/thumbs/hutao_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/hutao_wide.jpg",
+          "thumb": "gallery/thumbs/hutao_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -283,14 +384,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/zhongli_splash.jpg",
           "thumb": "gallery/thumbs/zhongli_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/zhongli_wish.jpg",
           "thumb": "gallery/thumbs/zhongli_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/zhongli_wide.jpg",
+          "thumb": "gallery/thumbs/zhongli_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -306,14 +416,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/xiao_splash.jpg",
           "thumb": "gallery/thumbs/xiao_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/xiao_wish.jpg",
           "thumb": "gallery/thumbs/xiao_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/xiao_wide.jpg",
+          "thumb": "gallery/thumbs/xiao_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -329,14 +448,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/ganyu_splash.jpg",
           "thumb": "gallery/thumbs/ganyu_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/ganyu_wish.jpg",
           "thumb": "gallery/thumbs/ganyu_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/ganyu_wide.jpg",
+          "thumb": "gallery/thumbs/ganyu_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -352,14 +480,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/shenhe_splash.jpg",
           "thumb": "gallery/thumbs/shenhe_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/shenhe_wish.jpg",
           "thumb": "gallery/thumbs/shenhe_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/shenhe_wide.jpg",
+          "thumb": "gallery/thumbs/shenhe_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -375,14 +512,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/yelan_splash.jpg",
           "thumb": "gallery/thumbs/yelan_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/yelan_wish.jpg",
           "thumb": "gallery/thumbs/yelan_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/yelan_wide.jpg",
+          "thumb": "gallery/thumbs/yelan_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -398,14 +544,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/keqing_splash.jpg",
           "thumb": "gallery/thumbs/keqing_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/keqing_wish.jpg",
           "thumb": "gallery/thumbs/keqing_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/keqing_wide.jpg",
+          "thumb": "gallery/thumbs/keqing_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -421,14 +576,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/nahida_splash.jpg",
           "thumb": "gallery/thumbs/nahida_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/nahida_wish.jpg",
           "thumb": "gallery/thumbs/nahida_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/nahida_wide.jpg",
+          "thumb": "gallery/thumbs/nahida_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -444,14 +608,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/nilou_splash.jpg",
           "thumb": "gallery/thumbs/nilou_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/nilou_wish.jpg",
           "thumb": "gallery/thumbs/nilou_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/nilou_wide.jpg",
+          "thumb": "gallery/thumbs/nilou_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -467,14 +640,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/wanderer_splash.jpg",
           "thumb": "gallery/thumbs/wanderer_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/wanderer_wish.jpg",
           "thumb": "gallery/thumbs/wanderer_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/wanderer_wide.jpg",
+          "thumb": "gallery/thumbs/wanderer_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -490,14 +672,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/cyno_splash.jpg",
           "thumb": "gallery/thumbs/cyno_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/cyno_wish.jpg",
           "thumb": "gallery/thumbs/cyno_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/cyno_wide.jpg",
+          "thumb": "gallery/thumbs/cyno_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -513,14 +704,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/tighnari_splash.jpg",
           "thumb": "gallery/thumbs/tighnari_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/tighnari_wish.jpg",
           "thumb": "gallery/thumbs/tighnari_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/tighnari_wide.jpg",
+          "thumb": "gallery/thumbs/tighnari_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -536,14 +736,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/dehya_splash.jpg",
           "thumb": "gallery/thumbs/dehya_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/dehya_wish.jpg",
           "thumb": "gallery/thumbs/dehya_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/dehya_wide.jpg",
+          "thumb": "gallery/thumbs/dehya_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -559,14 +768,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/raiden_splash.jpg",
           "thumb": "gallery/thumbs/raiden_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/raiden_wish.jpg",
           "thumb": "gallery/thumbs/raiden_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/raiden_wide.jpg",
+          "thumb": "gallery/thumbs/raiden_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -582,14 +800,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/yae_splash.jpg",
           "thumb": "gallery/thumbs/yae_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/yae_wish.jpg",
           "thumb": "gallery/thumbs/yae_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/yae_wide.jpg",
+          "thumb": "gallery/thumbs/yae_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -605,14 +832,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/kazuha_splash.jpg",
           "thumb": "gallery/thumbs/kazuha_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/kazuha_wish.jpg",
           "thumb": "gallery/thumbs/kazuha_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/kazuha_wide.jpg",
+          "thumb": "gallery/thumbs/kazuha_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -628,14 +864,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/ayaka_splash.jpg",
           "thumb": "gallery/thumbs/ayaka_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/ayaka_wish.jpg",
           "thumb": "gallery/thumbs/ayaka_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/ayaka_wide.jpg",
+          "thumb": "gallery/thumbs/ayaka_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -651,14 +896,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/yoimiya_splash.jpg",
           "thumb": "gallery/thumbs/yoimiya_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/yoimiya_wish.jpg",
           "thumb": "gallery/thumbs/yoimiya_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/yoimiya_wide.jpg",
+          "thumb": "gallery/thumbs/yoimiya_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -674,14 +928,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/kokomi_splash.jpg",
           "thumb": "gallery/thumbs/kokomi_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/kokomi_wish.jpg",
           "thumb": "gallery/thumbs/kokomi_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/kokomi_wide.jpg",
+          "thumb": "gallery/thumbs/kokomi_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -697,14 +960,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/venti_splash.jpg",
           "thumb": "gallery/thumbs/venti_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/venti_wish.jpg",
           "thumb": "gallery/thumbs/venti_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/venti_wide.jpg",
+          "thumb": "gallery/thumbs/venti_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -720,14 +992,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/klee_splash.jpg",
           "thumb": "gallery/thumbs/klee_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/klee_wish.jpg",
           "thumb": "gallery/thumbs/klee_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/klee_wide.jpg",
+          "thumb": "gallery/thumbs/klee_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -743,14 +1024,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/mona_splash.jpg",
           "thumb": "gallery/thumbs/mona_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/mona_wish.jpg",
           "thumb": "gallery/thumbs/mona_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/mona_wide.jpg",
+          "thumb": "gallery/thumbs/mona_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -766,14 +1056,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/eula_splash.jpg",
           "thumb": "gallery/thumbs/eula_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/eula_wish.jpg",
           "thumb": "gallery/thumbs/eula_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/eula_wide.jpg",
+          "thumb": "gallery/thumbs/eula_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -789,14 +1088,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/tartaglia_splash.jpg",
           "thumb": "gallery/thumbs/tartaglia_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/tartaglia_wish.jpg",
           "thumb": "gallery/thumbs/tartaglia_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/tartaglia_wide.jpg",
+          "thumb": "gallery/thumbs/tartaglia_wide.jpg"
         }
       ],
       "default_look": "splash",
@@ -812,14 +1120,23 @@
         {
           "id": "splash",
           "label": "全景",
+          "orientation": "portrait",
           "art": "gallery/albedo_splash.jpg",
           "thumb": "gallery/thumbs/albedo_splash.jpg"
         },
         {
           "id": "wish",
           "label": "全身",
+          "orientation": "portrait",
           "art": "gallery/albedo_wish.jpg",
           "thumb": "gallery/thumbs/albedo_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/albedo_wide.jpg",
+          "thumb": "gallery/thumbs/albedo_wide.jpg"
         }
       ],
       "default_look": "splash",

@@ -224,6 +224,8 @@ _ICONS = {
     "cup": '<path d="M5 8h11v6a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5z"/><path d="M16 9h2.5a2.5 2.5 0 0 1 0 5H16M7 3.5c0 1.5 1 1.5 1 3M11 3.5c0 1.5 1 1.5 1 3"/>',
     "shuffle": '<path d="M3 6h4l10 12h4M3 18h4L17 6h4"/><path d="M18 3l3 3-3 3M18 15l3 3-3 3"/>',
     "repeat": '<path d="M5 7h13l-3-3M19 17H6l3 3"/><path d="M18 7a3 3 0 0 1 0 5M6 17a3 3 0 0 1 0-5"/>',
+    "repeat-one": '<path d="M5 7h13l-3-3M19 17H6l3 3"/><path d="M18 7a3 3 0 0 1 0 5M11 11v5M10 12l1-1"/>',
+    "order": '<path d="M4 6h16M4 12h11M4 18h16"/><path d="M17 10l3 2-3 2"/>',
     "check": '<path d="M4.5 12.5 9.5 17.5 20 6.5"/>',
     "arrow-up-right": '<path d="M6 18 18 6M8 6h10v10"/>',
     "palette": '<path d="M12 3a9 9 0 1 0 0 18c1.6 0 2-1.2 1.2-2.2-.9-1.1 0-2.8 1.5-2.8H17A4 4 0 0 0 21 12c0-5-4-9-9-9z"/><circle cx="8" cy="10" r="1" fill="{c}" stroke="none"/><circle cx="11" cy="7" r="1" fill="{c}" stroke="none"/><circle cx="15" cy="8" r="1" fill="{c}" stroke="none"/><circle cx="7" cy="14" r="1" fill="{c}" stroke="none"/>',
@@ -299,6 +301,42 @@ def draw_diamond(p: QPainter, rect: QRectF, color: QColor, filled: bool = True) 
     p.drawPath(path)
 
 
+_element_cache: dict[tuple[str, str, int], QPixmap] = {}
+
+
+def element_pixmap(element: str, size: int = 128, variant: str = "white") -> QPixmap | None:
+    """Official-looking elemental glyphs supplied in assets/images/elements.
+
+    SVGs are preferred because they stay crisp in the orb, titlebar and
+    watermarks.  ``default`` falls back to the geo glyph.
+    """
+    element = str(element or "default").lower()
+    if element not in ELEMENTS:
+        element = "default"
+    if element == "default":
+        element = "geo"
+    key = (element, variant, int(size))
+    if key in _element_cache:
+        return _element_cache[key]
+    path = IMAGES / "elements" / f"{element}_{variant}.svg"
+    if not path.exists():
+        path = IMAGES / "elements" / f"{element}.svg"
+    if not path.exists():
+        return None
+    renderer = QSvgRenderer(str(path))
+    if not renderer.isValid():
+        return None
+    pix = QPixmap(size * 2, size * 2)
+    pix.fill(Qt.transparent)
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    renderer.render(p)
+    p.end()
+    pix.setDevicePixelRatio(2.0)
+    _element_cache[key] = pix
+    return pix
+
+
 def draw_orb(p: QPainter, rect: QRectF, element: str, *, glow: bool = True, alpha: int = 255) -> None:
     info = ELEMENTS.get(element, ELEMENTS["default"])
     color = QColor(info["color"])
@@ -335,72 +373,16 @@ def draw_orb(p: QPainter, rect: QRectF, element: str, *, glow: bool = True, alph
     p.setBrush(Qt.NoBrush)
     p.drawEllipse(rect.adjusted(r * 0.12, r * 0.12, -r * 0.12, -r * 0.12))
 
-    symbol = QColor(255, 249, 232, int(alpha * 0.92))
-    p.setPen(QPen(symbol, max(1.1, r * 0.09), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-    p.setBrush(Qt.NoBrush)
-    sr = r * 0.52
-    if element == "dendro":
-        path = QPainterPath()
-        path.moveTo(cx - sr * 0.55, cy + sr * 0.72)
-        path.cubicTo(cx - sr * 1.25, cy - sr * 0.1, cx - sr * 0.2, cy - sr * 1.1, cx + sr * 0.78, cy - sr * 0.85)
-        path.cubicTo(cx + sr * 0.9, cy + sr * 0.2, cx + sr * 0.1, cy + sr * 0.95, cx - sr * 0.55, cy + sr * 0.72)
-        p.drawPath(path)
-        p.drawLine(QPointF(cx - sr * 0.25, cy + sr * 0.55), QPointF(cx + sr * 0.28, cy - sr * 0.52))
-    elif element == "hydro":
-        path = QPainterPath()
-        path.moveTo(cx, cy - sr * 1.15)
-        path.cubicTo(cx - sr * 0.3, cy - sr * 0.3, cx - sr * 0.9, cy + sr * 0.15, cx - sr * 0.9, cy + sr * 0.5)
-        path.cubicTo(cx - sr * 0.9, cy + sr * 1.1, cx + sr * 0.9, cy + sr * 1.1, cx + sr * 0.9, cy + sr * 0.5)
-        path.cubicTo(cx + sr * 0.9, cy + sr * 0.15, cx + sr * 0.3, cy - sr * 0.3, cx, cy - sr * 1.15)
-        p.drawPath(path)
-    elif element == "electro":
-        path = QPainterPath()
-        path.moveTo(cx + sr * 0.28, cy - sr * 1.05)
-        path.lineTo(cx - sr * 0.62, cy + sr * 0.08)
-        path.lineTo(cx - sr * 0.02, cy + sr * 0.08)
-        path.lineTo(cx - sr * 0.25, cy + sr * 1.02)
-        path.lineTo(cx + sr * 0.66, cy - sr * 0.18)
-        path.lineTo(cx + sr * 0.06, cy - sr * 0.18)
-        path.closeSubpath()
-        p.setBrush(symbol)
-        p.drawPath(path)
-    elif element == "anemo":
-        for offset in (-0.5, 0.1, 0.7):
-            path = QPainterPath()
-            path.moveTo(cx - sr * 0.9, cy + sr * offset)
-            path.cubicTo(cx - sr * 0.2, cy + sr * (offset - 0.55), cx + sr * 0.85, cy + sr * (offset - 0.2), cx + sr * 0.55, cy + sr * (offset + 0.35))
-            p.drawPath(path)
-    elif element == "geo":
-        draw_diamond(
-            p,
-            QRectF(cx - sr * 0.9, cy - sr * 0.9, sr * 1.8, sr * 1.8),
-            symbol,
-            filled=False,
+    pix = element_pixmap(element, 128, "white")
+    if pix is not None:
+        side = r * 1.18
+        p.setOpacity(max(0.0, min(1.0, alpha / 255.0)))
+        p.drawPixmap(
+            QRectF(cx - side / 2, cy - side / 2, side, side),
+            pix,
+            QRectF(pix.rect()),
         )
-        draw_diamond(
-            p,
-            QRectF(cx - sr * 0.38, cy - sr * 0.38, sr * 0.76, sr * 0.76),
-            symbol,
-            filled=True,
-        )
-    elif element == "pyro":
-        path = QPainterPath()
-        path.moveTo(cx, cy - sr * 1.12)
-        path.cubicTo(cx + sr * 0.95, cy - sr * 0.15, cx + sr * 0.5, cy + sr * 0.75, cx, cy + sr * 0.95)
-        path.cubicTo(cx - sr * 0.75, cy + sr * 0.6, cx - sr * 0.92, cy - sr * 0.1, cx, cy - sr * 1.12)
-        p.drawPath(path)
-    elif element == "cryo":
-        p.setBrush(symbol)
-        for i in range(6):
-            import math
-
-            a = i * math.pi / 3
-            p.drawLine(
-                QPointF(cx, cy),
-                QPointF(cx + sr * 0.98 * math.cos(a), cy + sr * 0.98 * math.sin(a)),
-            )
-    else:
-        draw_star(p, QPointF(cx, cy), sr * 1.0, symbol)
+        p.setOpacity(1.0)
     p.restore()
 
 

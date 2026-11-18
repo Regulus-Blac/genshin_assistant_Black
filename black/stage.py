@@ -130,6 +130,7 @@ class CharacterStage(QWidget):
     music_toggle_requested = pyqtSignal()
     music_next_requested = pyqtSignal()
     music_open_requested = pyqtSignal()
+    ORIENTATION = "portrait"
 
     def __init__(self, art_name: str = "art_snow.jpg", parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -647,3 +648,4 @@ class CharacterStage(QWidget):
         self.play_btn.setIcon(theme.icon("pause" if playing else "play", theme.GOLD_BRIGHT, 13))
         self.play_btn.setToolTip("暂停 BGM" if playing else "播放 BGM")
         self.eq.set_playing(playing)
+
