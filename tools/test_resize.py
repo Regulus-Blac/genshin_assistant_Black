@@ -1,6 +1,7 @@
 """Smoke test for the frameless window edge resizing."""
 from __future__ import annotations
 
+import ctypes
 import os
 import shutil
 import sys
@@ -41,6 +42,16 @@ def main() -> int:
     QTest.qWait(500)
     print("handles", len(window._resize_handles), [(sorted(h.edges), h.geometry().getRect()) for h in window._resize_handles[:2]])
     assert len(window._resize_handles) == 8
+    from PyQt5.QtGui import QCursor
+
+    QCursor.setPos(window.mapToGlobal(QPoint(4, window.height() // 2)))
+    QTest.qWait(80)
+    hwnd = int(window.winId())
+    screen_pt = QCursor.pos()
+    lparam = ((screen_pt.y() & 0xFFFF) << 16) | (screen_pt.x() & 0xFFFF)
+    hit = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
+    print("native hit", hit, "at", screen_pt)
+    assert hit == 10, hit  # HTLEFT
     right = next(h for h in window._resize_handles if h.edges == {"right"})
     before = window.size()
     start = window.mapToGlobal(right.geometry().center())

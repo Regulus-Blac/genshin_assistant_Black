@@ -16,42 +16,112 @@
       "color": "#7fd3d1",
       "looks": [
         {
-          "id": "snow",
-          "label": "雪窗",
+          "id": "window",
+          "label": "窗边",
           "orientation": "portrait",
-          "art": "art_snow.jpg",
-          "thumb": "gallery/thumbs/vody_snow.jpg"
+          "art": "gallery/vody_window_portrait.jpg",
+          "thumb": "gallery/thumbs/vody_window.jpg"
         },
         {
-          "id": "wisteria",
-          "label": "紫藤",
+          "id": "qipao_full",
+          "label": "旗袍·全身",
           "orientation": "portrait",
-          "art": "art_wisteria.jpg",
-          "thumb": "gallery/thumbs/vody_wisteria.jpg"
+          "art": "gallery/vody_qipao_full_portrait.jpg",
+          "thumb": "gallery/thumbs/vody_qipao_full.jpg"
         },
         {
-          "id": "picnic",
-          "label": "野餐",
+          "id": "qipao_half",
+          "label": "旗袍·半身",
           "orientation": "portrait",
-          "art": "art_picnic.jpg",
-          "thumb": "gallery/thumbs/vody_picnic.jpg"
+          "art": "gallery/vody_qipao_half_portrait.jpg",
+          "thumb": "gallery/thumbs/vody_qipao_half.jpg"
         },
         {
-          "id": "tea",
-          "label": "茶会",
+          "id": "qipao_fan",
+          "label": "旗袍·团扇",
           "orientation": "portrait",
-          "art": "art_tea.jpg",
-          "thumb": "gallery/thumbs/vody_tea.jpg"
+          "art": "gallery/vody_qipao_fan_portrait.jpg",
+          "thumb": "gallery/thumbs/vody_qipao_fan.jpg"
         },
         {
-          "id": "wide",
-          "label": "横屏",
+          "id": "swim1",
+          "label": "泳装·沙滩",
+          "orientation": "portrait",
+          "art": "gallery/vody_swim1_portrait.jpg",
+          "thumb": "gallery/thumbs/vody_swim1.jpg"
+        },
+        {
+          "id": "swim2",
+          "label": "泳装·沙滩 2",
+          "orientation": "portrait",
+          "art": "gallery/vody_swim2_portrait.jpg",
+          "thumb": "gallery/thumbs/vody_swim2.jpg"
+        },
+        {
+          "id": "swim_comic",
+          "label": "泳装·漫画",
+          "orientation": "portrait",
+          "art": "gallery/vody_swim_comic_portrait.jpg",
+          "thumb": "gallery/thumbs/vody_swim_comic.jpg"
+        },
+        {
+          "id": "snowpool",
+          "label": "雪糕水池",
           "orientation": "landscape",
-          "art": "gallery/vody_wide.jpg",
-          "thumb": "gallery/thumbs/vody_wide.jpg"
+          "art": "gallery/vody_snowpool_wide.jpg",
+          "thumb": "gallery/thumbs/vody_snowpool.jpg"
+        },
+        {
+          "id": "mermaid_down",
+          "label": "人鱼·倒影",
+          "orientation": "landscape",
+          "art": "gallery/vody_mermaid_down_wide.jpg",
+          "thumb": "gallery/thumbs/vody_mermaid_down.jpg"
+        },
+        {
+          "id": "mermaid_sing",
+          "label": "人鱼·歌唱",
+          "orientation": "landscape",
+          "art": "gallery/vody_mermaid_sing_wide.jpg",
+          "thumb": "gallery/thumbs/vody_mermaid_sing.jpg"
+        },
+        {
+          "id": "drink_half",
+          "label": "饮料·半身",
+          "orientation": "landscape",
+          "art": "gallery/vody_drink_half_wide.jpg",
+          "thumb": "gallery/thumbs/vody_drink_half.jpg"
+        },
+        {
+          "id": "drink_store",
+          "label": "饮料·杂货店",
+          "orientation": "landscape",
+          "art": "gallery/vody_drink_store_wide.jpg",
+          "thumb": "gallery/thumbs/vody_drink_store.jpg"
+        },
+        {
+          "id": "drink_beach",
+          "label": "饮料·海滩",
+          "orientation": "landscape",
+          "art": "gallery/vody_drink_beach_wide.jpg",
+          "thumb": "gallery/thumbs/vody_drink_beach.jpg"
+        },
+        {
+          "id": "drink_grass",
+          "label": "饮料·草地",
+          "orientation": "landscape",
+          "art": "gallery/vody_drink_grass_wide.jpg",
+          "thumb": "gallery/thumbs/vody_drink_grass.jpg"
+        },
+        {
+          "id": "drink_bench",
+          "label": "饮料·长椅",
+          "orientation": "landscape",
+          "art": "gallery/vody_drink_bench_wide.jpg",
+          "thumb": "gallery/thumbs/vody_drink_bench.jpg"
         }
       ],
-      "default_look": "snow",
+      "default_look": "window",
       "source": "workspace / user-supplied illustrations"
     },
     {

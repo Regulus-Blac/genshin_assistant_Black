@@ -233,13 +233,48 @@ class CharacterPickerDialog(GenshinDialog):
         self.look_hint.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         art_head.addWidget(self.look_hint)
         art_head.addStretch(1)
+        self.look_prev = QToolButton()
+        self.look_prev.setText("‹")
+        self.look_prev.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.look_prev.setFixedSize(24, 22)
+        self.look_prev.setCursor(Qt.PointingHandCursor)
+        self.look_prev.setToolTip("上一组立绘")
+        self.look_prev.setStyleSheet(
+            f"QToolButton {{ color: {theme.GOLD}; background: rgba(217,188,125,12); "
+            "border: 1px solid rgba(217,188,125,42); border-radius: 5px; font-size: 15px; } "
+            f"QToolButton:hover {{ background: rgba(217,188,125,28); }}"
+        )
+        self.look_prev.clicked.connect(lambda: self._scroll_looks(-1))
+        self.look_next = QToolButton()
+        self.look_next.setText("›")
+        self.look_next.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.look_next.setFixedSize(24, 22)
+        self.look_next.setCursor(Qt.PointingHandCursor)
+        self.look_next.setToolTip("下一组立绘")
+        self.look_next.setStyleSheet(
+            f"QToolButton {{ color: {theme.GOLD}; background: rgba(217,188,125,12); "
+            "border: 1px solid rgba(217,188,125,42); border-radius: 5px; font-size: 15px; } "
+            f"QToolButton:hover {{ background: rgba(217,188,125,28); }}"
+        )
+        self.look_next.clicked.connect(lambda: self._scroll_looks(1))
+        art_head.addWidget(self.look_prev)
+        art_head.addWidget(self.look_next)
         al.addLayout(art_head)
         self.look_row = QWidget()
         self.look_layout = QHBoxLayout(self.look_row)
         self.look_layout.setContentsMargins(0, 0, 0, 0)
         self.look_layout.setSpacing(8)
-        al.addWidget(self.look_row)
-        self.art_frame.setFixedHeight(140)
+        self.look_scroll = QScrollArea()
+        self.look_scroll.setWidgetResizable(False)
+        self.look_scroll.setFrameShape(QFrame.NoFrame)
+        self.look_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.look_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.look_scroll.setFixedHeight(112)
+        self.look_scroll.setMaximumWidth(620)
+        self.look_scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        self.look_scroll.setWidget(self.look_row)
+        al.addWidget(self.look_scroll)
+        self.art_frame.setFixedHeight(154)
         self.body.addWidget(self.art_frame)
 
         note = QLabel("角色与立绘来自 GitHub HoYo-Assets、Enka Network 与工作区素材，仅供个人本地看板。")
@@ -301,6 +336,8 @@ class CharacterPickerDialog(GenshinDialog):
             if w:
                 w.setParent(None)
                 w.deleteLater()
+        self.look_row.setMinimumWidth(0)
+        self.look_row.setMaximumWidth(16777215)
         self._look_buttons = {}
         # Dispose of the old exclusive group with its buttons.
         old = getattr(self, "_look_group", None)
@@ -339,14 +376,26 @@ class CharacterPickerDialog(GenshinDialog):
             self._look_group.addButton(btn)
             btn.clicked.connect(lambda _checked=False, lid=look["id"]: self._select_look(lid))
             self.look_layout.addWidget(btn)
-        self.look_layout.addStretch(1)
+        row_width = max(1, len(looks) * 84 + max(0, len(looks) - 1) * 8 + 8)
+        self.look_row.setFixedSize(row_width, 106)
+        self.look_layout.activate()
+        self.look_row.show()
+        self.look_scroll.horizontalScrollBar().setValue(0)
         self._look_group.buttonClicked.connect(lambda b: None)  # keep group alive
         self._refresh_look_checks()
+        selected_btn = self._look_buttons.get(self._selected_look)
+        if selected_btn is not None:
+            QTimer.singleShot(0, lambda b=selected_btn: self.look_scroll.ensureWidgetVisible(b, 10, 0))
         self.look_hint.setText(f"{len(looks)} 幅可选立绘。" if len(looks) > 1 else "此角色暂有一幅立绘。")
 
     def _refresh_look_checks(self) -> None:
         for lid, btn in self._look_buttons.items():
             btn.setChecked(lid == self._selected_look)
+
+    def _scroll_looks(self, delta: int) -> None:
+        bar = self.look_scroll.horizontalScrollBar()
+        step = max(180, self.look_scroll.viewport().width() // 2)
+        bar.setValue(bar.value() + delta * step)
 
     def _apply(self) -> None:
         meta = get_character(self._selected_id)

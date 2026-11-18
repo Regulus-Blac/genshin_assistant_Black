@@ -130,6 +130,7 @@ class CharacterStage(QWidget):
     music_toggle_requested = pyqtSignal()
     music_next_requested = pyqtSignal()
     music_open_requested = pyqtSignal()
+    orientation_requested = pyqtSignal()
     ORIENTATION = "portrait"
 
     def __init__(self, art_name: str = "art_snow.jpg", parent: QWidget | None = None) -> None:
@@ -168,8 +169,19 @@ class CharacterStage(QWidget):
             self._timer.timeout.connect(self._animate)
             self._timer.start()
             self.setStyleSheet(self._local_qss())
+            self.set_orientation(self.ORIENTATION)
         finally:
             _theme.end_dark_island()
+
+    def set_orientation(self, orientation: str) -> None:
+        self.ORIENTATION = str(orientation)
+        landscape = self.ORIENTATION == "landscape"
+        if hasattr(self, "orientation_btn"):
+            self.orientation_btn.setText(" 竖屏" if landscape else " 横屏")
+            self.orientation_btn.setIcon(
+                theme.icon("portrait" if landscape else "landscape", theme.GOLD_SOFT, 14)
+            )
+            self.orientation_btn.setToolTip("切换回竖屏立绘" if landscape else "切换到横屏立绘")
 
     # ------------------------------------------------------------------ ui
     def _local_qss(self) -> str:
@@ -294,7 +306,6 @@ class CharacterStage(QWidget):
         qlay.addLayout(qtop)
         self.quote_text = QLabel("……")
         self.quote_text.setWordWrap(True)
-        self.quote_text.setMaximumHeight(64)
         self.quote_text.setStyleSheet(
             f"font-family: '{theme.SERIF}'; font-size: 12px; color: rgba(241,235,224,225);"
         )
@@ -338,6 +349,13 @@ class CharacterStage(QWidget):
         self.pet_btn.setCursor(Qt.PointingHandCursor)
         self.pet_btn.setFixedHeight(27)
         self.pet_btn.clicked.connect(self._on_pet)
+        self.orientation_btn = QPushButton(" 横屏")
+        self.orientation_btn.setObjectName("StageAction")
+        self.orientation_btn.setIcon(theme.icon("landscape", theme.GOLD_SOFT, 14))
+        self.orientation_btn.setCursor(Qt.PointingHandCursor)
+        self.orientation_btn.setFixedHeight(27)
+        self.orientation_btn.setToolTip("切换到横屏立绘")
+        self.orientation_btn.clicked.connect(self.orientation_requested)
         self.char_btn = QPushButton(" 角色")
         self.char_btn.setObjectName("StageAction")
         self.char_btn.setIcon(theme.icon("palette", theme.GOLD_SOFT, 14))
@@ -347,6 +365,7 @@ class CharacterStage(QWidget):
         self.char_btn.clicked.connect(self.character_requested)
         actions.addWidget(self.chat_btn)
         actions.addWidget(self.pet_btn)
+        actions.addWidget(self.orientation_btn)
         actions.addStretch(1)
         actions.addWidget(self.char_btn)
         lay.addLayout(actions)
@@ -606,8 +625,18 @@ class CharacterStage(QWidget):
     def set_quote(self, quote: dict, avatar_file: str) -> None:
         self.quote_avatar.set_source(avatar_path(avatar_file))
         self.quote_name.setText(str(quote.get("speaker", "Black")))
-        self.quote_text.setText(str(quote.get("text", "")))
+        text = str(quote.get("text", ""))
+        self.quote_text.setText(text)
         self.quote_tag.setText("轻声")
+        # Let the quote card grow with the actual text instead of clipping long
+        # character lines (the 彩特琳德 card was the visible failure).
+        width = 440 if self.ORIENTATION == "landscape" else 292
+        needed = QFontMetrics(self.quote_text.font()).boundingRect(
+            0, 0, width, 10000, Qt.TextWordWrap, text
+        ).height()
+        self.quote_text.setMinimumHeight(max(18, needed + 2))
+        self.quote_text.setMaximumHeight(max(18, needed + 2))
+        self.quote_card.adjustSize()
         # small fade so the bubble feels alive
         from PyQt5.QtWidgets import QGraphicsOpacityEffect
         from PyQt5.QtCore import QPropertyAnimation

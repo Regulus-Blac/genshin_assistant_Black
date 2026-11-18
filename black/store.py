@@ -45,6 +45,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "music_volume": 42,
     "auto_play_bgm": False,
     "music_mode": "sequence",
+    "music_rate": 1.0,
     "last_local_track": "",
     "whisper_avatar": "派蒙",
     "character": "vodyanitsa",
@@ -484,6 +485,14 @@ class Store:
         if not 0 <= index < len(tracks) or not 0 <= target < len(tracks):
             return False
         tracks[index], tracks[target] = tracks[target], tracks[index]
+        self.save()
+        return True
+
+    def set_playlist_tracks(self, playlist_id: str, tracks: list[dict]) -> bool:
+        item = self.playlist(playlist_id)
+        if not item or item.get("builtin"):
+            return False
+        item["tracks"] = list(tracks)
         self.save()
         return True
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ctypes
 import random
 import sys
+from ctypes import wintypes
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -15,7 +17,7 @@ from PyQt5.QtCore import (
     Qt,
     QTimer,
 )
-from PyQt5.QtGui import QColor, QIcon, QPixmap
+from PyQt5.QtGui import QColor, QCursor, QIcon, QPixmap
 from PyQt5.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -24,7 +26,9 @@ from PyQt5.QtWidgets import (
     QLabel,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QPushButton,
+    QScrollArea,
     QSizeGrip,
     QStackedWidget,
     QSystemTrayIcon,
@@ -149,6 +153,7 @@ class MainWindow(QMainWindow):
         self._normal_geometry: QRect | None = None
         self._recent_quotes: list[str] = []
         self._last_greeting_key = ""
+        self._portrait_memory: dict[str, str] = {}
         self._character_meta = get_character(DEFAULT_CHARACTER_ID)
         self._whisper_popup = PaimonWhisperPopup()
         self._whisper_popup.another_requested.connect(self._whisper_another)
@@ -206,25 +211,19 @@ class MainWindow(QMainWindow):
         root_lay = QVBoxLayout(self.root)
         root_lay.setContentsMargins(0, 0, 0, 0)
         root_lay.setSpacing(0)
+        self.root_lay = root_lay
 
         self.titlebar = TitleBar()
         root_lay.addWidget(self.titlebar)
-        self.body = QWidget()
-        self.body_lay = QHBoxLayout(self.body)
-        self.body_lay.setContentsMargins(16, 0, 16, 15)
-        self.body_lay.setSpacing(18)
-        root_lay.addWidget(self.body, 1)
 
         _meta, _look = self._stored_character_look()
         self.stage = self._make_stage(str(_look.get("art") or "art_snow.jpg"), _look)
-        self.body_lay.addWidget(self.stage)
 
-        body_lay = self.body_lay
         content_host = QWidget()
+        self.content_host = content_host
         content_lay = QVBoxLayout(content_host)
         content_lay.setContentsMargins(0, 0, 0, 0)
         content_lay.setSpacing(0)
-        body_lay.addWidget(content_host, 1)
 
         nav_row = QWidget()
         nav_lay = QHBoxLayout(nav_row)
@@ -268,9 +267,20 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         for page in (self.study_page, self.journal_page, self.music_page, self.chat_page):
             self.stack.addWidget(page)
-        content_lay.addWidget(self.stack, 1)
+        self.stack_scroll = QScrollArea()
+        self.stack_scroll.setFrameShape(QFrame.NoFrame)
+        self.stack_scroll.setWidgetResizable(True)
+        self.stack_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.stack_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        self.stack_scroll.setWidget(self.stack)
+        content_lay.addWidget(self.stack_scroll, 1)
         self.nav_tabs[0].setChecked(True)
         self.nav_group.idClicked.connect(self._goto_page)
+        self.stack.currentChanged.connect(lambda _idx: self._sync_stack_min_height())
+        self._sync_stack_min_height()
+
+        self._layout_body(str(_look.get("orientation", "portrait")))
+        self.stage.set_orientation(str(_look.get("orientation", "portrait")))
 
         self.size_grip = QSizeGrip(self)
         self.size_grip.setFixedSize(18, 18)
@@ -285,6 +295,48 @@ class MainWindow(QMainWindow):
         self.titlebar.set_pinned(bool(self.store.settings.get("always_on_top", False)))
 
         self._connect_stage_signals(self.stage)
+
+    def _layout_body(self, orientation: str) -> None:
+        """Switch the main body between portrait (side-by-side) and landscape
+        (stacked banner + full-width pages).  Widgets are reparented rather than
+        rebuilt, so the timer, music queue and journal state survive the switch.
+        """
+        orientation = "landscape" if orientation == "landscape" else "portrait"
+        stage = self.stage
+        content = self.content_host
+        old = getattr(self, "body", None)
+        if old is not None:
+            old_layout = old.layout()
+            if old_layout is not None:
+                old_layout.removeWidget(stage)
+                old_layout.removeWidget(content)
+            stage.setParent(None)
+            content.setParent(None)
+            self.root_lay.removeWidget(old)
+            old.setParent(None)
+            old.deleteLater()
+        self.body = QWidget()
+        self.root_lay.addWidget(self.body, 1)
+        if orientation == "landscape":
+            self.body_lay = QVBoxLayout(self.body)
+            self.body_lay.setContentsMargins(16, 0, 16, 15)
+            self.body_lay.setSpacing(10)
+        else:
+            self.body_lay = QHBoxLayout(self.body)
+            self.body_lay.setContentsMargins(16, 0, 16, 15)
+            self.body_lay.setSpacing(18)
+        self.body_lay.addWidget(stage)
+        self.body_lay.addWidget(content, 1)
+        self.body_orientation = orientation
+        self.body_lay.activate()
+        self._position_resize_handles()
+
+    def _sync_stack_min_height(self) -> None:
+        if not hasattr(self, "stack"):
+            return
+        page = self.stack.currentWidget()
+        if page is not None:
+            self.stack.setMinimumHeight(max(1, page.sizeHint().height(), page.minimumSizeHint().height()))
 
     def _wire_signals(self) -> None:
         self.study_page.note_preview_requested.connect(self._open_journal)
@@ -359,6 +411,7 @@ class MainWindow(QMainWindow):
         stage.petted.connect(self._on_stage_petted)
         stage.chat_requested.connect(lambda: self._goto_page(3))
         stage.character_requested.connect(self._open_character_picker)
+        stage.orientation_requested.connect(self._toggle_stage_orientation)
         stage.music_toggle_requested.connect(self.music_page.toggle_playback)
         stage.music_next_requested.connect(self.music_page.next_track)
 
@@ -368,16 +421,12 @@ class MainWindow(QMainWindow):
         desired = LandscapeStage if orientation == "landscape" else CharacterStage
         if getattr(self.stage, "ORIENTATION", "portrait") != orientation:
             old = self.stage
-            idx = self.body_lay.indexOf(old)
-            if idx >= 0:
-                self.body_lay.removeWidget(old)
             new = desired(str(look.get("art") or "art_snow.jpg"))
-            self.body_lay.insertWidget(idx if idx >= 0 else 0, new)
             self.stage = new
             self._connect_stage_signals(new)
-            old.setParent(None)
-            old.deleteLater()
-            self.stage.set_character(meta, look["id"])
+            self._layout_body(orientation)
+            new.set_character(meta, look["id"])
+            self.stage.set_orientation(orientation)
             self._last_greeting_key = ""
             self._refresh_global()
             self._set_initial_quote()
@@ -388,6 +437,51 @@ class MainWindow(QMainWindow):
                 self.overlay.raise_()
         else:
             self.stage.set_character(meta, look["id"])
+            self.stage.set_orientation(orientation)
+
+    def _toggle_stage_orientation(self) -> None:
+        meta = self._character_meta
+        looks = list(meta.get("looks", []))
+        landscape = getattr(self.stage, "ORIENTATION", "portrait") == "landscape"
+        if landscape:
+            wanted = str(self._portrait_memory.get(meta["id"], ""))
+            candidates = [l for l in looks if l.get("orientation", "portrait") == "portrait"]
+            look = next((l for l in candidates if l["id"] == wanted), None)
+            if look is None and candidates:
+                look = candidates[0]
+        else:
+            current_look = str(self.store.settings.get("look", "") or "")
+            if current_look:
+                self._portrait_memory[meta["id"]] = current_look
+            candidates = [l for l in looks if l.get("orientation") == "landscape"]
+            look = candidates[0] if candidates else None
+        if not look:
+            QMessageBox.information(self, "切换立绘", "这个角色还没有对应方向的立绘。")
+            return
+        # If the character has several art pieces in the requested direction
+        # (Vodyanitsa has eight), let the user pick one instead of silently
+        # choosing the first.  Official characters usually have exactly one.
+        if not landscape and len(candidates) > 1 and hasattr(self.stage, "orientation_btn"):
+            menu = QMenu(self)
+            for candidate in candidates:
+                action = menu.addAction(str(candidate.get("label", "立绘")))
+                action.setData(str(candidate.get("id", "")))
+            chosen = menu.exec_(
+                self.stage.orientation_btn.mapToGlobal(
+                    QPoint(0, self.stage.orientation_btn.height() + 2)
+                )
+            )
+            if not chosen:
+                return
+            chosen_look = get_look(meta, str(chosen.data() or ""))
+            if chosen_look.get("orientation") != look.get("orientation"):
+                return
+            look = chosen_look
+        self.store.settings["character"] = meta["id"]
+        self.store.settings["look"] = look["id"]
+        self.store.save()
+        self._apply_stage_look(meta, look)
+        self.sounds.interact()
 
     def _restore_character(self) -> None:
         meta, look = self._stored_character_look()
@@ -408,6 +502,8 @@ class MainWindow(QMainWindow):
         meta = get_character(cid)
         look = get_look(meta, str(dialog.result_data.get("look", "")))
         self._character_meta = meta
+        if look.get("orientation", "portrait") == "portrait":
+            self._portrait_memory[meta["id"]] = look["id"]
         self.store.settings["character"] = meta["id"]
         self.store.settings["look"] = look["id"]
         self.store.save()
@@ -550,6 +646,7 @@ class MainWindow(QMainWindow):
         self._refresh_global()
         if self.stack.currentIndex() == 1:
             self.journal_page.refresh(select_today=False, write_today=True)
+        self._sync_stack_min_height()
 
     def _on_active_changed(self, subject_id) -> None:
         active = self.store.active_subject()
@@ -713,6 +810,7 @@ class MainWindow(QMainWindow):
             self.journal_page.refresh(select_today=False, write_today=True)
         elif index == 3:
             self.chat_page.refresh_status()
+        self._sync_stack_min_height()
 
     def _open_journal(self) -> None:
         self._goto_page(1)
@@ -1038,6 +1136,45 @@ class MainWindow(QMainWindow):
         self._position_resize_handles()
         if hasattr(self, "overlay") and self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
+
+    def nativeEvent(self, event_type, message):  # noqa: N802
+        """Let Windows perform hit-testing on the frameless edges.
+
+        Child ``_ResizeHandle`` widgets are a useful fallback, but on Windows
+        they can sit outside the visible rounded card and never receive hover
+        events.  Returning HTLEFT/HTTOP... from WM_NCHITTEST gives the native
+        resize cursor and drag behaviour at the real window border.
+        """
+        if event_type == b"windows_generic_MSG" and not self._maximized:
+            try:
+                msg = wintypes.MSG.from_address(int(message))
+                if msg.message == 0x0084:  # WM_NCHITTEST
+                    local = self.mapFromGlobal(QCursor.pos())
+                    w, h = self.width(), self.height()
+                    border = 9
+                    left = local.x() <= border
+                    right = local.x() >= w - border
+                    top = local.y() <= border
+                    bottom = local.y() >= h - border
+                    if left and top:
+                        return True, 13  # HTTOPLEFT
+                    if right and top:
+                        return True, 14  # HTTOPRIGHT
+                    if left and bottom:
+                        return True, 16  # HTBOTTOMLEFT
+                    if right and bottom:
+                        return True, 17  # HTBOTTOMRIGHT
+                    if left:
+                        return True, 10  # HTLEFT
+                    if right:
+                        return True, 11  # HTRIGHT
+                    if top:
+                        return True, 12  # HTTOP
+                    if bottom:
+                        return True, 15  # HTBOTTOM
+            except Exception:
+                pass
+        return super().nativeEvent(event_type, message)
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)

@@ -61,11 +61,11 @@ def main() -> int:
     dlg._select_character("vodyanitsa")
     QTest.qWait(300)
     shot(dlg, "picker_vody.png")
-    dlg._select_look("tea")
+    dlg._select_look("qipao_half")
     dlg._apply()
     print("picker result", dlg.result_data)
     assert dlg.result_data and dlg.result_data["character"] == "vodyanitsa"
-    assert dlg.result_data["look"] == "tea"
+    assert dlg.result_data["look"] == "qipao_half"
 
     # Full modal flow through MainWindow: choose Furina, save, redraw.
     def choose_furina():

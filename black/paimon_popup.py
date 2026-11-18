@@ -23,6 +23,7 @@ from PyQt5.QtCore import (
 from PyQt5.QtGui import (
     QColor,
     QCursor,
+    QFontMetrics,
     QLinearGradient,
     QPainter,
     QPainterPath,
@@ -270,7 +271,7 @@ class PaimonWhisperPopup(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         self.setWindowTitle("派蒙的悄悄话")
-        self.setFixedWidth(446)
+        self.setFixedWidth(470)
         self._auto_timer = QTimer(self)
         self._auto_timer.setSingleShot(True)
         self._auto_timer.timeout.connect(self._fade_close)
@@ -384,27 +385,44 @@ class PaimonWhisperPopup(QWidget):
         speaker = str(quote.get("speaker", "派蒙"))
         text = str(quote.get("text", ""))
         self.quote.setText(text)
+        quote_width = max(150, self.width() - 36 - 34 - 88 - 2 - 14 - 28)
+        metrics = QFontMetrics(self.quote.font())
+        needed = metrics.boundingRect(0, 0, quote_width, 10000, Qt.TextWordWrap, text).height()
+        self.quote.setMinimumHeight(max(20, needed + 2))
         if avatar:
             self.portrait.set_source(str(avatar))
         self.title.setText(f"{speaker}的悄悄话")
 
         role_text = str(role or "").strip()
+        if len(role_text) > 18:
+            role_text = role_text[:17] + "…"
+        self.subtitle.setMaximumWidth(190)
         self.subtitle.setText(f"· {role_text}" if role_text else "· 提瓦特的朋友")
         self.tag.setText("PAIMON'S NOTE" if speaker == "派蒙" else "TEYVAT WHISPER")
         if speaker == "派蒙":
             self.attribution.setText("—— 派蒙")
         else:
             self.attribution.setText(f"—— 来自 {speaker} 的一句话")
+        self.setMinimumHeight(0)
+        self.setMaximumHeight(16777215)
         self.adjustSize()
+        if self.layout():
+            self.layout().activate()
 
     def pop(self, quote: dict, avatar: str = "", role: str = "", accent: str = theme.GOLD, duration_ms: int = 18000) -> None:
+        self.setFixedWidth(470)
         self.update_quote(quote, avatar, role, accent)
-        self.setFixedWidth(446)
-        self.adjustSize()
-        h = max(208, min(330, self.height()))
-        self.setFixedHeight(h)
         screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
         geo = screen.availableGeometry()
+        # Calculate the real height after the word-wrapped quote has received
+        # its width.  The old fixed 330px cap clipped longer character lines.
+        self.adjustSize()
+        if self.layout():
+            self.layout().activate()
+        h = max(230, self.sizeHint().height())
+        h = min(h, max(240, geo.height() - 30))
+        self.setFixedHeight(h)
+        self.adjustSize()
         x = geo.right() - self.width() - 14
         y = geo.bottom() - self.height() - 14
         self.move(x, y + 16)

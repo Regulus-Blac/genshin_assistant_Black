@@ -229,6 +229,8 @@ _ICONS = {
     "check": '<path d="M4.5 12.5 9.5 17.5 20 6.5"/>',
     "arrow-up-right": '<path d="M6 18 18 6M8 6h10v10"/>',
     "palette": '<path d="M12 3a9 9 0 1 0 0 18c1.6 0 2-1.2 1.2-2.2-.9-1.1 0-2.8 1.5-2.8H17A4 4 0 0 0 21 12c0-5-4-9-9-9z"/><circle cx="8" cy="10" r="1" fill="{c}" stroke="none"/><circle cx="11" cy="7" r="1" fill="{c}" stroke="none"/><circle cx="15" cy="8" r="1" fill="{c}" stroke="none"/><circle cx="7" cy="14" r="1" fill="{c}" stroke="none"/>',
+    "landscape": '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6.5 10h11M6.5 14h7"/>',
+    "portrait": '<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 7h4M10 11h4"/>',
     "cat": '<path d="M5 9 4 3l5 3h6l5-3-1 6v5a7 7 0 0 1-14 0z"/><path d="M9 12h.01M15 12h.01M10.5 15.5c1 .8 2 .8 3 0"/>',
     "lock": '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
     "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.1"/>',

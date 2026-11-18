@@ -557,6 +557,7 @@ class TitleBar(QWidget):
         lay.addSpacing(12)
 
         self.status = StatusChip()
+        self.status.setVisible(False)
         lay.addWidget(self.status)
         lay.addStretch(1)
 
@@ -589,7 +590,11 @@ class TitleBar(QWidget):
         self.max_btn.setIcon(theme.icon("restore" if maximized else "maximize", theme.MUTED, 14))
 
     def set_status(self, text: str, active: bool) -> None:
-        self.status.set_status(text, active)
+        # The idle chip said no more than "waiting" and took attention away
+        # from the brand.  Show it only while a subject is actually counting.
+        self.status.setVisible(bool(active))
+        if active:
+            self.status.set_status(text, True)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:

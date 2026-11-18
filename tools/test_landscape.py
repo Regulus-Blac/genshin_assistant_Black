@@ -20,7 +20,7 @@ os.environ["BLACK_CACHE_DIR"] = str(TEST / "cache")
 os.environ.setdefault("QT_QPA_PLATFORM", "windows")
 
 from PyQt5.QtTest import QTest  # noqa: E402
-from PyQt5.QtWidgets import QApplication  # noqa: E402
+from PyQt5.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout  # noqa: E402
 
 from black import theme  # noqa: E402
 from black.characters import get_character, get_look  # noqa: E402
@@ -56,6 +56,8 @@ def main() -> int:
     QTest.qWait(800)
     print("stage", type(window.stage).__name__, window.stage.width(), window.stage.height())
     assert isinstance(window.stage, LandscapeStage)
+    assert isinstance(window.body_lay, QVBoxLayout)
+    assert window.stage.width() > 1000
     shot(window, "landscape.png")
     window.stage.add_hearts(window.stage.rect().center())
     QTest.qWait(200)
@@ -69,7 +71,21 @@ def main() -> int:
     QTest.qWait(650)
     print("back", type(window.stage).__name__, window.stage.width())
     assert isinstance(window.stage, CharacterStage)
+    assert isinstance(window.body_lay, QHBoxLayout)
     shot(window, "portrait_again.png")
+    # The stage button itself must switch orientation and relayout the page.
+    window.stage.orientation_btn.click()
+    QTest.qWait(500)
+    print("button to landscape", type(window.stage).__name__, window.stage.orientation_btn.text(), type(window.body_lay).__name__)
+    assert isinstance(window.stage, LandscapeStage)
+    assert isinstance(window.body_lay, QVBoxLayout)
+    assert "竖屏" in window.stage.orientation_btn.text()
+    window.stage.orientation_btn.click()
+    QTest.qWait(500)
+    print("button to portrait", type(window.stage).__name__, window.stage.orientation_btn.text(), type(window.body_lay).__name__)
+    assert isinstance(window.stage, CharacterStage)
+    assert isinstance(window.body_lay, QHBoxLayout)
+    assert "横屏" in window.stage.orientation_btn.text()
     window._shutdown()
     app.quit()
     print("OK")

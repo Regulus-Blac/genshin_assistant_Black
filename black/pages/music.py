@@ -4,9 +4,10 @@ import hashlib
 import math
 from pathlib import Path
 
-from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer
+from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QCursor, QFontMetrics, QLinearGradient, QPainter, QPainterPath, QPen, QRadialGradient
 from PyQt5.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QFileDialog,
     QFrame,
@@ -20,6 +21,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSlider,
+    QStyle,
     QTabWidget,
     QToolButton,
     QVBoxLayout,
@@ -27,6 +29,7 @@ from PyQt5.QtWidgets import (
 )
 
 from .. import theme
+from ..dialogs import GenshinDialog
 from ..music_service import MusicEngine, Playable, SearchThread, Track, scan_folder
 from ..stage import ElidedLabel
 from ..widgets import Divider, IconButton, ProgressBar
@@ -139,6 +142,8 @@ class TrackRow(QWidget):
         badge_color: str = theme.GOLD_SOFT,
         meta: str = "",
         parent: QWidget | None = None,
+        *,
+        show_handle: bool = False,
     ) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -146,6 +151,12 @@ class TrackRow(QWidget):
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 8, 4)
         lay.setSpacing(9)
+        if show_handle:
+            handle = QLabel("⋮⋮")
+            handle.setToolTip("拖动调整顺序")
+            handle.setStyleSheet(f"font-size: 14px; color: {theme.GOLD_SOFT}; letter-spacing: -2px;")
+            handle.setFixedWidth(17)
+            lay.addWidget(handle, 0, Qt.AlignVCenter)
         note = QLabel()
         note.setPixmap(theme.icon("music", badge_color, 15).pixmap(15, 15))
         note.setFixedWidth(18)
@@ -171,6 +182,148 @@ class TrackRow(QWidget):
         lay.addWidget(chip, 0, Qt.AlignVCenter)
 
 
+class SeekSlider(QSlider):
+    """A progress slider that seeks to the exact clicked position.
+
+    QSlider's default groove click moves by a page step instead of the clicked
+    point, which made the progress bar feel like drag-only.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(Qt.Horizontal, parent)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def _value_at(self, x: int) -> int:
+        return QStyle.sliderValueFromPosition(
+            self.minimum(), self.maximum(), int(x), max(1, self.width() - 1), upsideDown=False
+        )
+
+    def _seek_at(self, x: int) -> None:
+        value = self._value_at(x)
+        if value != self.value():
+            self.setValue(value)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.LeftButton and self.maximum() > self.minimum():
+            self.setSliderDown(True)
+            self._seek_at(event.pos().x())
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        if self.isSliderDown() and event.buttons() & Qt.LeftButton:
+            self._seek_at(event.pos().x())
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if self.isSliderDown() and event.button() == Qt.LeftButton:
+            self._seek_at(event.pos().x())
+            self.setSliderDown(False)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+
+class PlaylistList(QListWidget):
+    reordered = pyqtSignal()
+
+    def dropEvent(self, event) -> None:  # noqa: N802
+        super().dropEvent(event)
+        if self.dragDropMode() != QAbstractItemView.NoDragDrop:
+            self.reordered.emit()
+
+
+class PlaylistAddDialog(GenshinDialog):
+    """Browse every playlist and click a song to add it to the current one."""
+
+    def __init__(self, parent, target_name: str, sources: list[dict], add_callback) -> None:
+        super().__init__(
+            parent,
+            "添加歌曲",
+            f"从其他歌单挑歌，点击歌曲即可加入「{target_name}」。",
+            width=700,
+        )
+        self._sources = sources
+        self._add_callback = add_callback
+        self._current_source = 0
+
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        left_col = QVBoxLayout()
+        left_col.setSpacing(5)
+        left_title = QLabel("所有歌单")
+        left_title.setStyleSheet(f"font-size: 10px; color: {theme.GOLD}; letter-spacing: 1px;")
+        left_col.addWidget(left_title)
+        self.source_list = QListWidget()
+        self.source_list.setFixedWidth(210)
+        self.source_list.setMinimumHeight(300)
+        self.source_list.currentRowChanged.connect(self._show_source)
+        left_col.addWidget(self.source_list)
+        row.addLayout(left_col, 0)
+
+        right_col = QVBoxLayout()
+        right_col.setSpacing(5)
+        self.song_title = QLabel("歌曲")
+        self.song_title.setStyleSheet(f"font-size: 10px; color: {theme.GOLD}; letter-spacing: 1px;")
+        right_col.addWidget(self.song_title)
+        self.song_list = QListWidget()
+        self.song_list.setMinimumHeight(300)
+        self.song_list.itemClicked.connect(self._add_song)
+        right_col.addWidget(self.song_list)
+        row.addLayout(right_col, 1)
+        self.body.addLayout(row)
+
+        self.add_status = QLabel("点击左侧歌单查看歌曲；点击右侧歌曲会直接加入当前歌单。")
+        self.add_status.setWordWrap(True)
+        self.add_status.setStyleSheet(f"font-size: 10px; color: {theme.FAINT};")
+        self.body.addWidget(self.add_status)
+
+        for source in sources:
+            item = QListWidgetItem(f"{source['name']}  ·  {len(source['entries'])} 首")
+            item.setData(Qt.UserRole, source["id"])
+            self.source_list.addItem(item)
+        if sources:
+            self.source_list.setCurrentRow(0)
+        self.footer.addStretch(1)
+        close = self.add_button("完成")
+        close.clicked.connect(self.accept)
+
+    def _show_source(self, index: int) -> None:
+        self.song_list.clear()
+        if not (0 <= index < len(self._sources)):
+            return
+        source = self._sources[index]
+        self._current_source = index
+        self.song_title.setText(f"{source['name']} · {len(source['entries'])} 首")
+        for entry in source["entries"]:
+            kind = str(entry.get("kind", "local"))
+            title = str(entry.get("title") or Path(str(entry.get("path", ""))).stem)
+            subtitle = str(entry.get("subtitle") or ("本地曲库" if kind == "local" else "在线曲目"))
+            item = QListWidgetItem(f"{title}\n{subtitle}")
+            item.setData(Qt.UserRole, entry)
+            item.setSizeHint(QSize(10, 44))
+            self.song_list.addItem(item)
+        if not source["entries"]:
+            placeholder = QListWidgetItem("这个歌单还没有歌曲")
+            placeholder.setFlags(Qt.NoItemFlags)
+            self.song_list.addItem(placeholder)
+
+    def _add_song(self, item: QListWidgetItem) -> None:
+        entry = item.data(Qt.UserRole)
+        if not isinstance(entry, dict):
+            return
+        if self._add_callback(entry):
+            item.setText(item.text().split("\n")[0] + "\n已加入当前歌单")
+            self.add_status.setText(f"已加入：{item.text().splitlines()[0]}")
+            self.add_status.setStyleSheet(f"font-size: 10px; color: {theme.GREEN};")
+        else:
+            self.add_status.setText("这首歌已经在当前歌单里了。")
+            self.add_status.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
+
+
 class MusicPage(QWidget):
     def __init__(self, store, engine: MusicEngine, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -181,6 +334,7 @@ class MusicPage(QWidget):
         self._local_paths: list[Path] = []
         self._online_tracks: list[Track] = []
         self._current_playlist_id = "local"
+        self._playlist_mode = "browse"
         self.engine.set_play_mode(str(self.store.settings.get("music_mode", "sequence")))
         self._build()
         self.engine.state_changed.connect(self._on_state)
@@ -191,6 +345,7 @@ class MusicPage(QWidget):
         self.engine.queue_changed.connect(self._on_queue_changed)
         self.engine.mode_changed.connect(lambda _mode: self._update_mode_buttons())
         self.engine.set_volume(int(self.store.settings.get("music_volume", 42) or 42))
+        self.engine.set_playback_rate(float(self.store.settings.get("music_rate", 1.0) or 1.0))
         self.volume_slider.setValue(self.engine.volume)
         self.load_local(initial=True)
         self._refresh_playlists()
@@ -257,14 +412,22 @@ class MusicPage(QWidget):
         self.status_label.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         status_row.addWidget(self.status_label)
         status_row.addStretch(1)
-        self.source_label = QLabel("BGM")
-        self.source_label.setStyleSheet(
-            f"font-size: 8px; color: {theme.GOLD_SOFT}; background: rgba(217,188,125,12); "
-            "border: 1px solid rgba(217,188,125,30); border-radius: 7px; padding: 1px 6px;"
-        )
-        status_row.addWidget(self.source_label)
+        speed_label = QLabel("倍速")
+        speed_label.setStyleSheet(f"font-size: 8px; color: {theme.FAINT};")
+        status_row.addWidget(speed_label)
+        self.speed_combo = QComboBox()
+        self.speed_combo.setFixedWidth(66)
+        self.speed_combo.setFixedHeight(23)
+        for label, rate in (("0.5x", 0.5), ("0.75x", 0.75), ("1.0x", 1.0), ("1.5x", 1.5), ("2.0x", 2.0)):
+            self.speed_combo.addItem(label, rate)
+        current_rate = float(self.store.settings.get("music_rate", 1.0) or 1.0)
+        rate_idx = self.speed_combo.findData(current_rate)
+        self.speed_combo.setCurrentIndex(rate_idx if rate_idx >= 0 else 2)
+        self.speed_combo.setToolTip("音乐播放倍速")
+        self.speed_combo.currentIndexChanged.connect(self._on_speed_changed)
+        status_row.addWidget(self.speed_combo)
         mid.addLayout(status_row)
-        self.progress = QSlider(Qt.Horizontal)
+        self.progress = SeekSlider()
         self.progress.setRange(0, 1000)
         self.progress.setValue(0)
         self.progress.setMinimumHeight(18)
@@ -296,10 +459,10 @@ class MusicPage(QWidget):
         self.play_btn.setIconSize(QSize(17, 17))
         self.play_btn.setCursor(Qt.PointingHandCursor)
         self.play_btn.setToolTip("播放 / 暂停")
-        self.play_btn.clicked.connect(self.engine.toggle)
+        self.play_btn.clicked.connect(self.toggle_playback)
         self.next_btn = IconButton("next", "下一首", size=14, button_size=30, color=theme.MUTED)
-        self.prev_btn.clicked.connect(self.engine.previous)
-        self.next_btn.clicked.connect(self.engine.next)
+        self.prev_btn.clicked.connect(self.previous_track)
+        self.next_btn.clicked.connect(self.next_track)
         controls.addStretch(1)
         controls.addWidget(self.prev_btn)
         controls.addWidget(self.play_btn)
@@ -394,35 +557,59 @@ class MusicPage(QWidget):
         self.playlist_hint = QLabel("当前歌单")
         self.playlist_hint.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         ptl.addWidget(self.playlist_hint)
-        self.playlist_list = QListWidget()
+        self.playlist_list = PlaylistList()
         self.playlist_list.setSpacing(1)
         self.playlist_list.itemDoubleClicked.connect(self._play_playlist_item)
         self.playlist_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.playlist_list.customContextMenuRequested.connect(self._playlist_context_menu)
+        self.playlist_list.reordered.connect(self._on_playlist_reordered)
+        self.playlist_list.itemChanged.connect(self._update_remove_count)
         ptl.addWidget(self.playlist_list, 1)
-        self.playlist_empty = QLabel("这个歌单还没有歌。去「本地曲库」或「在线寻音」把喜欢的曲子加进来吧。")
+        self.playlist_empty = QLabel("这个歌单还没有歌。点「添加歌曲」从其他歌单里选几首吧。")
         self.playlist_empty.setWordWrap(True)
         self.playlist_empty.setAlignment(Qt.AlignCenter)
         self.playlist_empty.setStyleSheet(f"font-size: 10px; color: {theme.FAINT}; padding: 14px;")
         ptl.addWidget(self.playlist_empty)
         manage = QHBoxLayout()
         manage.setSpacing(8)
-        self.playlist_up_btn = QPushButton("上移")
-        self.playlist_down_btn = QPushButton("下移")
-        self.playlist_move_btn = QPushButton("移到其他歌单")
-        self.playlist_remove_btn = QPushButton("从歌单移除")
-        for btn in (self.playlist_up_btn, self.playlist_down_btn, self.playlist_move_btn, self.playlist_remove_btn):
+        self.playlist_sort_btn = QPushButton("排序")
+        self.playlist_add_btn = QPushButton("添加歌曲")
+        self.playlist_remove_btn = QPushButton("移除歌曲")
+        for btn in (self.playlist_sort_btn, self.playlist_add_btn, self.playlist_remove_btn):
             btn.setObjectName("TextButton")
             btn.setCursor(Qt.PointingHandCursor)
-            btn.setFixedHeight(26)
-            btn.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
+            btn.setFixedHeight(28)
+            btn.setStyleSheet(
+                f"QPushButton {{ background: rgba(8,14,21,150); border: 1px solid rgba(217,188,125,42); "
+                f"border-radius: 8px; padding: 3px 13px; font-size: 11px; color: {theme.GOLD_SOFT}; }} "
+                f"QPushButton:hover {{ border-color: rgba(217,188,125,95); color: {theme.GOLD}; }}"
+            )
             manage.addWidget(btn)
         manage.addStretch(1)
-        self.playlist_up_btn.clicked.connect(lambda: self._move_playlist_item(-1))
-        self.playlist_down_btn.clicked.connect(lambda: self._move_playlist_item(1))
-        self.playlist_move_btn.clicked.connect(self._move_playlist_item_to_other)
-        self.playlist_remove_btn.clicked.connect(self._remove_playlist_item)
+        self.playlist_sort_btn.clicked.connect(lambda: self._set_playlist_mode("sort"))
+        self.playlist_add_btn.clicked.connect(self._open_add_songs)
+        self.playlist_remove_btn.clicked.connect(lambda: self._set_playlist_mode("remove"))
         ptl.addLayout(manage)
+
+        self.remove_bar = QWidget()
+        rbl = QHBoxLayout(self.remove_bar)
+        rbl.setContentsMargins(0, 2, 0, 0)
+        rbl.setSpacing(8)
+        self.remove_count_label = QLabel("勾选要移除的歌曲")
+        self.remove_count_label.setStyleSheet(f"font-size: 10px; color: {theme.MUTED};")
+        rbl.addWidget(self.remove_count_label)
+        rbl.addStretch(1)
+        self.remove_cancel_btn = QPushButton("取消")
+        self.remove_confirm_btn = QPushButton("确认移除")
+        self.remove_confirm_btn.setObjectName("Primary")
+        for btn in (self.remove_cancel_btn, self.remove_confirm_btn):
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedHeight(28)
+            rbl.addWidget(btn)
+        self.remove_cancel_btn.clicked.connect(lambda: self._set_playlist_mode("browse"))
+        self.remove_confirm_btn.clicked.connect(self._confirm_remove_checked)
+        self.remove_bar.setVisible(False)
+        ptl.addWidget(self.remove_bar)
         self.tabs.addTab(playlist_tab, "歌单")
 
         local_tab = QWidget()
@@ -586,28 +773,72 @@ class MusicPage(QWidget):
         builtin = bool(pl.get("builtin"))
         self.playlist_rename_btn.setEnabled(not builtin)
         self.playlist_delete_btn.setEnabled(not builtin)
-        self.playlist_up_btn.setEnabled(not builtin)
-        self.playlist_down_btn.setEnabled(not builtin)
-        self.playlist_move_btn.setEnabled(not builtin)
+        self.playlist_sort_btn.setEnabled(not builtin)
+        self.playlist_add_btn.setEnabled(not builtin)
         self.playlist_remove_btn.setEnabled(not builtin)
+        if builtin:
+            self._playlist_mode = "browse"
+        self._apply_playlist_mode_ui()
+        self._refresh_playlist_tracks()
+
+    def _apply_playlist_mode_ui(self) -> None:
+        sort_active = self._playlist_mode == "sort"
+        remove_active = self._playlist_mode == "remove"
+        self.playlist_sort_btn.setText("完成排序" if sort_active else "排序")
+        self.playlist_remove_btn.setText("取消移除" if remove_active else "移除歌曲")
+        self.remove_bar.setVisible(remove_active)
+        self.playlist_list.setDragDropMode(
+            QAbstractItemView.InternalMove if sort_active else QAbstractItemView.NoDragDrop
+        )
+        self.playlist_list.setDragEnabled(sort_active)
+        self.playlist_list.setAcceptDrops(sort_active)
+        self.playlist_list.setDropIndicatorShown(sort_active)
+        self.playlist_list.setDefaultDropAction(Qt.MoveAction)
+        self.playlist_list.setSelectionMode(
+            QAbstractItemView.NoSelection if remove_active else QAbstractItemView.SingleSelection
+        )
+        if remove_active:
+            self._update_remove_count()
+        else:
+            self.remove_count_label.setText("勾选要移除的歌曲")
+
+    def _set_playlist_mode(self, mode: str) -> None:
+        pl = self._selected_playlist()
+        if not pl:
+            return
+        if mode in ("sort", "remove") and pl.get("builtin"):
+            QMessageBox.information(self, "歌单", "本地曲库会自动跟随音乐文件夹，请先选择或新建一个自定义歌单。")
+            return
+        if self._playlist_mode == mode:
+            mode = "browse"
+        self._playlist_mode = mode
+        self._apply_playlist_mode_ui()
         self._refresh_playlist_tracks()
 
     def _refresh_playlist_tracks(self) -> None:
         if not hasattr(self, "playlist_list"):
             return
-        self.playlist_list.clear()
         pl = self._selected_playlist()
         if not pl:
             return
+        self.playlist_list.blockSignals(True)
+        self.playlist_list.clear()
         if pl.get("builtin"):
             entries = [
                 {"kind": "local", "path": str(p), "title": p.stem, "subtitle": "本地曲库"}
                 for p in self._local_paths
             ]
             self.playlist_hint.setText("本地曲库 · 默认歌单（跟随音乐文件夹）")
+            self.playlist_empty.setText("这个文件夹里还没有音频。把 mp3 / wav / flac 放进音乐文件夹后会自动出现。")
+            mode = "browse"
         else:
             entries = list(pl.get("tracks", []))
-            self.playlist_hint.setText(f"{pl.get('name', '歌单')} · 双击播放，右键管理")
+            self.playlist_empty.setText("这个歌单还没有歌。点「添加歌曲」从其他歌单里选几首吧。")
+            mode = self._playlist_mode
+            hint = "拖动左侧标志调整顺序" if mode == "sort" else (
+                "勾选歌曲后点击下方确认移除" if mode == "remove" else "双击播放 · 右键管理"
+            )
+            self.playlist_hint.setText(f"{pl.get('name', '歌单')} · {hint}")
         for entry in entries:
             item = QListWidgetItem()
             kind = str(entry.get("kind", "local"))
@@ -624,15 +855,104 @@ class MusicPage(QWidget):
                 badge = "网易" if track.get("source") == "netease" else "试听"
                 color = theme.GREEN if track.get("source") == "netease" else theme.TEAL
                 meta = "ONLINE"
-            row = TrackRow(title, subtitle, badge, badge_color=color, meta=meta)
             item.setData(Qt.UserRole, entry)
             item.setSizeHint(QSize(10, 50))
-            self.playlist_list.addItem(item)
-            self.playlist_list.setItemWidget(item, row)
+            if mode == "remove":
+                item.setText(f"{title}  ·  {subtitle}")
+                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Unchecked)
+                self.playlist_list.addItem(item)
+            else:
+                row = TrackRow(
+                    title,
+                    subtitle,
+                    badge,
+                    badge_color=color,
+                    meta=meta,
+                    show_handle=mode == "sort",
+                )
+                if mode == "sort":
+                    item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)
+                self.playlist_list.addItem(item)
+                self.playlist_list.setItemWidget(item, row)
+        self.playlist_list.blockSignals(False)
         has_tracks = bool(entries)
         self.playlist_list.setVisible(has_tracks)
         self.playlist_empty.setVisible(not has_tracks)
         self.playlist_count.setText(f"{len(entries)} 首")
+        if mode == "remove":
+            self._update_remove_count()
+
+    def _update_remove_count(self, *_args) -> None:
+        if self._playlist_mode != "remove" or not hasattr(self, "playlist_list"):
+            return
+        count = sum(
+            1 for i in range(self.playlist_list.count())
+            if self.playlist_list.item(i).checkState() == Qt.Checked
+        )
+        self.remove_count_label.setText(f"已勾选 {count} 首，确认后只从歌单移除，不删除本地文件。")
+        self.remove_confirm_btn.setText(f"确认移除 {count} 首" if count else "确认移除")
+
+    def _on_playlist_reordered(self) -> None:
+        if self._playlist_mode != "sort":
+            return
+        pl = self._selected_playlist()
+        if not pl or pl.get("builtin"):
+            return
+        entries = []
+        for i in range(self.playlist_list.count()):
+            entry = self.playlist_list.item(i).data(Qt.UserRole)
+            if isinstance(entry, dict):
+                entries.append(entry)
+        self.store.set_playlist_tracks(str(pl["id"]), entries)
+        QTimer.singleShot(0, self._refresh_playlist_tracks)
+
+    def _confirm_remove_checked(self) -> None:
+        pl = self._selected_playlist()
+        if not pl or pl.get("builtin"):
+            return
+        rows = [
+            i for i in range(self.playlist_list.count())
+            if self.playlist_list.item(i).checkState() == Qt.Checked
+        ]
+        if not rows:
+            return
+        for row in reversed(rows):
+            self.store.remove_from_playlist(str(pl["id"]), row)
+        self._playlist_mode = "browse"
+        self._apply_playlist_mode_ui()
+        self._refresh_playlist_tracks()
+
+    def _open_add_songs(self) -> None:
+        pl = self._selected_playlist()
+        if not pl:
+            return
+        if pl.get("builtin"):
+            QMessageBox.information(self, "添加歌曲", "本地曲库会自动跟随音乐文件夹，请先选择或新建一个自定义歌单。")
+            return
+        sources = []
+        for source in self.store.playlists():
+            if source.get("builtin"):
+                entries = [
+                    self._entry_from_local(p) for p in self._local_paths
+                ]
+            else:
+                entries = list(source.get("tracks", []))
+            sources.append({
+                "id": str(source.get("id", "")),
+                "name": str(source.get("name", "歌单")),
+                "entries": entries,
+            })
+        target_id = str(pl["id"])
+        dialog = PlaylistAddDialog(
+            self,
+            str(pl.get("name", "歌单")),
+            sources,
+            lambda entry: self.store.add_to_playlist(target_id, entry),
+        )
+        dialog.exec_()
+        if self._current_playlist_id == target_id:
+            self._refresh_playlist_tracks()
 
     def _entry_from_local(self, path: Path) -> dict:
         return {
@@ -820,6 +1140,8 @@ class MusicPage(QWidget):
             self._play_online_item(item)
 
     def _playlist_context_menu(self, pos) -> None:
+        if self._playlist_mode != "browse":
+            return
         item = self.playlist_list.itemAt(pos)
         if not item:
             return
@@ -1052,11 +1374,6 @@ class MusicPage(QWidget):
     def _on_track(self, title: str, subtitle: str, kind: str, playing: bool) -> None:
         self.now_title.setText(title)
         self.now_sub.setText(subtitle)
-        item = self.engine.current_playable()
-        if item and item.track:
-            self.source_label.setText("在线 · 网易云" if item.track.source == "netease" else "在线 · iTunes 试听")
-        else:
-            self.source_label.setText("本地 BGM")
         self.album.set_track(title, playing)
         if kind == "online":
             self.cache_hint.setText("首次播放在本地生成缓存")
@@ -1130,6 +1447,18 @@ class MusicPage(QWidget):
     def _save_volume(self) -> None:
         self.store.settings["music_volume"] = int(self.volume_slider.value())
         self.store.save()
+
+    def _on_speed_changed(self) -> None:
+        rate = float(self.speed_combo.currentData() or 1.0)
+        self.engine.set_playback_rate(rate)
+        self.store.settings["music_rate"] = rate
+        self.store.save()
+
+    def previous_track(self) -> None:
+        if self.engine.queue:
+            self.engine.previous()
+        else:
+            self.start_default()
 
     def start_default(self) -> None:
         items = self._playlist_playables()

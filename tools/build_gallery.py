@@ -6,7 +6,8 @@ Sources
 * Official "wish" and "splash" artwork for 34 characters: ScobbleQ/HoYo-Assets
   on GitHub (official art mirror), fetched through jsDelivr.
 * Skirk fallback: Enka Network's public UI asset mirror.
-* Vodyanitsa: four illustrations supplied in the local workspace.
+* Vodyanitsa: fifteen portrait/landscape illustrations supplied in the local
+  workspace, imported by ``tools/import_vody_assets.py``.
 
 All output is composited onto a dark Genshin-style backdrop so the stage can
 use fixed, high-resolution JPGs that never need to move or resize the art at
@@ -98,13 +99,23 @@ VODY = {
     "element": "hydro",
     "color": "#7fd3d1",
     "looks": [
-        {"id": "snow", "label": "雪窗", "orientation": "portrait", "art": "art_snow.jpg", "thumb": "gallery/thumbs/vody_snow.jpg"},
-        {"id": "wisteria", "label": "紫藤", "orientation": "portrait", "art": "art_wisteria.jpg", "thumb": "gallery/thumbs/vody_wisteria.jpg"},
-        {"id": "picnic", "label": "野餐", "orientation": "portrait", "art": "art_picnic.jpg", "thumb": "gallery/thumbs/vody_picnic.jpg"},
-        {"id": "tea", "label": "茶会", "orientation": "portrait", "art": "art_tea.jpg", "thumb": "gallery/thumbs/vody_tea.jpg"},
-        {"id": "wide", "label": "横屏", "orientation": "landscape", "art": "gallery/vody_wide.jpg", "thumb": "gallery/thumbs/vody_wide.jpg"},
+        {"id": "window", "label": "窗边", "orientation": "portrait", "art": "gallery/vody_window_portrait.jpg", "thumb": "gallery/thumbs/vody_window.jpg"},
+        {"id": "qipao_full", "label": "旗袍·全身", "orientation": "portrait", "art": "gallery/vody_qipao_full_portrait.jpg", "thumb": "gallery/thumbs/vody_qipao_full.jpg"},
+        {"id": "qipao_half", "label": "旗袍·半身", "orientation": "portrait", "art": "gallery/vody_qipao_half_portrait.jpg", "thumb": "gallery/thumbs/vody_qipao_half.jpg"},
+        {"id": "qipao_fan", "label": "旗袍·团扇", "orientation": "portrait", "art": "gallery/vody_qipao_fan_portrait.jpg", "thumb": "gallery/thumbs/vody_qipao_fan.jpg"},
+        {"id": "swim1", "label": "泳装·沙滩", "orientation": "portrait", "art": "gallery/vody_swim1_portrait.jpg", "thumb": "gallery/thumbs/vody_swim1.jpg"},
+        {"id": "swim2", "label": "泳装·沙滩 2", "orientation": "portrait", "art": "gallery/vody_swim2_portrait.jpg", "thumb": "gallery/thumbs/vody_swim2.jpg"},
+        {"id": "swim_comic", "label": "泳装·漫画", "orientation": "portrait", "art": "gallery/vody_swim_comic_portrait.jpg", "thumb": "gallery/thumbs/vody_swim_comic.jpg"},
+        {"id": "snowpool", "label": "雪糕水池", "orientation": "landscape", "art": "gallery/vody_snowpool_wide.jpg", "thumb": "gallery/thumbs/vody_snowpool.jpg"},
+        {"id": "mermaid_down", "label": "人鱼·倒影", "orientation": "landscape", "art": "gallery/vody_mermaid_down_wide.jpg", "thumb": "gallery/thumbs/vody_mermaid_down.jpg"},
+        {"id": "mermaid_sing", "label": "人鱼·歌唱", "orientation": "landscape", "art": "gallery/vody_mermaid_sing_wide.jpg", "thumb": "gallery/thumbs/vody_mermaid_sing.jpg"},
+        {"id": "drink_half", "label": "饮料·半身", "orientation": "landscape", "art": "gallery/vody_drink_half_wide.jpg", "thumb": "gallery/thumbs/vody_drink_half.jpg"},
+        {"id": "drink_store", "label": "饮料·杂货店", "orientation": "landscape", "art": "gallery/vody_drink_store_wide.jpg", "thumb": "gallery/thumbs/vody_drink_store.jpg"},
+        {"id": "drink_beach", "label": "饮料·海滩", "orientation": "landscape", "art": "gallery/vody_drink_beach_wide.jpg", "thumb": "gallery/thumbs/vody_drink_beach.jpg"},
+        {"id": "drink_grass", "label": "饮料·草地", "orientation": "landscape", "art": "gallery/vody_drink_grass_wide.jpg", "thumb": "gallery/thumbs/vody_drink_grass.jpg"},
+        {"id": "drink_bench", "label": "饮料·长椅", "orientation": "landscape", "art": "gallery/vody_drink_bench_wide.jpg", "thumb": "gallery/thumbs/vody_drink_bench.jpg"},
     ],
-    "default_look": "snow",
+    "default_look": "window",
     "source": "workspace / user-supplied illustrations",
 }
 
@@ -229,7 +240,7 @@ def compose(source_bytes: bytes, kind: str, accent: str, seed: int) -> Image.Ima
 
     # Character artwork: tall wish art is shown full-body; wide splash art is
     # cover-cropped around the centre.
-    if kind == "wish" or (src.width / src.height) < 0.70:
+    if kind == "wish" or (kind != "cover" and (src.width / src.height) < 0.70):
         art_h = 1500
         art_w = round(src.width * art_h / src.height)
         if art_w > 760:
@@ -328,11 +339,8 @@ def build() -> int:
     print("fetch yatta")
     by_route = fetch_yatta()
     characters = [VODY]
-    # Vodyanitsa landscape crop comes from her snow portrait.
-    wide = compose_wide((IMAGES / "art_snow.jpg").read_bytes(), "#7fd3d1", seed=41, focus_y=0.04)
-    wide.save(IMAGES / "gallery/vody_wide.jpg", quality=92, optimize=True)
-    make_thumb(wide, 0.12).save(IMAGES / "gallery/thumbs/vody_wide.jpg", quality=88, optimize=True)
-    # Vodyanitsa thumbs from the local paintings
+    # Vodyanitsa thumbs are generated by tools/import_vody_assets.py; keep
+    # them in sync here if the manifest is rebuilt.
     for look in VODY["looks"]:
         im = Image.open(IMAGES / look["art"]).convert("RGB")
         make_thumb(im, 0.03).save(IMAGES / look["thumb"], quality=88, optimize=True)

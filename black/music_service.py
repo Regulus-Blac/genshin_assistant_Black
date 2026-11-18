@@ -324,6 +324,7 @@ class MusicEngine(QObject):
         self.queue: list[Playable] = []
         self.index = -1
         self.play_mode = "sequence"  # sequence | shuffle | single
+        self.playback_rate = 1.0
         self._download: DownloadThread | None = None
         self._threads: list[DownloadThread] = []
         self._generation = 0
@@ -337,6 +338,16 @@ class MusicEngine(QObject):
     # ------------------------------------------------------------------
     def set_volume(self, value: int) -> None:
         self.player.setVolume(max(0, min(100, int(value))))
+
+    def set_playback_rate(self, rate: float) -> float:
+        try:
+            rate = float(rate)
+        except (TypeError, ValueError):
+            rate = 1.0
+        rate = max(0.5, min(2.0, rate))
+        self.playback_rate = rate
+        self.player.setPlaybackRate(rate)
+        return rate
 
     def set_play_mode(self, mode: str) -> str:
         mode = str(mode or "sequence").lower()
@@ -400,7 +411,13 @@ class MusicEngine(QObject):
         if state == QMediaPlayer.PlayingState:
             self.player.pause()
         elif self.current_playable():
-            self.player.play()
+            # A queue can exist without media loaded (for example right after
+            # opening the page).  Previously play() silently did nothing here;
+            # load the current item first so the central play button always works.
+            if self.player.media().isNull():
+                self._play_current()
+            else:
+                self.player.play()
 
     def stop(self) -> None:
         self._generation += 1

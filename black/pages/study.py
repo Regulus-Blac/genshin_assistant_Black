@@ -498,6 +498,7 @@ class StudyPage(QWidget):
             f"font-family: '{theme.SERIF}'; font-size: 16px; font-weight: 600; color: {theme.TEXT}; letter-spacing: 1px;"
         )
         self.active_chip = QLabel("待机中")
+        self.active_chip.setVisible(False)
         self.active_chip.setStyleSheet(
             f"font-size: 9px; color: {theme.MUTED}; background: rgba(255,255,255,7); "
             "border: 1px solid rgba(217,188,125,28); border-radius: 8px; padding: 2px 7px;"
@@ -634,6 +635,7 @@ class StudyPage(QWidget):
         overall = self.store.overall(now)
         self.total_chip.setText(f"今日 {format_duration(overall['today_seconds'])}")
         active = self.store.active_subject()
+        self.active_chip.setVisible(bool(active))
         if active:
             elapsed = self.store.active_elapsed(now)
             self.active_chip.setText(f"● 正在修习「{active['name']}」 · {format_short_duration(elapsed)}")
@@ -642,11 +644,7 @@ class StudyPage(QWidget):
                 "border: 1px solid rgba(154,202,132,38); border-radius: 8px; padding: 2px 7px;"
             )
         else:
-            self.active_chip.setText("待机中")
-            self.active_chip.setStyleSheet(
-                f"font-size: 9px; color: {theme.MUTED}; background: rgba(255,255,255,7); "
-                "border: 1px solid rgba(217,188,125,28); border-radius: 8px; padding: 2px 7px;"
-            )
+            self.active_chip.setText("")
         today_count = len([s for s in subjects if s["today_seconds"] > 0])
         streak_max = max([s["streak"] for s in subjects], default=0)
         self.journal_sub.setText(

@@ -13,7 +13,7 @@ from pathlib import Path
 from .paths import ASSETS, IMAGES
 
 DEFAULT_CHARACTER_ID = "vodyanitsa"
-DEFAULT_LOOK_ID = "snow"
+DEFAULT_LOOK_ID = "window"
 
 _FALLBACK = {
     "version": 1,
@@ -25,12 +25,11 @@ _FALLBACK = {
             "element": "hydro",
             "color": "#7fd3d1",
             "looks": [
-                {"id": "snow", "label": "雪窗", "art": "art_snow.jpg", "thumb": "art_snow.jpg"},
-                {"id": "wisteria", "label": "紫藤", "art": "art_wisteria.jpg", "thumb": "art_wisteria.jpg"},
-                {"id": "picnic", "label": "野餐", "art": "art_picnic.jpg", "thumb": "art_picnic.jpg"},
-                {"id": "tea", "label": "茶会", "art": "art_tea.jpg", "thumb": "art_tea.jpg"},
+                {"id": "window", "label": "窗边", "orientation": "portrait", "art": "gallery/vody_window_portrait.jpg", "thumb": "gallery/thumbs/vody_window.jpg"},
+                {"id": "qipao_half", "label": "旗袍·半身", "orientation": "portrait", "art": "gallery/vody_qipao_half_portrait.jpg", "thumb": "gallery/thumbs/vody_qipao_half.jpg"},
+                {"id": "snowpool", "label": "雪糕水池", "orientation": "landscape", "art": "gallery/vody_snowpool_wide.jpg", "thumb": "gallery/thumbs/vody_snowpool.jpg"},
             ],
-            "default_look": "snow",
+            "default_look": "window",
         }
     ],
 }
@@ -88,13 +87,13 @@ def get_look(meta: dict, look_id: str | None = None) -> dict:
 def legacy_look_id(character_id: str, art_name: str | None) -> str | None:
     """Map the pre-gallery ``art`` setting to a look id."""
     mapping = {
-        "art_snow.jpg": "snow",
-        "art_wisteria.jpg": "wisteria",
-        "art_picnic.jpg": "picnic",
-        "art_tea.jpg": "tea",
+        "art_snow.jpg": "window",
+        "art_wisteria.jpg": "window",
+        "art_picnic.jpg": "window",
+        "art_tea.jpg": "window",
     }
     if character_id == DEFAULT_CHARACTER_ID:
-        return mapping.get(str(art_name or ""), "snow")
+        return mapping.get(str(art_name or ""), "window")
     return None
 
 

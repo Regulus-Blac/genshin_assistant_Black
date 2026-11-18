@@ -4,12 +4,16 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-# Cumulative hours required for each level.  The curve starts gently and then
-# grows steadily, similar to an adventure-rank style progression.
+# Cumulative hours required for each level.  The first thirty levels are the
+# original gentle progression; levels 31-60 add another 2 hours to every step,
+# making the last ten levels markedly harder while keeping 60 attainable.
 _HOURS = [
     0, 0.5, 1.5, 3, 5, 8, 12, 17, 23, 30,
     38, 47, 57, 68, 80, 95, 112, 131, 152, 175,
     200, 230, 263, 300, 340, 385, 435, 490, 550, 615,
+    681, 749, 819, 891, 965, 1041, 1119, 1199, 1281, 1365,
+    1451, 1539, 1629, 1721, 1815, 1911, 2009, 2109, 2211, 2315,
+    2421, 2529, 2639, 2751, 2865, 2981, 3099, 3219, 3341, 3465,
 ]
 MAX_LEVEL = len(_HOURS)
 THRESHOLDS = [int(h * 3600) for h in _HOURS]
@@ -20,9 +24,14 @@ _TIERS = [
     (9, 12, "精进"),
     (13, 16, "心流"),
     (17, 20, "通达"),
-    (21, 24, "造诣"),
-    (25, 27, "大师"),
-    (28, 30, "传说"),
+    (21, 25, "造诣"),
+    (26, 30, "大师"),
+    (31, 35, "传说"),
+    (36, 40, "星辉"),
+    (41, 45, "秘境"),
+    (46, 50, "无相"),
+    (51, 55, "深渊"),
+    (56, 60, "天穹"),
 ]
 
 # Every consecutive day grants a small permanent resonance bonus.  It is capped
