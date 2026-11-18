@@ -93,20 +93,23 @@ class _ResizeHandle(QWidget):
         if parent is None:
             return
         w, h = parent.width(), parent.height()
-        b, c = 8, 14
+        # The visible rounded card starts 18px inside the translucent top-level
+        # window.  Put the fallback grip on that visible border, not in the
+        # invisible shadow area.
+        b, inset, c = 16, 12, 28
         x, y, ww, hh = 0, 0, w, h
         if self.edges == {"left"}:
-            x, y, ww, hh = 0, c, b, max(1, h - 2 * c)
+            x, y, ww, hh = inset, c, b, max(1, h - 2 * c)
         elif self.edges == {"right"}:
-            x, y, ww, hh = w - b, c, b, max(1, h - 2 * c)
+            x, y, ww, hh = w - inset - b, c, b, max(1, h - 2 * c)
         elif self.edges == {"top"}:
-            x, y, ww, hh = c, 0, max(1, w - 2 * c), b
+            x, y, ww, hh = c, inset, max(1, w - 2 * c), b
         elif self.edges == {"bottom"}:
-            x, y, ww, hh = c, h - b, max(1, w - 2 * c), b
+            x, y, ww, hh = c, h - inset - b, max(1, w - 2 * c), b
         else:
-            x = 0 if "left" in self.edges else w - c
-            y = 0 if "top" in self.edges else h - c
-            ww = hh = c
+            x = inset if "left" in self.edges else w - inset - b
+            y = inset if "top" in self.edges else h - inset - b
+            ww = hh = b
         self.setGeometry(x, y, ww, hh)
         self.raise_()
 
@@ -1151,7 +1154,9 @@ class MainWindow(QMainWindow):
                 if msg.message == 0x0084:  # WM_NCHITTEST
                     local = self.mapFromGlobal(QCursor.pos())
                     w, h = self.width(), self.height()
-                    border = 9
+                    # The visible card edge is inset 18px; a 30px native hit
+                    # zone reaches it while still sparing the page content.
+                    border = 30
                     left = local.x() <= border
                     right = local.x() >= w - border
                     top = local.y() <= border

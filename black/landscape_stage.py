@@ -18,29 +18,36 @@ from .widgets import Avatar
 
 
 class LandscapeStage(CharacterStage):
-    """A true full-width cinematic banner for landscape illustrations.
+    """A full-width landscape banner with the artwork on the left.
 
-    Unlike the portrait stage, this widget sits above the pages rather than in
-    a left column.  The wide art fills the banner, the date/exam live at the
-    top edge, and the quote/actions/player form a bottom rail.  MainWindow
-    changes the whole body from a horizontal split to a vertical stack when
-    this stage is active.
+    The overall shell stays top/bottom: this banner is above the pages.  The
+    banner itself is split into a large artwork panel and a compact functional
+    side panel (player, three action medallions, quote).  The artwork uses a
+    contain fit so the wide illustration is not blown up into a narrow strip.
     """
 
     ORIENTATION = "landscape"
 
     def _build_ui(self) -> None:
+        light = theme.is_light()
         self.setMinimumWidth(0)
         self.setMaximumWidth(16777215)
-        self.setFixedHeight(298)
+        self.setFixedHeight(400)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setAttribute(Qt.WA_StyledBackground, False)
-        root = QVBoxLayout(self)
-        root.setContentsMargins(22, 15, 22, 13)
+
+        root = QHBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
+        self.art_panel = QWidget()
+        self.art_panel.setAttribute(Qt.WA_StyledBackground, False)
+        left = QVBoxLayout(self.art_panel)
+        left.setContentsMargins(22, 15, 30, 13)
+        left.setSpacing(0)
+
         top = QHBoxLayout()
-        top.setSpacing(12)
+        top.setSpacing(10)
         date_col = QVBoxLayout()
         date_col.setSpacing(1)
         self.date_label = QLabel("11月18日 · 周二")
@@ -54,133 +61,100 @@ class LandscapeStage(CharacterStage):
         date_col.addWidget(self.date_label)
         date_col.addWidget(self.location)
         top.addLayout(date_col)
+        top.addStretch(1)
+        self.time_label = QLabel("00:00")
+        self.time_label.setObjectName("StageTime")
+        self.time_label.setStyleSheet(
+            f"font-family: '{theme.MONO}'; font-size: 23px; color: {theme.WHITE}; letter-spacing: 1px;"
+        )
+        self.time_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.time_label.setMinimumWidth(96)
+        top.addWidget(self.time_label)
+        left.addLayout(top)
+        left.addSpacing(9)
 
         self.exam_label = QLabel("考试日期 · 待设定")
         self.exam_label.setObjectName("StageExam")
         self.exam_label.setFixedHeight(21)
         self.exam_label.setStyleSheet(
-            f"font-size: 10px; color: {theme.GOLD}; background: rgba(8,13,20,130); "
-            "border: 1px solid rgba(217,188,125,38); border-radius: 8px; padding: 2px 7px;"
+            f"font-size: 10px; color: {theme.GOLD}; background: "
+            f"{'rgba(255,250,240,225)' if light else 'rgba(8,13,20,145)'}; "
+            f"border: 1px solid {'rgba(152,117,54,65)' if light else 'rgba(217,188,125,45)'}; "
+            "border-radius: 8px; padding: 2px 7px;"
         )
         self.exam_label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
-        top.addWidget(self.exam_label, 0, Qt.AlignBottom)
-        top.addStretch(1)
+        exam_row = QHBoxLayout()
+        exam_row.addWidget(self.exam_label)
+        exam_row.addStretch(1)
+        left.addLayout(exam_row)
+        left.addStretch(1)
 
-        self.mark_label = QLabel("TEYVAT DESK · LANDSCAPE")
-        self.mark_label.setStyleSheet(
-            f"font-family: '{theme.DISPLAY}'; font-size: 8px; color: rgba(243,221,170,125); "
+        self.art_name_label = QLabel("")
+        self.art_name_label.setStyleSheet(
+            f"font-family: '{theme.SERIF}'; font-size: 24px; font-weight: 600; "
+            f"color: {theme.WHITE}; letter-spacing: 2px;"
+        )
+        left.addWidget(self.art_name_label)
+        art_caption = QLabel("TEYVAT DESK · LANDSCAPE")
+        art_caption.setStyleSheet(
+            f"font-family: '{theme.DISPLAY}'; font-size: 8px; color: {theme.GOLD_SOFT}; "
             "letter-spacing: 2px;"
         )
-        top.addWidget(self.mark_label, 0, Qt.AlignBottom)
-        self.time_label = QLabel("00:00")
-        self.time_label.setObjectName("StageTime")
-        self.time_label.setStyleSheet(
-            f"font-family: '{theme.MONO}'; font-size: 22px; color: {theme.TEXT}; letter-spacing: 1px;"
-        )
-        self.time_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        top.addWidget(self.time_label)
-        root.addLayout(top)
-        root.addStretch(1)
+        left.addWidget(art_caption)
+        root.addWidget(self.art_panel, 58)
 
-        bottom = QHBoxLayout()
-        bottom.setSpacing(16)
-        left = QVBoxLayout()
-        left.setSpacing(2)
+        self.side_panel = QWidget()
+        self.side_panel.setAttribute(Qt.WA_StyledBackground, False)
+        side = QVBoxLayout(self.side_panel)
+        side.setContentsMargins(17, 14, 17, 13)
+        side.setSpacing(5)
+        header = QHBoxLayout()
+        header.setSpacing(7)
+        mark = QLabel("LANDSCAPE DESK")
+        mark.setStyleSheet(
+            f"font-family: '{theme.DISPLAY}'; font-size: 8px; color: {theme.GOLD_SOFT}; "
+            "letter-spacing: 1.5px;"
+        )
+        header.addWidget(mark)
+        header.addStretch(1)
+        self.orientation_btn = QPushButton(" 竖屏")
+        self.orientation_btn.setObjectName("StageSideButton")
+        self.orientation_btn.setIcon(theme.icon("portrait", theme.GOLD_SOFT, 12))
+        self.orientation_btn.setCursor(Qt.PointingHandCursor)
+        self.orientation_btn.setFixedHeight(23)
+        self.orientation_btn.clicked.connect(self.orientation_requested)
+        self.orientation_btn.setStyleSheet(
+            f"QPushButton {{ background: {'rgba(255,250,240,220)' if light else 'rgba(8,14,21,150)'}; "
+            f"border: 1px solid {'rgba(152,117,54,60)' if light else 'rgba(217,188,125,45)'}; "
+            f"border-radius: 7px; color: {theme.TEXT_SOFT}; font-size: 9px; padding: 2px 8px; }} "
+            f"QPushButton:hover {{ border-color: {theme.GOLD}; color: {theme.GOLD_BRIGHT}; }}"
+        )
+        header.addWidget(self.orientation_btn)
+        side.addLayout(header)
+
         self.stats_label = QLabel("今日专注 0m · 连习 0 天")
         self.stats_label.setObjectName("StageStats")
         self.stats_label.setStyleSheet(f"font-size: 10px; color: {theme.GOLD}; letter-spacing: 1px;")
-        left.addWidget(self.stats_label)
+        side.addWidget(self.stats_label)
         self.greeting_label = QLabel("晚上好，旅行者。")
         self.greeting_label.setObjectName("StageGreeting")
         self.greeting_label.setStyleSheet(
-            f"font-family: '{theme.SERIF}'; font-size: 22px; font-weight: 600; color: {theme.WHITE};"
+            f"font-family: '{theme.SERIF}'; font-size: 21px; font-weight: 600; color: {theme.WHITE};"
         )
-        left.addWidget(self.greeting_label)
+        side.addWidget(self.greeting_label)
         self.sub_label = QLabel("今晚的风很适合读书。")
         self.sub_label.setObjectName("StageSub")
         self.sub_label.setWordWrap(True)
         self.sub_label.setMaximumHeight(30)
-        self.sub_label.setStyleSheet("font-size: 10px; color: rgba(238,231,218,190);")
-        left.addWidget(self.sub_label)
-
-        self.quote_card = QFrame()
-        self.quote_card.setObjectName("StageQuote")
-        self.quote_card.setMaximumWidth(480)
-        self.quote_card.setStyleSheet(
-            "QFrame#StageQuote { background: rgba(7,12,18,215); "
-            "border: 1px solid rgba(217,188,125,60); border-radius: 11px; }"
-        )
-        qlay = QVBoxLayout(self.quote_card)
-        qlay.setContentsMargins(10, 6, 10, 6)
-        qlay.setSpacing(2)
-        qtop = QHBoxLayout()
-        qtop.setSpacing(6)
-        self.quote_avatar = Avatar("black.png", 20, ring=theme.GOLD_BRIGHT)
-        qtop.addWidget(self.quote_avatar)
-        self.quote_name = QLabel("Black")
-        self.quote_name.setObjectName("StageName")
-        self.quote_name.setStyleSheet(
-            f"font-family: '{theme.SERIF}'; font-size: 10px; color: {theme.GOLD};"
-        )
-        qtop.addWidget(self.quote_name)
-        self.quote_tag = QLabel("轻声")
-        self.quote_tag.setStyleSheet(f"font-size: 8px; color: {theme.FAINT}; letter-spacing: 1px;")
-        qtop.addWidget(self.quote_tag)
-        qtop.addStretch(1)
-        qlay.addLayout(qtop)
-        self.quote_text = QLabel("……")
-        self.quote_text.setWordWrap(True)
-        self.quote_text.setStyleSheet(
-            f"font-family: '{theme.SERIF}'; font-size: 11px; color: rgba(241,235,224,230);"
-        )
-        qlay.addWidget(self.quote_text)
-        left.addWidget(self.quote_card)
-        bottom.addLayout(left, 1)
-
-        right = QVBoxLayout()
-        right.setSpacing(6)
-        right.addStretch(1)
-        actions = QHBoxLayout()
-        actions.setSpacing(5)
-        self.chat_btn = QPushButton(" 说说话")
-        self.chat_btn.setObjectName("StageAction")
-        self.chat_btn.setIcon(theme.icon("chat", theme.GOLD_SOFT, 13))
-        self.chat_btn.setCursor(Qt.PointingHandCursor)
-        self.chat_btn.setFixedHeight(26)
-        self.chat_btn.setFixedWidth(82)
-        self.chat_btn.clicked.connect(self.chat_requested)
-        self.pet_btn = QPushButton(" 摸摸头")
-        self.pet_btn.setObjectName("StageAction")
-        self.pet_btn.setIcon(theme.icon("cat", theme.GOLD_SOFT, 13))
-        self.pet_btn.setCursor(Qt.PointingHandCursor)
-        self.pet_btn.setFixedHeight(26)
-        self.pet_btn.setFixedWidth(82)
-        self.pet_btn.clicked.connect(self._on_pet)
-        self.orientation_btn = QPushButton(" 竖屏")
-        self.orientation_btn.setObjectName("StageAction")
-        self.orientation_btn.setIcon(theme.icon("portrait", theme.GOLD_SOFT, 13))
-        self.orientation_btn.setCursor(Qt.PointingHandCursor)
-        self.orientation_btn.setFixedHeight(26)
-        self.orientation_btn.setFixedWidth(76)
-        self.orientation_btn.clicked.connect(self.orientation_requested)
-        self.char_btn = QPushButton(" 角色")
-        self.char_btn.setObjectName("StageAction")
-        self.char_btn.setIcon(theme.icon("palette", theme.GOLD_SOFT, 13))
-        self.char_btn.setCursor(Qt.PointingHandCursor)
-        self.char_btn.setFixedHeight(26)
-        self.char_btn.setFixedWidth(76)
-        self.char_btn.setToolTip("切换看板角色")
-        self.char_btn.clicked.connect(self.character_requested)
-        for btn in (self.chat_btn, self.pet_btn, self.orientation_btn, self.char_btn):
-            actions.addWidget(btn)
-        actions.addStretch(1)
-        right.addLayout(actions)
+        side.addWidget(self.sub_label)
 
         self.player = QFrame()
         self.player.setObjectName("StagePlayer")
         self.player.setStyleSheet(
-            "QFrame#StagePlayer { background: rgba(7,12,18,205); "
-            "border: 1px solid rgba(217,188,125,45); border-radius: 10px; }"
+            "QFrame#StagePlayer { background: "
+            f"{'rgba(255,250,240,235)' if light else 'rgba(7,12,18,215)'}; "
+            f"border: 1px solid {'rgba(152,117,54,65)' if light else 'rgba(217,188,125,55)'}; "
+            "border-radius: 10px; }"
         )
         play_lay = QHBoxLayout(self.player)
         play_lay.setContentsMargins(7, 5, 7, 5)
@@ -216,26 +190,92 @@ class LandscapeStage(CharacterStage):
         self.next_btn.setToolTip("下一首")
         self.next_btn.clicked.connect(self.music_next_requested)
         play_lay.addWidget(self.next_btn)
-        right.addWidget(self.player)
-        bottom.addLayout(right, 0)
-        root.addLayout(bottom)
+        side.addWidget(self.player)
+
+        logo_row = QHBoxLayout()
+        logo_row.setSpacing(7)
+        self.chat_btn = self._logo_button("chat", "说说话", "和 Black 说说话")
+        self.chat_btn.clicked.connect(self.chat_requested)
+        self.pet_btn = self._logo_button("cat", "摸摸头", "摸摸头")
+        self.pet_btn.clicked.connect(self._on_pet)
+        self.char_btn = self._logo_button("palette", "角色", "切换看板角色")
+        self.char_btn.clicked.connect(self.character_requested)
+        for btn in (self.chat_btn, self.pet_btn, self.char_btn):
+            logo_row.addWidget(btn, 1)
+        side.addLayout(logo_row)
+
+        self.quote_card = QFrame()
+        self.quote_card.setObjectName("StageQuote")
+        self.quote_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.quote_card.setStyleSheet(
+            "QFrame#StageQuote { background: "
+            f"{'rgba(255,250,240,238)' if light else 'rgba(7,12,18,215)'}; "
+            f"border: 1px solid {'rgba(152,117,54,75)' if light else 'rgba(217,188,125,55)'}; "
+            "border-radius: 10px; }"
+        )
+        qlay = QVBoxLayout(self.quote_card)
+        qlay.setContentsMargins(10, 7, 10, 7)
+        qlay.setSpacing(3)
+        qtop = QHBoxLayout()
+        qtop.setSpacing(6)
+        self.quote_avatar = Avatar("black.png", 20, ring=theme.GOLD_BRIGHT)
+        qtop.addWidget(self.quote_avatar)
+        self.quote_name = QLabel("Black")
+        self.quote_name.setObjectName("StageName")
+        self.quote_name.setStyleSheet(
+            f"font-family: '{theme.SERIF}'; font-size: 10px; color: {theme.GOLD};"
+        )
+        qtop.addWidget(self.quote_name)
+        self.quote_tag = QLabel("轻声")
+        self.quote_tag.setStyleSheet(f"font-size: 8px; color: {theme.FAINT}; letter-spacing: 1px;")
+        qtop.addWidget(self.quote_tag)
+        qtop.addStretch(1)
+        qlay.addLayout(qtop)
+        self.quote_text = QLabel("……")
+        self.quote_text.setObjectName("StageQuoteText")
+        self.quote_text.setWordWrap(True)
+        qlay.addWidget(self.quote_text)
+        side.addWidget(self.quote_card)
+        side.addStretch(1)
+        root.addWidget(self.side_panel, 42)
+
+    def _logo_button(self, icon_name: str, text: str, tip: str) -> QToolButton:
+        light = theme.is_light()
+        btn = QToolButton()
+        btn.setObjectName("StageLogo")
+        btn.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        btn.setIcon(theme.icon(icon_name, theme.GOLD_SOFT, 18))
+        btn.setIconSize(QSize(18, 18))
+        btn.setText(text)
+        btn.setToolTip(tip)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setFixedHeight(56)
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        btn.setStyleSheet(
+            f"QToolButton {{ background: {'rgba(255,250,240,225)' if light else 'rgba(8,14,21,155)'}; "
+            f"border: 1px solid {'rgba(152,117,54,65)' if light else 'rgba(217,188,125,42)'}; "
+            f"border-radius: 9px; color: {theme.TEXT_SOFT}; font-size: 9px; padding: 4px 2px; }} "
+            f"QToolButton:hover {{ background: {'rgba(152,117,54,18)' if light else 'rgba(217,188,125,28)'}; "
+            f"border-color: {theme.GOLD}; color: {theme.GOLD_BRIGHT}; }}"
+        )
+        return btn
 
     def set_character(self, character: dict, look_id: str | None = None) -> None:
         super().set_character(character, look_id)
         self._element_name = str(character.get("element", "hydro"))
+        if hasattr(self, "art_name_label"):
+            self.art_name_label.setText(str(character.get("name", "")))
         self.set_orientation("landscape")
         self.update()
 
     def _build_cover(self) -> None:
-        if self._art.isNull() or self.width() <= 0 or self.height() <= 0:
+        if self._art.isNull():
             return
-        target = QSize(self.width() + 14, self.height() + 14)
-        scaled = self._art.scaled(target, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-        if scaled.width() > target.width() or scaled.height() > target.height():
-            x = max(0, (scaled.width() - target.width()) // 2)
-            y = max(0, int((scaled.height() - target.height()) * 0.25))
-            scaled = scaled.copy(x, y, target.width(), target.height())
-        self._cover = scaled
+        left = getattr(self, "art_panel", None)
+        w = left.width() if left is not None and left.width() > 0 else int(self.width() * 0.58)
+        h = self.height() if self.height() > 0 else 400
+        # Contain, not cover: the whole wide illustration should be visible.
+        self._cover = self._art.scaled(QSize(max(1, w), max(1, h)), Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -244,49 +284,74 @@ class LandscapeStage(CharacterStage):
         path = QPainterPath()
         path.addRoundedRect(rect, 16, 16)
         p.setClipPath(path)
-        p.fillRect(self.rect(), QColor("#111b26"))
+        light = theme.is_light()
+        p.fillRect(self.rect(), QColor("#f1e7d8" if light else "#101a25"))
+
+        art_rect = QRectF(self.art_panel.geometry())
+        if art_rect.width() <= 0:
+            art_rect = QRectF(rect.left(), rect.top(), rect.width() * 0.58, rect.height())
+        p.fillRect(art_rect, QColor("#e9dece" if light else "#0b1520"))
         if self._cover is None:
             self._build_cover()
-        if self._cover:
-            p.drawPixmap(
-                QRectF(rect.left() - 7, rect.top() - 7, rect.width() + 14, rect.height() + 14).toRect(),
-                self._cover,
-            )
+        if self._cover and not self._cover.isNull():
+            cw, ch = self._cover.width(), self._cover.height()
+            x = art_rect.left() + (art_rect.width() - cw) / 2
+            y = art_rect.top() + (art_rect.height() - ch) / 2
+            p.drawPixmap(QRectF(x, y, cw, ch).toRect(), self._cover)
 
-        top_grad = QLinearGradient(rect.topLeft(), QPointF(rect.left(), rect.top() + 120))
-        top_grad.setColorAt(0, QColor(4, 8, 13, 225))
-        top_grad.setColorAt(1, QColor(4, 8, 13, 0))
-        p.fillRect(QRectF(rect.left(), rect.top(), rect.width(), 125), top_grad)
-        bottom_grad = QLinearGradient(
-            QPointF(rect.left(), rect.bottom() - 175),
-            rect.bottomLeft(),
+        # side panel glass
+        side_rect = QRectF(art_rect.right(), rect.top(), rect.right() - art_rect.right(), rect.height())
+        side_grad = QLinearGradient(side_rect.topLeft(), side_rect.bottomRight())
+        if light:
+            side_grad.setColorAt(0, QColor("#fbf6ec"))
+            side_grad.setColorAt(1, QColor("#eee2cf"))
+        else:
+            side_grad.setColorAt(0, QColor("#111f2c"))
+            side_grad.setColorAt(1, QColor("#08111a"))
+        p.fillRect(side_rect, side_grad)
+        glyph = theme.element_pixmap(
+            getattr(self, "_element_name", "hydro"), 220, "black" if light else "white"
         )
-        bottom_grad.setColorAt(0, QColor(5, 9, 14, 0))
-        bottom_grad.setColorAt(0.55, QColor(5, 9, 14, 180))
-        bottom_grad.setColorAt(1, QColor(5, 9, 14, 252))
-        p.fillRect(QRectF(rect.left(), rect.bottom() - 180, rect.width(), 180), bottom_grad)
-        left_grad = QLinearGradient(rect.topLeft(), QPointF(rect.left() + 430, rect.top()))
-        left_grad.setColorAt(0, QColor(5, 9, 14, 110))
-        left_grad.setColorAt(1, QColor(5, 9, 14, 0))
-        p.fillRect(QRectF(rect.left(), rect.top(), 450, rect.height()), left_grad)
-
-        glyph = theme.element_pixmap(getattr(self, "_element_name", "hydro"), 256, "white")
         if glyph is not None:
-            p.setOpacity(0.06)
-            p.drawPixmap(QRectF(rect.right() - 260, rect.bottom() - 230, 220, 220), glyph, QRectF(glyph.rect()))
+            p.setOpacity(0.07 if light else 0.055)
+            p.drawPixmap(
+                QRectF(side_rect.right() - 190, side_rect.bottom() - 190, 180, 180),
+                glyph,
+                QRectF(glyph.rect()),
+            )
             p.setOpacity(1.0)
 
-        self._paint_particles(p, rect)
-        self._paint_motes(p, rect)
+        top_grad = QLinearGradient(art_rect.topLeft(), QPointF(art_rect.left(), art_rect.top() + 125))
+        if light:
+            top_grad.setColorAt(0, QColor(252, 247, 237, 220))
+            top_grad.setColorAt(1, QColor(252, 247, 237, 0))
+        else:
+            top_grad.setColorAt(0, QColor(4, 8, 13, 225))
+            top_grad.setColorAt(1, QColor(4, 8, 13, 0))
+        p.fillRect(QRectF(art_rect.left(), art_rect.top(), art_rect.width(), 130), top_grad)
+        bottom_grad = QLinearGradient(
+            QPointF(art_rect.left(), art_rect.bottom() - 160),
+            art_rect.bottomLeft(),
+        )
+        if light:
+            bottom_grad.setColorAt(0, QColor(247, 240, 228, 0))
+            bottom_grad.setColorAt(1, QColor(247, 240, 228, 245))
+        else:
+            bottom_grad.setColorAt(0, QColor(5, 9, 14, 0))
+            bottom_grad.setColorAt(1, QColor(5, 9, 14, 240))
+        p.fillRect(QRectF(art_rect.left(), art_rect.bottom() - 160, art_rect.width(), 160), bottom_grad)
+
+        self._paint_particles(p, art_rect)
         self._paint_hearts(p)
         p.setClipping(False)
         p.setBrush(Qt.NoBrush)
-        p.setPen(QPen(QColor(217, 188, 125, 125), 1.2))
+        p.setPen(QPen(QColor(theme.GOLD), 1.2, Qt.SolidLine))
         p.drawRoundedRect(rect, 16, 16)
         p.setPen(QPen(QColor(255, 239, 205, 28), 1.0))
         p.drawRoundedRect(rect.adjusted(3.5, 3.5, -3.5, -3.5), 13, 13)
         self._paint_corners(p, rect)
 
     def _on_pet(self) -> None:
-        self.add_hearts(QPointF(self.width() * 0.55, self.height() * 0.52))
+        art = self.art_panel.geometry()
+        self.add_hearts(QPointF(art.center().x(), art.center().y()))
         self.petted.emit()

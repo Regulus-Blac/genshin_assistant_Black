@@ -386,8 +386,9 @@ class PaimonWhisperPopup(QWidget):
         text = str(quote.get("text", ""))
         self.quote.setText(text)
         quote_width = max(150, self.width() - 36 - 34 - 88 - 2 - 14 - 28)
-        metrics = QFontMetrics(self.quote.font())
-        needed = metrics.boundingRect(0, 0, quote_width, 10000, Qt.TextWordWrap, text).height()
+        needed = self.quote.heightForWidth(quote_width)
+        if needed <= 0:
+            needed = QFontMetrics(self.quote.font()).lineSpacing()
         self.quote.setMinimumHeight(max(20, needed + 2))
         if avatar:
             self.portrait.set_source(str(avatar))

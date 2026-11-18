@@ -33,22 +33,52 @@ from .widgets import Avatar, Dot, IconButton
 
 
 class _StagePalette:
-    """The stage is a night-sky portrait island.
+    """The stage palette follows the desk theme.
 
-    Its type and symbols stay light even when the rest of the desk switches to
-    parchment daylight.  Fonts/icons are delegated to the global theme.
+    Night keeps the original deep-navy island; daylight uses warm parchment,
+    dark ink and antique gold so the illustration no longer sits on a black
+    slab.
     """
 
-    GOLD = "#d9bc7d"
-    GOLD_BRIGHT = "#f3ddaa"
-    GOLD_SOFT = "#a98e5c"
-    TEXT = "#eee7da"
-    TEXT_SOFT = "#d7cdbb"
-    MUTED = "#a89d8b"
-    FAINT = "#858a82"
-    TEAL = "#72d3ce"
-    ROSE = "#e39a91"
-    WHITE = "#fbf7ee"
+    @property
+    def GOLD(self):
+        return "#987536" if _theme.is_light() else "#d9bc7d"
+
+    @property
+    def GOLD_BRIGHT(self):
+        return "#7b5a24" if _theme.is_light() else "#f3ddaa"
+
+    @property
+    def GOLD_SOFT(self):
+        return "#8a6b3e" if _theme.is_light() else "#a98e5c"
+
+    @property
+    def TEXT(self):
+        return "#2f271c" if _theme.is_light() else "#eee7da"
+
+    @property
+    def TEXT_SOFT(self):
+        return "#4c4031" if _theme.is_light() else "#d7cdbb"
+
+    @property
+    def MUTED(self):
+        return "#6b5b46" if _theme.is_light() else "#a89d8b"
+
+    @property
+    def FAINT(self):
+        return "#8b7962" if _theme.is_light() else "#858a82"
+
+    @property
+    def TEAL(self):
+        return "#2f817d" if _theme.is_light() else "#72d3ce"
+
+    @property
+    def ROSE(self):
+        return "#b05d59" if _theme.is_light() else "#e39a91"
+
+    @property
+    def WHITE(self):
+        return "#2b241a" if _theme.is_light() else "#fbf7ee"
 
     def __getattr__(self, name):
         return getattr(_theme, name)
@@ -185,52 +215,64 @@ class CharacterStage(QWidget):
 
     # ------------------------------------------------------------------ ui
     def _local_qss(self) -> str:
+        light = _theme.is_light()
+        quote_bg = "rgba(255,250,240,238)" if light else "rgba(7,12,18,210)"
+        quote_border = "rgba(152,117,54,75)" if light else "rgba(217,188,125,55)"
+        player_bg = "rgba(255,250,240,232)" if light else "rgba(7,12,18,198)"
+        player_border = "rgba(152,117,54,65)" if light else "rgba(217,188,125,45)"
+        exam_bg = "rgba(255,250,240,215)" if light else "rgba(8,13,20,120)"
+        exam_border = "rgba(152,117,54,65)" if light else "rgba(217,188,125,38)"
+        action_bg = "rgba(255,250,240,220)" if light else "rgba(8,14,21,165)"
+        action_border = "rgba(152,117,54,65)" if light else "rgba(217,188,125,48)"
+        action_hover = "rgba(152,117,54,22)" if light else "rgba(217,188,125,25)"
+        play_bg = "rgba(152,117,54,20)" if light else "rgba(217,188,125,22)"
+        play_border = "rgba(152,117,54,90)" if light else "rgba(217,188,125,70)"
         return f"""
         QFrame#StageQuote {{
-            background: rgba(7, 12, 18, 210);
-            border: 1px solid rgba(217, 188, 125, 55);
+            background: {quote_bg};
+            border: 1px solid {quote_border};
             border-radius: 12px;
         }}
         QFrame#StagePlayer {{
-            background: rgba(7, 12, 18, 198);
-            border: 1px solid rgba(217, 188, 125, 45);
+            background: {player_bg};
+            border: 1px solid {player_border};
             border-radius: 11px;
         }}
         QLabel#StageDate {{ font-family: "{theme.SERIF}"; font-size: 18px; font-weight: 600; color: {theme.WHITE}; }}
         QLabel#StageLocation {{ font-size: 9px; color: {theme.GOLD_SOFT}; letter-spacing: 1px; }}
         QLabel#StageTime {{ font-family: "{theme.MONO}"; font-size: 20px; color: {theme.TEXT}; letter-spacing: 1px; }}
         QLabel#StageExam {{
-            font-size: 10px; color: {theme.GOLD}; background: rgba(8,13,20,120);
-            border: 1px solid rgba(217,188,125,38); border-radius: 8px; padding: 2px 7px;
+            font-size: 10px; color: {theme.GOLD}; background: {exam_bg};
+            border: 1px solid {exam_border}; border-radius: 8px; padding: 2px 7px;
         }}
         QLabel#StageGreeting {{ font-family: "{theme.SERIF}"; font-size: 23px; font-weight: 600; color: {theme.WHITE}; }}
-        QLabel#StageSub {{ font-size: 11px; color: rgba(238,231,218,185); }}
+        QLabel#StageSub {{ font-size: 11px; color: {theme.TEXT_SOFT}; }}
         QLabel#StageStats {{ font-size: 10px; color: {theme.GOLD}; letter-spacing: 1px; }}
         QLabel#StageName {{ font-family: "{theme.SERIF}"; font-size: 11px; color: {theme.GOLD}; }}
-        QLabel#StageQuoteText {{ font-family: "{theme.SERIF}"; font-size: 12px; color: rgba(241,235,224,225); }}
+        QLabel#StageQuoteText {{ font-family: "{theme.SERIF}"; font-size: 12px; color: {theme.TEXT}; }}
         QLabel#TrackTitle {{ font-size: 11px; color: {theme.TEXT}; }}
         QLabel#TrackSub {{ font-size: 9px; color: {theme.MUTED}; }}
         QPushButton#StageAction {{
-            background: rgba(8, 14, 21, 165);
-            border: 1px solid rgba(217,188,125,48);
+            background: {action_bg};
+            border: 1px solid {action_border};
             border-radius: 9px;
             color: {theme.TEXT_SOFT};
             font-size: 11px;
             padding: 4px 10px;
         }}
         QPushButton#StageAction:hover {{
-            background: rgba(217,188,125,25);
-            border-color: rgba(217,188,125,95);
+            background: {action_hover};
+            border-color: {theme.GOLD};
             color: {theme.GOLD_BRIGHT};
         }}
         QToolButton#StagePlay {{
-            background: rgba(217,188,125,22);
-            border: 1px solid rgba(217,188,125,70);
+            background: {play_bg};
+            border: 1px solid {play_border};
             border-radius: 15px;
         }}
-        QToolButton#StagePlay:hover {{ background: rgba(217,188,125,46); }}
+        QToolButton#StagePlay:hover {{ background: {action_hover}; }}
         QToolButton#StageIcon {{ border-radius: 7px; }}
-        QToolButton#StageIcon:hover {{ background: rgba(217,188,125,30); }}
+        QToolButton#StageIcon:hover {{ background: {action_hover}; }}
         """
 
     def _build_ui(self) -> None:
@@ -267,10 +309,6 @@ class CharacterStage(QWidget):
         self.exam_label = QLabel("考试日期 · 待设定")
         self.exam_label.setObjectName("StageExam")
         self.exam_label.setFixedHeight(21)
-        self.exam_label.setStyleSheet(
-            f"font-size: 10px; color: {theme.GOLD}; background: rgba(8,13,20,130); "
-            "border: 1px solid rgba(217,188,125,38); border-radius: 8px; padding: 2px 7px;"
-        )
         self.exam_label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
         exam_row = QHBoxLayout()
         exam_row.setContentsMargins(0, 9, 0, 0)
@@ -283,9 +321,6 @@ class CharacterStage(QWidget):
         # quote bubble
         self.quote_card = QFrame()
         self.quote_card.setObjectName("StageQuote")
-        self.quote_card.setStyleSheet(
-            "QFrame#StageQuote { background: rgba(7,12,18,210); border: 1px solid rgba(217,188,125,55); border-radius: 12px; }"
-        )
         qlay = QVBoxLayout(self.quote_card)
         qlay.setContentsMargins(12, 10, 12, 10)
         qlay.setSpacing(4)
@@ -305,10 +340,8 @@ class CharacterStage(QWidget):
         qtop.addWidget(self.quote_tag)
         qlay.addLayout(qtop)
         self.quote_text = QLabel("……")
+        self.quote_text.setObjectName("StageQuoteText")
         self.quote_text.setWordWrap(True)
-        self.quote_text.setStyleSheet(
-            f"font-family: '{theme.SERIF}'; font-size: 12px; color: rgba(241,235,224,225);"
-        )
         qlay.addWidget(self.quote_text)
         self.quote_card.setMaximumWidth(316)
         lay.addWidget(self.quote_card, 0, Qt.AlignLeft)
@@ -331,7 +364,6 @@ class CharacterStage(QWidget):
         self.sub_label.setObjectName("StageSub")
         self.sub_label.setWordWrap(True)
         self.sub_label.setMaximumHeight(34)
-        self.sub_label.setStyleSheet("font-size: 11px; color: rgba(238,231,218,185);")
         lay.addWidget(self.sub_label)
 
         lay.addSpacing(9)
@@ -375,9 +407,6 @@ class CharacterStage(QWidget):
         # compact music player
         self.player = QFrame()
         self.player.setObjectName("StagePlayer")
-        self.player.setStyleSheet(
-            "QFrame#StagePlayer { background: rgba(7,12,18,198); border: 1px solid rgba(217,188,125,45); border-radius: 11px; }"
-        )
         play_lay = QHBoxLayout(self.player)
         play_lay.setContentsMargins(8, 6, 8, 6)
         play_lay.setSpacing(7)
@@ -455,6 +484,21 @@ class CharacterStage(QWidget):
         super().resizeEvent(event)
         self._cover = None
         self._build_cover()
+        if hasattr(self, "quote_text"):
+            QTimer.singleShot(0, self._fit_quote_text)
+
+    def _fit_quote_text(self) -> None:
+        if not hasattr(self, "quote_text"):
+            return
+        width = self.quote_text.width()
+        if width < 80:
+            width = 380 if self.ORIENTATION == "landscape" else 292
+        needed = self.quote_text.heightForWidth(max(120, width))
+        if needed > 0:
+            self.quote_text.setMinimumHeight(needed + 2)
+            self.quote_text.setMaximumHeight(needed + 2)
+            if hasattr(self, "quote_card"):
+                self.quote_card.adjustSize()
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -463,7 +507,8 @@ class CharacterStage(QWidget):
         clip = QPainterPath()
         clip.addRoundedRect(rect, 16, 16)
         p.setClipPath(clip)
-        p.fillRect(self.rect(), QColor("#111b26"))
+        light = _theme.is_light()
+        p.fillRect(self.rect(), QColor("#f1e7d8" if light else "#111b26"))
 
         if self._cover is None:
             self._build_cover()
@@ -485,28 +530,47 @@ class CharacterStage(QWidget):
             QPointF(rect.left() + sweep_center + 180, rect.bottom()),
         )
         sweep.setColorAt(0.0, QColor(255, 245, 220, 0))
-        sweep.setColorAt(0.5, QColor(255, 245, 220, 9))
+        sweep.setColorAt(0.5, QColor(255, 245, 220, 9 if not light else 20))
         sweep.setColorAt(1.0, QColor(255, 245, 220, 0))
         p.fillRect(rect, sweep)
 
         # top and bottom cinematic veils
-        top_grad = QLinearGradient(rect.topLeft(), QPointF(rect.left(), rect.top() + rect.height() * 0.28))
-        top_grad.setColorAt(0, QColor(4, 8, 13, 225))
-        top_grad.setColorAt(1, QColor(4, 8, 13, 0))
-        p.fillRect(QRectF(rect.left(), rect.top(), rect.width(), rect.height() * 0.3), top_grad)
-        bottom_grad = QLinearGradient(QPointF(rect.left(), rect.bottom() - rect.height() * 0.62), rect.bottomLeft())
-        bottom_grad.setColorAt(0, QColor(5, 9, 14, 0))
-        bottom_grad.setColorAt(0.5, QColor(5, 9, 14, 178))
-        bottom_grad.setColorAt(1, QColor(5, 9, 14, 250))
-        p.fillRect(QRectF(rect.left(), rect.bottom() - rect.height() * 0.64, rect.width(), rect.height() * 0.64), bottom_grad)
-        side = QLinearGradient(rect.topLeft(), QPointF(rect.left() + 52, rect.top()))
-        side.setColorAt(0, QColor(5, 9, 14, 110))
-        side.setColorAt(1, QColor(5, 9, 14, 0))
-        p.fillRect(QRectF(rect.left(), rect.top(), 62, rect.height()), side)
-        right = QLinearGradient(QPointF(rect.right() - 52, rect.top()), QPointF(rect.right(), rect.top()))
-        right.setColorAt(0, QColor(5, 9, 14, 0))
-        right.setColorAt(1, QColor(5, 9, 14, 95))
-        p.fillRect(QRectF(rect.right() - 62, rect.top(), 62, rect.height()), right)
+        if light:
+            top_grad = QLinearGradient(rect.topLeft(), QPointF(rect.left(), rect.top() + rect.height() * 0.28))
+            top_grad.setColorAt(0, QColor(252, 247, 237, 225))
+            top_grad.setColorAt(1, QColor(252, 247, 237, 0))
+            p.fillRect(QRectF(rect.left(), rect.top(), rect.width(), rect.height() * 0.3), top_grad)
+            bottom_grad = QLinearGradient(QPointF(rect.left(), rect.bottom() - rect.height() * 0.62), rect.bottomLeft())
+            bottom_grad.setColorAt(0, QColor(247, 240, 228, 0))
+            bottom_grad.setColorAt(0.5, QColor(247, 240, 228, 185))
+            bottom_grad.setColorAt(1, QColor(247, 240, 228, 252))
+            p.fillRect(QRectF(rect.left(), rect.bottom() - rect.height() * 0.64, rect.width(), rect.height() * 0.64), bottom_grad)
+            side = QLinearGradient(rect.topLeft(), QPointF(rect.left() + 52, rect.top()))
+            side.setColorAt(0, QColor(252, 247, 237, 120))
+            side.setColorAt(1, QColor(252, 247, 237, 0))
+            p.fillRect(QRectF(rect.left(), rect.top(), 62, rect.height()), side)
+            right = QLinearGradient(QPointF(rect.right() - 52, rect.top()), QPointF(rect.right(), rect.top()))
+            right.setColorAt(0, QColor(252, 247, 237, 0))
+            right.setColorAt(1, QColor(252, 247, 237, 95))
+            p.fillRect(QRectF(rect.right() - 62, rect.top(), 62, rect.height()), right)
+        else:
+            top_grad = QLinearGradient(rect.topLeft(), QPointF(rect.left(), rect.top() + rect.height() * 0.28))
+            top_grad.setColorAt(0, QColor(4, 8, 13, 225))
+            top_grad.setColorAt(1, QColor(4, 8, 13, 0))
+            p.fillRect(QRectF(rect.left(), rect.top(), rect.width(), rect.height() * 0.3), top_grad)
+            bottom_grad = QLinearGradient(QPointF(rect.left(), rect.bottom() - rect.height() * 0.62), rect.bottomLeft())
+            bottom_grad.setColorAt(0, QColor(5, 9, 14, 0))
+            bottom_grad.setColorAt(0.5, QColor(5, 9, 14, 178))
+            bottom_grad.setColorAt(1, QColor(5, 9, 14, 250))
+            p.fillRect(QRectF(rect.left(), rect.bottom() - rect.height() * 0.64, rect.width(), rect.height() * 0.64), bottom_grad)
+            side = QLinearGradient(rect.topLeft(), QPointF(rect.left() + 52, rect.top()))
+            side.setColorAt(0, QColor(5, 9, 14, 110))
+            side.setColorAt(1, QColor(5, 9, 14, 0))
+            p.fillRect(QRectF(rect.left(), rect.top(), 62, rect.height()), side)
+            right = QLinearGradient(QPointF(rect.right() - 52, rect.top()), QPointF(rect.right(), rect.top()))
+            right.setColorAt(0, QColor(5, 9, 14, 0))
+            right.setColorAt(1, QColor(5, 9, 14, 95))
+            p.fillRect(QRectF(rect.right() - 62, rect.top(), 62, rect.height()), right)
 
         self._paint_particles(p, rect)
         self._paint_hearts(p)
@@ -631,11 +695,13 @@ class CharacterStage(QWidget):
         # Let the quote card grow with the actual text instead of clipping long
         # character lines (the 彩特琳德 card was the visible failure).
         width = 440 if self.ORIENTATION == "landscape" else 292
-        needed = QFontMetrics(self.quote_text.font()).boundingRect(
-            0, 0, width, 10000, Qt.TextWordWrap, text
-        ).height()
-        self.quote_text.setMinimumHeight(max(18, needed + 2))
-        self.quote_text.setMaximumHeight(max(18, needed + 2))
+        if self.quote_text.width() > 80:
+            width = self.quote_text.width()
+        needed = self.quote_text.heightForWidth(max(120, width))
+        if needed <= 0:
+            needed = QFontMetrics(self.quote_text.font()).lineSpacing()
+        self.quote_text.setMinimumHeight(needed + 2)
+        self.quote_text.setMaximumHeight(needed + 2)
         self.quote_card.adjustSize()
         # small fade so the bubble feels alive
         from PyQt5.QtWidgets import QGraphicsOpacityEffect

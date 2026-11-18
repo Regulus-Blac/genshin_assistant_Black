@@ -52,6 +52,14 @@ def main() -> int:
     hit = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
     print("native hit", hit, "at", screen_pt)
     assert hit == 10, hit  # HTLEFT
+    # The visible rounded edge is inset 18px; it must also be a resize edge.
+    QCursor.setPos(window.mapToGlobal(QPoint(20, window.height() // 2)))
+    QTest.qWait(80)
+    screen_pt = QCursor.pos()
+    lparam = ((screen_pt.y() & 0xFFFF) << 16) | (screen_pt.x() & 0xFFFF)
+    hit_edge = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
+    print("visible-edge hit", hit_edge, "at", screen_pt)
+    assert hit_edge == 10, hit_edge
     right = next(h for h in window._resize_handles if h.edges == {"right"})
     before = window.size()
     start = window.mapToGlobal(right.geometry().center())
