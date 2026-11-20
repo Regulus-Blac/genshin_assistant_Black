@@ -3,6 +3,7 @@ from __future__ import annotations
 import ctypes
 import random
 import sys
+import time
 from ctypes import wintypes
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -1313,10 +1314,17 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        # Do nothing expensive per mouse-move: moving eight fallback grips and
-        # re-raising them on every resize event repaints the window edges over
-        # and over, which is what made a shrink look like it was flashing.
-        if self._left_button_down():
+        # A single resize (maximise, restore, compact switch) is painted live;
+        # only a burst of them means the user is dragging an edge, and then the
+        # window content is replaced by a stretched snapshot for the gesture.
+        now = time.monotonic()
+        burst = [stamp for stamp in getattr(self, "_resize_burst", []) if now - stamp < 0.4]
+        burst.append(now)
+        self._resize_burst = burst
+        # Ignore bursts right after a gesture: the responsive layout can resize
+        # the window itself and must not start a freeze/unfreeze loop.
+        quiet_since = now - getattr(self, "_gesture_ended", 0.0)
+        if self._in_size_move or (len(burst) >= 3 and quiet_since > 0.4):
             self._begin_interactive_resize()
         self._schedule_resize_work()
 
@@ -1324,11 +1332,9 @@ class MainWindow(QMainWindow):
     def _left_button_down() -> bool:
         """True while the user physically holds the left mouse button.
 
-        The WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE pair is the documented signal for a
-        native sizing loop, but it is not always delivered to a frameless Qt
-        window.  The real button state is always available, so a drag can never
-        be interrupted by a deferred layout swap (the first half of a shrink
-        crosses the stage/column thresholds, which is where the flashes were).
+        WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE is the documented signal for a native
+        sizing loop, but it is not always delivered to a frameless Qt window.
+        The button state lets us keep the snapshot up for the whole drag.
         """
         try:
             return bool(ctypes.windll.user32.GetAsyncKeyState(0x01) & 0x8000)
@@ -1340,13 +1346,17 @@ class MainWindow(QMainWindow):
             self._resize_timer = QTimer(self)
             self._resize_timer.setSingleShot(True)
             self._resize_timer.timeout.connect(self._after_resize)
-        self._resize_timer.start(80)
+        self._resize_timer.start(150)
 
     def _after_resize(self) -> None:
-        if self._left_button_down():
-            # Still dragging an edge: never swap the layout mid-gesture.
+        # Two consecutive quiet periods (~300ms without a resize event) mean the
+        # gesture is over; a held button extends it further.
+        if self._in_size_move and (self._left_button_down() or self._quiet_passes < 1):
+            self._quiet_passes = getattr(self, "_quiet_passes", 0) + 1
             self._schedule_resize_work()
             return
+        self._quiet_passes = 0
+        self._resize_burst = []
         self._finish_interactive_resize_state()
         if hasattr(self, "size_grip") and not self._maximized:
             grip_pos = QPoint(self.width() - 22, self.height() - 22)
@@ -1358,43 +1368,88 @@ class MainWindow(QMainWindow):
             self.overlay.setGeometry(self.rect())
         self._apply_compact_mode()
 
-    def _finish_interactive_resize_state(self) -> None:
-        if not self._in_size_move:
-            return
-        self._in_size_move = False
-        if hasattr(self, "_size_move_watchdog"):
-            self._size_move_watchdog.stop()
-        render_mode.set_fast(False)
-        if hasattr(self, "study_page"):
-            self.study_page.set_fast_paint(False)
-        if hasattr(self, "stage"):
-            self.stage.resume_animation()
-        album = getattr(getattr(self, "music_page", None), "album", None)
-        if album is not None:
-            album.resume_animation()
-        self.update()
-
     def _begin_interactive_resize(self) -> None:
-        """Freeze everything that repaints on its own while the user drags."""
+        """Freeze the visible UI into a snapshot that just stretches while dragging.
+
+        Repainting the whole window on every resize step costs ~20ms at full
+        size, which tears while the user drags.  Swapping the real widgets for
+        one scaled screenshot keeps the appearance identical (no white flash
+        from a "cheap" style) and needs a single blit per frame.
+        """
         if self._in_size_move:
+            snap = getattr(self, "_resize_snapshot", None)
+            if snap is not None:
+                snap.setGeometry(self.root.rect())
+            return
+        if not hasattr(self, "root") or not self.root.isVisible():
             return
         self._in_size_move = True
-        render_mode.set_fast(True)
         if hasattr(self, "_resize_timer"):
             self._resize_timer.stop()
         if hasattr(self, "stage"):
             self.stage.pause_animation()
-        if hasattr(self, "study_page"):
-            self.study_page.set_fast_paint(True)
         album = getattr(getattr(self, "music_page", None), "album", None)
         if album is not None:
             album.pause_animation()
+        pix = self.root.grab()
+        self._resize_fallback = pix.isNull()
+        if self._resize_fallback:
+            # Could not grab (e.g. not yet painted): fall back to the cheap
+            # paint path instead of leaving the drag unprotected.
+            render_mode.set_fast(True)
+            self.study_page.set_fast_paint(True)
+        else:
+            self._frozen_children = [
+                child
+                for child in self.root.findChildren(QWidget, "", Qt.FindDirectChildrenOnly)
+                if child.isVisible()
+            ]
+            for child in self._frozen_children:
+                child.setUpdatesEnabled(False)
+            self._resize_snapshot = QLabel(self.root)
+            self._resize_snapshot.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+            self._resize_snapshot.setPixmap(pix)
+            self._resize_snapshot.setScaledContents(True)
+            self._resize_snapshot.setGeometry(self.root.rect())
+            self._resize_snapshot.show()
+            self._resize_snapshot.raise_()
         # Safety net: a lost release must not leave the UI frozen.
         if not hasattr(self, "_size_move_watchdog"):
             self._size_move_watchdog = QTimer(self)
             self._size_move_watchdog.setSingleShot(True)
             self._size_move_watchdog.timeout.connect(self._end_interactive_resize)
         self._size_move_watchdog.start(15000)
+
+    def _finish_interactive_resize_state(self) -> None:
+        if not self._in_size_move:
+            return
+        self._in_size_move = False
+        self._gesture_ended = time.monotonic()
+        self._resize_burst = []
+        if hasattr(self, "_size_move_watchdog"):
+            self._size_move_watchdog.stop()
+        snap = getattr(self, "_resize_snapshot", None)
+        self._resize_snapshot = None
+        if snap is not None:
+            snap.hide()
+            snap.deleteLater()
+        for child in getattr(self, "_frozen_children", []):
+            try:
+                child.setUpdatesEnabled(True)
+            except RuntimeError:
+                pass
+        self._frozen_children = []
+        if getattr(self, "_resize_fallback", False):
+            render_mode.set_fast(False)
+            if hasattr(self, "study_page"):
+                self.study_page.set_fast_paint(False)
+            self._resize_fallback = False
+        if hasattr(self, "stage"):
+            self.stage.resume_animation()
+        album = getattr(getattr(self, "music_page", None), "album", None)
+        if album is not None:
+            album.resume_animation()
+        self.root.update()
 
     def _end_interactive_resize(self) -> None:
         if not self._in_size_move:
