@@ -4,7 +4,7 @@ import hashlib
 import math
 from pathlib import Path
 
-from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QCursor, QFontMetrics, QLinearGradient, QPainter, QPainterPath, QPen, QRadialGradient
 from PyQt5.QtWidgets import (
     QAbstractItemView,
@@ -12,13 +12,11 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMenu,
-    QMessageBox,
     QPushButton,
     QSlider,
     QStyle,
@@ -29,13 +27,31 @@ from PyQt5.QtWidgets import (
 )
 
 from .. import theme
-from ..dialogs import GenshinDialog
-from ..music_service import MusicEngine, Playable, SearchThread, Track, scan_folder
+from ..dialogs import ConfirmDialog, GenshinDialog, InputDialog, NoticeDialog
+from ..music_service import MusicEngine, Playable, SearchThread, Track, save_track_to_folder, scan_folder
 from ..stage import ElidedLabel
 from ..widgets import Divider, IconButton, ProgressBar
 from .music_import import MusicImportDialog
 
 _ORPHAN_SEARCHES: list[SearchThread] = []
+
+
+class _CopyTrackThread(QThread):
+    """Download a cached online track and copy it into the local music folder."""
+
+    done = pyqtSignal(str)
+    failed = pyqtSignal(str)
+
+    def __init__(self, track: Track, folder: Path, parent=None) -> None:
+        super().__init__(parent)
+        self.track = track
+        self.folder = folder
+
+    def run(self) -> None:
+        try:
+            self.done.emit(str(save_track_to_folder(self.track, self.folder)))
+        except Exception as exc:  # noqa: BLE001 - surfaced in the dialog
+            self.failed.emit(str(exc))
 
 
 def ms_text(ms: int) -> str:
@@ -331,11 +347,19 @@ class MusicPage(QWidget):
         self.engine = engine
         self._seeking = False
         self._search_thread: SearchThread | None = None
+        self._copy_thread: _CopyTrackThread | None = None
         self._local_paths: list[Path] = []
+        self._local_visible: list[Path] = []
         self._online_tracks: list[Track] = []
-        self._current_playlist_id = "local"
+        self._current_playlist_id = ""
+        self._playlist_entries: list[dict] = []
         self._playlist_mode = "browse"
         self._compact = False
+        self._local_sort = False
+        # Which list the player queue currently belongs to: ("playlist", id),
+        # ("local",) or ("online", query).  Keeping it lets the play button,
+        # next/previous and the three play modes follow the visible list.
+        self._queue_source: tuple = ("local",)
         self.engine.set_play_mode(str(self.store.settings.get("music_mode", "sequence")))
         self._build()
         self.engine.state_changed.connect(self._on_state)
@@ -350,6 +374,7 @@ class MusicPage(QWidget):
         self.volume_slider.setValue(self.engine.volume)
         self.load_local(initial=True)
         self._refresh_playlists()
+        self._on_tab_changed(self.tabs.currentIndex())
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
@@ -512,8 +537,9 @@ class MusicPage(QWidget):
         root.addWidget(now)
         root.addSpacing(10)
 
-        # playlist bar ------------------------------------------------------
+        # playlist bar (only shown on the 歌单 tab) ---------------------------
         plbar = QWidget()
+        self.playlist_bar = plbar
         pl = QHBoxLayout(plbar)
         pl.setContentsMargins(0, 0, 0, 2)
         pl.setSpacing(6)
@@ -546,21 +572,30 @@ class MusicPage(QWidget):
 
         # library tabs ------------------------------------------------------
         self.tabs = QTabWidget()
+        tab_idle = theme.MUTED
+        tab_hover = theme.TEXT
         self.tabs.setStyleSheet(
-            """
-            QTabWidget::pane { border: none; background: transparent; }
-            QTabBar::tab {
-                background: transparent; color: #a89d8b; padding: 8px 16px;
-                border-bottom: 1px solid transparent; font-family: 'Noto Serif SC'; font-size: 12px;
-            }
-            QTabBar::tab:selected { color: #d9bc7d; border-bottom: 1px solid rgba(217,188,125,110); }
-            QTabBar::tab:hover { color: #eee7da; }
+            f"""
+            QTabWidget::pane {{ border: none; background: transparent; }}
+            QTabBar::tab {{
+                background: transparent; color: {tab_idle}; padding: 8px 16px;
+                border-bottom: 1px solid transparent; font-family: '{theme.SERIF}'; font-size: 12px;
+            }}
+            QTabBar::tab:selected {{ color: {theme.GOLD}; border-bottom: 1px solid {theme.mix(theme.GOLD, theme.BG, 0.45).name()}; }}
+            QTabBar::tab:hover {{ color: {tab_hover}; }}
             """
         )
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         playlist_tab = QWidget()
         ptl = QVBoxLayout(playlist_tab)
         ptl.setContentsMargins(0, 8, 0, 8)
         ptl.setSpacing(5)
+        self.playlist_search = QLineEdit()
+        self.playlist_search.setPlaceholderText("在歌单里搜索歌曲…")
+        self.playlist_search.setClearButtonEnabled(True)
+        self.playlist_search.setFixedHeight(30)
+        self.playlist_search.textChanged.connect(lambda _text: self._refresh_playlist_tracks())
+        ptl.addWidget(self.playlist_search)
         self.playlist_hint = QLabel("当前歌单")
         self.playlist_hint.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         ptl.addWidget(self.playlist_hint)
@@ -582,9 +617,8 @@ class MusicPage(QWidget):
         self.playlist_sort_btn = QPushButton("排序")
         self.playlist_add_btn = QPushButton("添加歌曲")
         self.playlist_remove_btn = QPushButton("移除歌曲")
-        self.playlist_local_rename_btn = QPushButton("重命名")
         light = theme.is_light()
-        for btn in (self.playlist_sort_btn, self.playlist_add_btn, self.playlist_remove_btn, self.playlist_local_rename_btn):
+        for btn in (self.playlist_sort_btn, self.playlist_add_btn, self.playlist_remove_btn):
             btn.setObjectName("TextButton")
             btn.setCursor(Qt.PointingHandCursor)
             btn.setFixedHeight(28)
@@ -600,8 +634,6 @@ class MusicPage(QWidget):
         self.playlist_sort_btn.clicked.connect(lambda: self._set_playlist_mode("sort"))
         self.playlist_add_btn.clicked.connect(self._open_add_songs)
         self.playlist_remove_btn.clicked.connect(lambda: self._set_playlist_mode("remove"))
-        self.playlist_local_rename_btn.clicked.connect(self._rename_local_track)
-        self.playlist_local_rename_btn.setVisible(False)
         ptl.addLayout(manage)
 
         self.remove_bar = QWidget()
@@ -670,11 +702,28 @@ class MusicPage(QWidget):
         local_top.addWidget(choose)
         local_top.addWidget(rescan)
         ltl.addLayout(local_top)
-        self.local_list = QListWidget()
+        self.local_search = QLineEdit()
+        self.local_search.setPlaceholderText("在本地曲库里搜索歌曲…")
+        self.local_search.setClearButtonEnabled(True)
+        self.local_search.setFixedHeight(30)
+        self.local_search.textChanged.connect(lambda _text: self._refresh_local_list())
+        ltl.addWidget(self.local_search)
+        local_tools = QHBoxLayout()
+        local_tools.setSpacing(8)
+        self.local_sort_btn = QPushButton("排序")
+        self.local_sort_btn.setObjectName("TextButton")
+        self.local_sort_btn.setCursor(Qt.PointingHandCursor)
+        self.local_sort_btn.setFixedHeight(28)
+        local_tools.addWidget(self.local_sort_btn)
+        local_tools.addStretch(1)
+        ltl.addLayout(local_tools)
+        self.local_sort_btn.clicked.connect(self._toggle_local_sort)
+        self.local_list = PlaylistList()
         self.local_list.setSpacing(1)
         self.local_list.itemDoubleClicked.connect(self._play_local_item)
         self.local_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.local_list.customContextMenuRequested.connect(self._local_context_menu)
+        self.local_list.reordered.connect(self._on_local_reordered)
         ltl.addWidget(self.local_list, 1)
         self.local_empty = QLabel("这个文件夹里还没有音频。把 mp3 / wav / flac / m4a 放进来，或选择别的文件夹。")
         self.local_empty.setStyleSheet(f"font-size: 10px; color: {theme.FAINT}; padding: 16px;")
@@ -711,6 +760,17 @@ class MusicPage(QWidget):
         self.search_status = QLabel("网易云提供完整音源，iTunes 提供 30 秒试听；需要联网。")
         self.search_status.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         otl.addWidget(self.search_status)
+        explain = QLabel(
+            "「在线寻音」= 即点即听：流式播放并自动缓存，不进入本地曲库。"
+            "「导入音乐」= 永久下载：把 B 站/链接里的音频转成 MP3 存进本地曲库。"
+            "想把在线曲目留下来，选中后点「下载到本地曲库」。"
+        )
+        explain.setWordWrap(True)
+        explain.setStyleSheet(
+            f"font-size: 9px; color: {theme.TEXT_SOFT}; background: {theme.mix(theme.GOLD, theme.BG, 0.9).name()}; "
+            f"border: 1px solid {theme.mix(theme.GOLD, theme.BG, 0.72).name()}; border-radius: 8px; padding: 6px 9px;"
+        )
+        otl.addWidget(explain)
         online_actions = QHBoxLayout()
         online_actions.setSpacing(6)
         self.online_add_btn = QPushButton("加入歌单")
@@ -719,6 +779,13 @@ class MusicPage(QWidget):
         self.online_add_btn.setStyleSheet(f"font-size: 10px; color: {theme.TEAL};")
         self.online_add_btn.clicked.connect(self._add_selected_online)
         online_actions.addWidget(self.online_add_btn)
+        self.online_download_btn = QPushButton("下载到本地曲库")
+        self.online_download_btn.setObjectName("TextButton")
+        self.online_download_btn.setCursor(Qt.PointingHandCursor)
+        self.online_download_btn.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
+        self.online_download_btn.setToolTip("把选中的在线曲目下载并复制到本地音乐文件夹")
+        self.online_download_btn.clicked.connect(self._download_selected_online)
+        online_actions.addWidget(self.online_download_btn)
         online_actions.addStretch(1)
         otl.addLayout(online_actions)
         self.online_list = QListWidget()
@@ -785,53 +852,67 @@ class MusicPage(QWidget):
             ))
             btn.setToolTip(labels[mode] + (" · 当前" if active else ""))
         if hasattr(self, "mode_text"):
-            self.mode_text.setText(labels[self.engine.play_mode])
+            self._update_queue_label()
 
     def _refresh_playlists(self, select_id: str | None = None) -> None:
-        wanted = select_id or self._current_playlist_id or "local"
+        """Fill the selector with user playlists only.
+
+        The local folder is not a playlist any more; it lives in its own tab and
+        keeps its own order in ``settings.local_order``.
+        """
+        playlists = [pl for pl in self.store.playlists() if not pl.get("builtin")]
+        wanted = select_id or self._current_playlist_id
         self.playlist_combo.blockSignals(True)
         self.playlist_combo.clear()
-        for pl in self.store.playlists():
+        for pl in playlists:
             self.playlist_combo.addItem(str(pl.get("name", "歌单")), str(pl.get("id", "")))
-        idx = self.playlist_combo.findData(wanted)
-        if idx < 0:
-            idx = 0
-        self.playlist_combo.setCurrentIndex(idx)
+        if playlists:
+            idx = self.playlist_combo.findData(wanted) if wanted else -1
+            self.playlist_combo.setCurrentIndex(max(0, idx))
         self.playlist_combo.blockSignals(False)
-        self._current_playlist_id = str(self.playlist_combo.currentData() or "local")
+        self._current_playlist_id = str(self.playlist_combo.currentData() or "")
         self._on_playlist_changed()
 
     def _selected_playlist(self) -> dict | None:
-        return self.store.playlist(self._current_playlist_id)
+        if not self._current_playlist_id:
+            return None
+        pl = self.store.playlist(self._current_playlist_id)
+        if pl and pl.get("builtin"):
+            return None
+        return pl
 
     def _on_playlist_changed(self) -> None:
         if not hasattr(self, "playlist_list"):
             return
-        self._current_playlist_id = str(self.playlist_combo.currentData() or "local")
+        self._current_playlist_id = str(self.playlist_combo.currentData() or "")
         pl = self._selected_playlist()
-        if not pl:
-            return
-        builtin = bool(pl.get("builtin"))
-        self.playlist_rename_btn.setEnabled(not builtin)
-        self.playlist_delete_btn.setEnabled(not builtin)
-        self.playlist_sort_btn.setEnabled(True)
-        self.playlist_add_btn.setVisible(not builtin)
-        self.playlist_remove_btn.setVisible(not builtin)
-        self.playlist_local_rename_btn.setVisible(builtin)
-        self.playlist_local_rename_btn.setEnabled(builtin)
-        if builtin and self._playlist_mode == "remove":
+        has_pl = pl is not None
+        if not has_pl:
             self._playlist_mode = "browse"
+        for widget in (
+            self.playlist_rename_btn,
+            self.playlist_delete_btn,
+            self.playlist_sort_btn,
+            self.playlist_add_btn,
+            self.playlist_remove_btn,
+            self.playlist_search,
+            self.playlist_list,
+        ):
+            widget.setEnabled(has_pl)
+        self.playlist_sort_btn.setText("排序")
+        self.playlist_remove_btn.setText("移除歌曲")
         self._apply_playlist_mode_ui()
         self._refresh_playlist_tracks()
 
     def _apply_playlist_mode_ui(self) -> None:
-        pl = self._selected_playlist()
-        builtin = bool(pl and pl.get("builtin"))
-        sort_active = self._playlist_mode == "sort"
-        remove_active = self._playlist_mode == "remove" and not builtin
+        has_pl = self._selected_playlist() is not None
+        sort_active = has_pl and self._playlist_mode == "sort"
+        remove_active = has_pl and self._playlist_mode == "remove"
         self.playlist_sort_btn.setText("完成排序" if sort_active else "排序")
         self.playlist_remove_btn.setText("取消移除" if remove_active else "移除歌曲")
         self.remove_bar.setVisible(remove_active)
+        if hasattr(self, "playlist_search"):
+            self.playlist_search.setEnabled(has_pl and self._playlist_mode == "browse")
         self.playlist_list.setDragDropMode(
             QAbstractItemView.InternalMove if sort_active else QAbstractItemView.NoDragDrop
         )
@@ -848,43 +929,76 @@ class MusicPage(QWidget):
             self.remove_count_label.setText("勾选要移除的歌曲")
 
     def _set_playlist_mode(self, mode: str) -> None:
-        pl = self._selected_playlist()
-        if not pl:
-            return
-        if mode == "remove" and pl.get("builtin"):
+        if not self._selected_playlist():
             return
         if self._playlist_mode == mode:
             mode = "browse"
+        if mode in ("sort", "remove"):
+            # Dragging and checkbox removal address rows by index, so they only
+            # make sense on the complete list, not on a filtered view.
+            self.playlist_search.blockSignals(True)
+            self.playlist_search.clear()
+            self.playlist_search.blockSignals(False)
         self._playlist_mode = mode
         self._apply_playlist_mode_ui()
         self._refresh_playlist_tracks()
+
+    @staticmethod
+    def _entry_search_text(entry: dict) -> str:
+        track = entry.get("track") or {}
+        bits = [
+            str(entry.get("title", "")),
+            str(entry.get("subtitle", "")),
+            str(track.get("artist", "")),
+            str(track.get("album", "")),
+        ]
+        path = str(entry.get("path", ""))
+        if path:
+            bits.append(Path(path).stem)
+            bits.append(Path(path).parent.name)
+        return " ".join(bits).casefold()
+
+    def _playlist_filtered_entries(self) -> list[dict]:
+        pl = self._selected_playlist()
+        if not pl:
+            return []
+        entries = [e for e in pl.get("tracks", []) if isinstance(e, dict)]
+        query = ""
+        if hasattr(self, "playlist_search"):
+            query = self.playlist_search.text().strip().casefold()
+        if query:
+            entries = [e for e in entries if query in self._entry_search_text(e)]
+        return entries
 
     def _refresh_playlist_tracks(self) -> None:
         if not hasattr(self, "playlist_list"):
             return
         pl = self._selected_playlist()
-        if not pl:
-            return
         self.playlist_list.blockSignals(True)
         self.playlist_list.clear()
-        if pl.get("builtin"):
-            entries = [
-                {"kind": "local", "path": str(p), "title": p.stem, "subtitle": "本地曲库"}
-                for p in self._local_paths
-            ]
-            mode = "sort" if self._playlist_mode == "sort" else "browse"
-            self.playlist_hint.setText(
-                "本地曲库 · 拖动条目调整顺序" if mode == "sort" else "本地曲库 · 双击播放；下方可重命名单曲"
+        if not pl:
+            self._playlist_entries = []
+            self.playlist_list.blockSignals(False)
+            self.playlist_list.setVisible(False)
+            self.playlist_empty.setVisible(True)
+            self.playlist_empty.setText(
+                "还没有歌单。点上方「+ 新建」给自己建一个，再从本地曲库或在线寻音里挑歌加进来。"
             )
-            self.playlist_empty.setText("这个文件夹里还没有音频。把 mp3 / wav / flac 放进音乐文件夹后会自动出现。")
+            self.playlist_hint.setText("歌单需要自己创建和维护；本地文件夹在「本地曲库」页。")
+            self.playlist_count.setText("0 首")
+            return
+        entries = self._playlist_filtered_entries()
+        mode = self._playlist_mode
+        total = len([e for e in pl.get("tracks", []) if isinstance(e, dict)])
+        filtered = bool(self.playlist_search.text().strip())
+        hint = "拖动左侧标志调整顺序" if mode == "sort" else (
+            "勾选歌曲后点击下方确认移除" if mode == "remove" else "双击播放 · 右键管理"
+        )
+        self.playlist_hint.setText(f"{pl.get('name', '歌单')} · {hint}")
+        if filtered:
+            self.playlist_empty.setText("这个歌单里没有匹配的歌曲。换个关键词，或清空搜索框。")
         else:
-            entries = list(pl.get("tracks", []))
-            mode = self._playlist_mode
-            hint = "拖动左侧标志调整顺序" if mode == "sort" else (
-                "勾选歌曲后点击下方确认移除" if mode == "remove" else "双击播放 · 右键管理"
-            )
-            self.playlist_hint.setText(f"{pl.get('name', '歌单')} · {hint}")
-            self.playlist_empty.setText("这个歌单还没有歌。点「添加歌曲」从其他歌单里选几首吧。")
+            self.playlist_empty.setText("这个歌单还没有歌。点「添加歌曲」从本地曲库或其他歌单里选几首吧。")
         for entry in entries:
             item = QListWidgetItem()
             kind = str(entry.get("kind", "local"))
@@ -922,10 +1036,11 @@ class MusicPage(QWidget):
                 self.playlist_list.addItem(item)
                 self.playlist_list.setItemWidget(item, row)
         self.playlist_list.blockSignals(False)
+        self._playlist_entries = entries
         has_tracks = bool(entries)
         self.playlist_list.setVisible(has_tracks)
         self.playlist_empty.setVisible(not has_tracks)
-        self.playlist_count.setText(f"{len(entries)} 首")
+        self.playlist_count.setText(f"{len(entries)} / {total} 首" if filtered else f"{total} 首")
         if mode == "remove":
             self._update_remove_count()
 
@@ -950,17 +1065,12 @@ class MusicPage(QWidget):
             entry = self.playlist_list.item(i).data(Qt.UserRole)
             if isinstance(entry, dict):
                 entries.append(entry)
-        if pl.get("builtin"):
-            paths = [str(Path(str(entry.get("path", "")))) for entry in entries]
-            self.store.set_local_order(paths)
-            self._local_paths = [Path(p) for p in paths if Path(p).exists()]
-        else:
-            self.store.set_playlist_tracks(str(pl["id"]), entries)
+        self.store.set_playlist_tracks(str(pl["id"]), entries)
         QTimer.singleShot(0, self._refresh_playlist_tracks)
 
     def _confirm_remove_checked(self) -> None:
         pl = self._selected_playlist()
-        if not pl or pl.get("builtin"):
+        if not pl:
             return
         rows = [
             i for i in range(self.playlist_list.count())
@@ -978,21 +1088,26 @@ class MusicPage(QWidget):
         pl = self._selected_playlist()
         if not pl:
             return
-        if pl.get("builtin"):
-            QMessageBox.information(self, "添加歌曲", "本地曲库会自动跟随音乐文件夹，请先选择或新建一个自定义歌单。")
-            return
         sources = []
+        online_entries = self._online_entries()
+        if online_entries:
+            sources.append({
+                "id": "online",
+                "name": f"在线寻音结果（{len(online_entries)} 首）",
+                "entries": online_entries,
+            })
+        sources.append({
+            "id": "local",
+            "name": "本地曲库",
+            "entries": [self._entry_from_local(p) for p in self._local_paths],
+        })
         for source in self.store.playlists():
-            if source.get("builtin"):
-                entries = [
-                    self._entry_from_local(p) for p in self._local_paths
-                ]
-            else:
-                entries = list(source.get("tracks", []))
+            if source.get("builtin") or source.get("id") == pl.get("id"):
+                continue
             sources.append({
                 "id": str(source.get("id", "")),
                 "name": str(source.get("name", "歌单")),
-                "entries": entries,
+                "entries": list(source.get("tracks", [])),
             })
         target_id = str(pl["id"])
         dialog = PlaylistAddDialog(
@@ -1002,8 +1117,10 @@ class MusicPage(QWidget):
             lambda entry: self.store.add_to_playlist(target_id, entry),
         )
         dialog.exec_()
-        if self._current_playlist_id == target_id:
-            self._refresh_playlist_tracks()
+        self._refresh_playlist_tracks()
+
+    def _online_entries(self) -> list[dict]:
+        return [self._entry_from_track(t) for t in self._online_tracks]
 
     def _entry_from_local(self, path: Path) -> dict:
         return {
@@ -1062,29 +1179,33 @@ class MusicPage(QWidget):
         )
 
     def _playlist_playables(self) -> list[Playable]:
-        pl = self._selected_playlist()
-        if not pl:
-            return []
-        if pl.get("builtin"):
-            return [
-                Playable(title=p.stem, subtitle="本地曲库", path=p)
-                for p in self._local_paths
-            ]
+        """Playable queue for the visible playlist rows (search results included)."""
         items: list[Playable] = []
-        for entry in pl.get("tracks", []):
+        for entry in self._playlist_entries or self._playlist_filtered_entries():
             item = self._playable_from_entry(entry)
             if item:
                 items.append(item)
         return items
 
+    def _local_playables(self) -> list[Playable]:
+        return [
+            Playable(title=p.stem, subtitle="本地曲库", path=p)
+            for p in (self._local_visible or self._local_paths)
+        ]
+
+    def _playlist_source(self) -> tuple:
+        return ("playlist", self._current_playlist_id)
+
     def _play_playlist_item(self, item: QListWidgetItem) -> None:
         row = self.playlist_list.row(item)
         items = self._playlist_playables()
         if 0 <= row < len(items):
+            self._queue_source = self._playlist_source()
             self.engine.play_queue(items, row)
+            self._update_queue_label()
 
     def _new_playlist(self) -> None:
-        name, ok = QInputDialog.getText(self, "新建歌单", "歌单名称", text="我的收藏")
+        name, ok = InputDialog.get_text(self, "新建歌单", "歌单名称", "我的收藏")
         if not ok:
             return
         name = (name or "").strip()
@@ -1095,24 +1216,28 @@ class MusicPage(QWidget):
 
     def _rename_playlist(self) -> None:
         pl = self._selected_playlist()
-        if not pl or pl.get("builtin"):
+        if not pl:
             return
-        name, ok = QInputDialog.getText(self, "重命名歌单", "新的歌单名称", text=str(pl.get("name", "")))
+        name, ok = InputDialog.get_text(self, "重命名歌单", "新的歌单名称", str(pl.get("name", "")))
         if ok and name.strip():
             self.store.rename_playlist(str(pl["id"]), name)
             self._refresh_playlists(str(pl["id"]))
+            self._update_queue_label()
 
     def _delete_playlist(self) -> None:
         pl = self._selected_playlist()
-        if not pl or pl.get("builtin"):
+        if not pl:
             return
-        if QMessageBox.question(
-            self, "删除歌单", f"确定删除「{pl.get('name')}」吗？歌单里的歌曲不会从本地删除。",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
-        ) != QMessageBox.Yes:
+        if not ConfirmDialog.ask(
+            self,
+            "删除歌单",
+            f"确定删除「{pl.get('name')}」吗？歌单里的歌曲不会从本地删除。",
+            confirm_text="删除",
+            danger=True,
+        ):
             return
         self.store.delete_playlist(str(pl["id"]))
-        self._refresh_playlists("local")
+        self._refresh_playlists("")
 
     def _choose_add_target(self) -> dict | None:
         current = self._selected_playlist()
@@ -1120,7 +1245,7 @@ class MusicPage(QWidget):
             return current
         custom = [p for p in self.store.playlists() if not p.get("builtin")]
         if not custom:
-            name, ok = QInputDialog.getText(self, "新建歌单", "还没有自定义歌单，先建一个吧。", text="我的收藏")
+            name, ok = InputDialog.get_text(self, "新建歌单", "还没有自定义歌单，先建一个吧。", "我的收藏")
             if not ok or not name.strip():
                 return None
             return self.store.create_playlist(name)
@@ -1138,12 +1263,10 @@ class MusicPage(QWidget):
         if not target:
             return
         if self.store.add_to_playlist(str(target["id"]), entry):
-            if target["id"] == self._current_playlist_id:
-                self._refresh_playlist_tracks()
             self.tabs.setCurrentIndex(0)
-            self.playlist_combo.setCurrentIndex(self.playlist_combo.findData(str(target["id"])))
+            self._refresh_playlists(str(target["id"]))
         else:
-            QMessageBox.information(self, "加入歌单", "这首歌已经在歌单里了，或无法加入。")
+            NoticeDialog.show_message(self, "加入歌单", "这首歌已经在歌单里了，或无法加入。")
 
     def _add_selected_local(self) -> None:
         item = self.local_list.currentItem()
@@ -1170,11 +1293,14 @@ class MusicPage(QWidget):
         menu = QMenu(self)
         add = menu.addAction("加入歌单…")
         play = menu.addAction("播放")
+        rename = menu.addAction("重命名文件…")
         action = menu.exec_(self.local_list.mapToGlobal(pos))
         if action == add:
             self._add_selected_local()
         elif action == play:
             self._play_local_item(item)
+        elif action == rename:
+            self._rename_local_track(Path(str(item.data(Qt.UserRole))))
 
     def _online_context_menu(self, pos) -> None:
         item = self.online_list.itemAt(pos)
@@ -1225,29 +1351,25 @@ class MusicPage(QWidget):
         if self.playlist_list.count():
             self.playlist_list.setCurrentRow(min(row, self.playlist_list.count() - 1))
 
-    def _rename_local_track(self) -> None:
-        pl = self._selected_playlist()
-        if not pl or not pl.get("builtin"):
-            return
-        item = self.playlist_list.currentItem()
-        if not item:
-            QMessageBox.information(self, "重命名本地音乐", "先在本地曲库列表里选中一首歌。")
-            return
-        entry = item.data(Qt.UserRole)
-        if not isinstance(entry, dict):
-            return
-        path = Path(str(entry.get("path", "")))
+    def _rename_local_track(self, path: Path | None = None) -> None:
+        if path is None:
+            item = self.local_list.currentItem()
+            if not item:
+                NoticeDialog.show_message(self, "重命名本地音乐", "先在本地曲库列表里选中一首歌。")
+                return
+            path = Path(str(item.data(Qt.UserRole)))
+        path = Path(path)
         if not path.exists():
-            QMessageBox.information(self, "重命名本地音乐", "这个音频文件不存在。")
+            NoticeDialog.show_message(self, "重命名本地音乐", "这个音频文件不存在。")
             return
-        name, ok = QInputDialog.getText(self, "重命名本地音乐", "新的文件名", text=path.stem)
+        name, ok = InputDialog.get_text(self, "重命名本地音乐", "新的文件名", path.stem)
         if not ok:
             return
         name = (name or "").strip()
         if not name:
             return
         if any(ch in name for ch in '<>:"/\\|?*'):
-            QMessageBox.warning(self, "重命名本地音乐", "文件名不能包含 < > : \" / \\ | ? * 这些字符。")
+            NoticeDialog.show_message(self, "重命名本地音乐", "文件名不能包含 < > : \" / \\ | ? * 这些字符。")
             return
         suffix = path.suffix
         if suffix and name.lower().endswith(suffix.lower()):
@@ -1258,22 +1380,16 @@ class MusicPage(QWidget):
         if target == path:
             return
         if target.exists():
-            QMessageBox.warning(self, "重命名本地音乐", "同目录下已经有同名文件了。")
+            NoticeDialog.show_message(self, "重命名本地音乐", "同目录下已经有同名文件了。")
             return
         try:
             path.rename(target)
         except OSError as e:
-            QMessageBox.warning(self, "重命名本地音乐", f"重命名失败：{e}")
+            NoticeDialog.show_message(self, "重命名本地音乐", f"重命名失败：{e}")
             return
         self.store.update_local_path(str(path), str(target))
         self.load_local(initial=False)
         self._refresh_playlist_tracks()
-        for i in range(self.playlist_list.count()):
-            row_item = self.playlist_list.item(i)
-            row_entry = row_item.data(Qt.UserRole)
-            if isinstance(row_entry, dict) and str(row_entry.get("path", "")) == str(target):
-                self.playlist_list.setCurrentRow(i)
-                break
 
     def _move_playlist_item(self, delta: int) -> None:
         item = self.playlist_list.currentItem()
@@ -1293,7 +1409,7 @@ class MusicPage(QWidget):
             return
         targets = [p for p in self.store.playlists() if not p.get("builtin") and p.get("id") != current.get("id")]
         if not targets:
-            QMessageBox.information(self, "移到其他歌单", "还没有别的自定义歌单，先新建一个吧。")
+            NoticeDialog.show_message(self, "移到其他歌单", "还没有别的自定义歌单，先新建一个吧。")
             return
         menu = QMenu(self)
         for pl in targets:
@@ -1308,7 +1424,7 @@ class MusicPage(QWidget):
             self._refresh_playlist_tracks()
             self.playlist_combo.setCurrentIndex(self.playlist_combo.findData(target_id))
         else:
-            QMessageBox.information(self, "移到其他歌单", "目标歌单里已经有这首歌了。")
+            NoticeDialog.show_message(self, "移到其他歌单", "目标歌单里已经有这首歌了。")
 
     # ------------------------------------------------------------------ local
     def load_local(self, *, initial: bool = False) -> None:
@@ -1324,6 +1440,37 @@ class MusicPage(QWidget):
             self.store.settings["local_order"] = new_order
             self.store.save()
         self._local_paths = paths
+        self._refresh_local_list()
+        if paths and not self.engine.current_playable():
+            self.now_title.setText(paths[0].stem)
+            self.now_sub.setText("本地曲库 · 双击曲目开始播放")
+            self.album.set_track(paths[0].stem, False)
+        if paths and initial and self.store.settings.get("auto_play_bgm"):
+            self._queue_source = ("local",)
+            self.engine.play_queue(self._local_playables(), 0)
+            self._update_queue_label()
+        self._refresh_playlist_tracks()
+
+    @staticmethod
+    def _path_search_text(path: Path) -> str:
+        return f"{path.stem} {path.parent.name} {path.suffix}".casefold()
+
+    def _local_filtered_paths(self) -> list[Path]:
+        query = ""
+        if hasattr(self, "local_search"):
+            query = self.local_search.text().strip().casefold()
+        if not query:
+            return list(self._local_paths)
+        return [p for p in self._local_paths if query in self._path_search_text(p)]
+
+    def _refresh_local_list(self) -> None:
+        if not hasattr(self, "local_list"):
+            return
+        paths = self._local_filtered_paths()
+        self._local_visible = paths
+        filtered = bool(self.local_search.text().strip())
+        sorting = self._local_sort and not filtered
+        self.local_list.blockSignals(True)
         self.local_list.clear()
         for p in paths:
             item = QListWidgetItem()
@@ -1335,24 +1482,55 @@ class MusicPage(QWidget):
                 p.suffix.lstrip(".").upper(),
                 badge_color=theme.TEAL,
                 meta=f"{p.stat().st_size/1024/1024:.1f} MB" if p.exists() else "",
+                show_handle=sorting,
             )
             item.setSizeHint(QSize(10, 50))
+            if sorting:
+                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)
             self.local_list.addItem(item)
             self.local_list.setItemWidget(item, row)
-        self.local_count.setText(f"{len(paths)} 首")
+        self.local_list.blockSignals(False)
+        self.local_list.setDragDropMode(
+            QAbstractItemView.InternalMove if sorting else QAbstractItemView.NoDragDrop
+        )
+        self.local_list.setDragEnabled(sorting)
+        self.local_list.setAcceptDrops(sorting)
+        self.local_list.setDropIndicatorShown(sorting)
+        self.local_list.setDefaultDropAction(Qt.MoveAction)
+        if filtered:
+            self.local_count.setText(f"{len(paths)} / {len(self._local_paths)} 首")
+            self.local_empty.setText("本地曲库里没有匹配的歌曲，换个关键词试试。")
+        else:
+            self.local_count.setText(f"{len(paths)} 首")
+            self.local_empty.setText("这个文件夹里还没有音频。把 mp3 / wav / flac / m4a 放进来，或选择别的文件夹。")
         self.local_empty.setVisible(not paths)
         self.local_list.setVisible(bool(paths))
-        if paths and not self.engine.current_playable():
-            self.now_title.setText(paths[0].stem)
-            self.now_sub.setText("本地曲库 · 双击曲目开始播放")
-            self.album.set_track(paths[0].stem, False)
-        if paths and initial and self.store.settings.get("auto_play_bgm"):
-            self.engine.play_queue(
-                [Playable(title=p.stem, subtitle="本地曲库", path=p) for p in paths],
-                0,
-            )
-        if hasattr(self, "playlist_list") and self._current_playlist_id == "local":
-            self._refresh_playlist_tracks()
+
+    def _toggle_local_sort(self) -> None:
+        if not self._local_paths:
+            return
+        self._local_sort = not self._local_sort
+        self.local_sort_btn.setText("完成排序" if self._local_sort else "排序")
+        self.local_search.setEnabled(not self._local_sort)
+        if self._local_sort:
+            self.local_search.blockSignals(True)
+            self.local_search.clear()
+            self.local_search.blockSignals(False)
+        self._refresh_local_list()
+
+    def _on_local_reordered(self) -> None:
+        if not self._local_sort:
+            return
+        paths = []
+        for i in range(self.local_list.count()):
+            data = self.local_list.item(i).data(Qt.UserRole)
+            if data:
+                paths.append(str(data))
+        if not paths:
+            return
+        self.store.set_local_order(paths)
+        self._local_paths = [Path(p) for p in paths]
+        QTimer.singleShot(0, self._refresh_local_list)
 
     def choose_folder(self) -> None:
         current = str(self.store.settings.get("music_folder", "") or "")
@@ -1377,36 +1555,33 @@ class MusicPage(QWidget):
 
     def _on_imported(self, path: str) -> None:
         self.load_local(initial=False)
-        self._select_default_playlist()
+        self.tabs.setCurrentIndex(1)
         try:
-            index = self._local_paths.index(Path(path))
+            index = self._local_visible.index(Path(path))
         except ValueError:
             return
-        items = [Playable(title=p.stem, subtitle="本地曲库", path=p) for p in self._local_paths]
-        self.engine.play_queue(items, index)
+        self._queue_source = ("local",)
+        self.engine.play_queue(self._local_playables(), index)
         self._select_local_index(index)
-
-    def _select_default_playlist(self) -> None:
-        idx = self.playlist_combo.findData("local")
-        if idx >= 0:
-            self.playlist_combo.setCurrentIndex(idx)
-
-    def _play_local_item(self, item: QListWidgetItem) -> None:
-        path = Path(str(item.data(Qt.UserRole)))
-        self._select_default_playlist()
-        try:
-            index = self._local_paths.index(path)
-        except ValueError:
-            index = 0
-        items = [Playable(title=p.stem, subtitle="本地曲库", path=p) for p in self._local_paths]
-        self.engine.play_queue(items, index)
-        self._select_local_index(index)
+        self._update_queue_label()
 
     def _select_local_index(self, index: int) -> None:
         if 0 <= index < self.local_list.count():
             self.local_list.blockSignals(True)
             self.local_list.setCurrentRow(index)
             self.local_list.blockSignals(False)
+
+    def _play_local_item(self, item: QListWidgetItem) -> None:
+        path = Path(str(item.data(Qt.UserRole)))
+        self.tabs.setCurrentIndex(1)
+        try:
+            index = self._local_visible.index(path)
+        except ValueError:
+            index = 0
+        self._queue_source = ("local",)
+        self.engine.play_queue(self._local_playables(), index)
+        self._select_local_index(index)
+        self._update_queue_label()
 
     # ------------------------------------------------------------------ online
     def search_online(self) -> None:
@@ -1469,8 +1644,48 @@ class MusicPage(QWidget):
             Playable(title=t.title, subtitle=t.subtitle, track=t, duration=t.duration)
             for t in self._online_tracks
         ]
+        self._queue_source = ("online", self.search_edit.text().strip())
         self.engine.play_queue(items, index)
         self._online_selection = index
+        self._update_queue_label()
+
+    def _selected_online_track(self) -> Track | None:
+        item = self.online_list.currentItem()
+        if not item:
+            return None
+        key = str(item.data(Qt.UserRole) or "")
+        return next((t for t in self._online_tracks if t.key == key), None)
+
+    def _download_selected_online(self) -> None:
+        """Save a streamed track into the local music folder."""
+        track = self._selected_online_track()
+        if not track:
+            self.search_status.setText("先在结果里选中一首在线曲目。")
+            return
+        folder = Path(str(self.store.settings.get("music_folder", "") or ""))
+        if not folder.exists():
+            folder.mkdir(parents=True, exist_ok=True)
+        self.online_download_btn.setEnabled(False)
+        self.search_status.setText(f"正在把「{track.title}」保存到本地曲库…")
+        thread = _CopyTrackThread(track, folder, self)
+        thread.done.connect(lambda path: self._on_online_saved(path, track))
+        thread.failed.connect(self._on_online_save_failed)
+        self._copy_thread = thread
+        thread.start()
+
+    def _on_online_saved(self, path: str, track: Track) -> None:
+        self.online_download_btn.setEnabled(True)
+        self.search_status.setText(f"已保存到本地曲库：{Path(path).name}")
+        self.load_local(initial=False)
+        try:
+            index = self._local_visible.index(Path(path))
+        except ValueError:
+            return
+        self._select_local_index(index)
+
+    def _on_online_save_failed(self, message: str) -> None:
+        self.online_download_btn.setEnabled(True)
+        self.search_status.setText(f"保存失败：{message}")
 
     # ------------------------------------------------------------------ engine events
     def _on_state(self, playing: bool) -> None:
@@ -1527,6 +1742,7 @@ class MusicPage(QWidget):
         self.album.set_playing(False)
 
     def _on_queue_changed(self) -> None:
+        self._update_queue_label()
         item = self.engine.current_playable()
         if not item:
             return
@@ -1562,37 +1778,106 @@ class MusicPage(QWidget):
         self.store.settings["music_rate"] = rate
         self.store.save()
 
-    def previous_track(self) -> None:
-        if self.engine.queue:
-            self.engine.previous()
+    # ------------------------------------------------------------------ queue source
+    def _tab_source(self) -> tuple:
+        index = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
+        if index == 0:
+            return self._playlist_source()
+        if index == 1:
+            return ("local",)
+        return ("online", self.search_edit.text().strip())
+
+    def _queue_matches_tab(self) -> bool:
+        return self._queue_source == self._tab_source()
+
+    def _queue_display_name(self) -> str:
+        kind = self._queue_source[0] if self._queue_source else "local"
+        if kind == "playlist":
+            pl = self.store.playlist(str(self._queue_source[1]))
+            return f"歌单「{pl.get('name', '歌单')}」" if pl else "歌单"
+        if kind == "online":
+            query = str(self._queue_source[1] or "").strip()
+            return f"在线寻音「{query}」" if query else "在线寻音"
+        return "本地曲库"
+
+    def _update_queue_label(self) -> None:
+        if not hasattr(self, "mode_text"):
+            return
+        labels = {"sequence": "顺序播放", "shuffle": "随机播放", "single": "单曲循环"}
+        mode = labels.get(self.engine.play_mode, "顺序播放")
+        self.mode_text.setText(f"{mode} · {self._queue_display_name()}")
+        self.mode_text.setToolTip(
+            f"当前队列：{self._queue_display_name()}，共 {len(self.engine.queue)} 首；"
+            "播放模式作用于这个队列。"
+        )
+
+    def _current_row(self) -> int:
+        index = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
+        if index == 0 and self.playlist_list.currentRow() >= 0:
+            return self.playlist_list.currentRow()
+        if index == 1 and self.local_list.currentRow() >= 0:
+            return self.local_list.currentRow()
+        return 0
+
+    def _start_current_tab(self, index: int | None = None) -> bool:
+        """Load the list visible in the active tab into the player queue."""
+        if index is None:
+            index = self._current_row()
+        tab = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
+        if tab == 0:
+            items = self._playlist_playables()
+            source = self._playlist_source()
+        elif tab == 1:
+            items = self._local_playables()
+            source = ("local",)
         else:
+            return False
+        if not items:
+            return False
+        self._queue_source = source
+        self.engine.play_queue(items, max(0, min(index, len(items) - 1)))
+        self._update_queue_label()
+        return True
+
+    def _on_tab_changed(self, index: int) -> None:
+        if hasattr(self, "playlist_bar"):
+            self.playlist_bar.setVisible(index == 0)
+        if index == 2:
+            self._update_queue_label()
+        self._update_mode_buttons()
+
+    def previous_track(self) -> None:
+        if self.engine.queue and self._queue_matches_tab():
+            self.engine.previous()
+            return
+        if not self._start_current_tab():
             self.start_default()
 
     def start_default(self) -> None:
-        items = self._playlist_playables()
-        if items:
-            self.engine.play_queue(items, 0)
+        if self._start_current_tab():
             return
         folder = str(self.store.settings.get("music_folder", "") or "")
         self.engine.ensure_playing(folder)
 
     def toggle_playback(self) -> None:
-        if self.engine.current_playable():
+        if self.engine.current_playable() and self._queue_matches_tab():
             self.engine.toggle()
-        else:
+            return
+        if not self._start_current_tab():
             self.start_default()
 
     def next_track(self) -> None:
-        if self.engine.queue:
+        if self.engine.queue and self._queue_matches_tab():
             self.engine.next()
-        else:
+            return
+        if not self._start_current_tab():
             self.start_default()
 
     def shutdown(self) -> None:
-        thread = self._search_thread
-        if thread and thread.isRunning():
-            thread.wait(1500)
-            if thread.isRunning():
-                thread.setParent(None)
-                _ORPHAN_SEARCHES.append(thread)
-                self._search_thread = None
+        for worker in (self._search_thread, getattr(self, "_copy_thread", None)):
+            if worker and worker.isRunning():
+                worker.wait(1500)
+                if worker.isRunning():
+                    worker.setParent(None)
+                    _ORPHAN_SEARCHES.append(worker)
+        self._search_thread = None

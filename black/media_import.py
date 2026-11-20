@@ -123,6 +123,117 @@ def bilibili_search(query: str, limit: int = 12) -> list[BiliResult]:
     return out
 
 
+BVID_RE = re.compile(r"(BV[0-9A-Za-z]{10})")
+
+
+def _parse_bvid(url: str) -> str:
+    match = BVID_RE.search(str(url or ""))
+    return match.group(1) if match else ""
+
+
+def _fmt_duration(seconds: int) -> str:
+    seconds = max(0, int(seconds or 0))
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
+def bilibili_parts(url: str) -> list[dict]:
+    """Return the parts/collection of a Bilibili video.
+
+    Bilibili exposes two different multi-video shapes: ``pages`` (多 P, one BV
+    with several parts) and ``ugc_season`` (UP 主的合集, several BVs).  yt-dlp
+    only downloads the first one when ``noplaylist`` is on, which is why a
+    collection used to import just its first song.
+    """
+    bvid = _parse_bvid(url)
+    if not bvid:
+        return []
+    r = requests.get(
+        "https://api.bilibili.com/x/web-interface/view",
+        params={"bvid": bvid},
+        headers=BILI_HEADERS,
+        timeout=20,
+    )
+    r.raise_for_status()
+    payload = r.json()
+    if payload.get("code") != 0:
+        return []
+    data = payload.get("data") or {}
+
+    parts: list[dict] = []
+    season = data.get("ugc_season") or {}
+    sections = season.get("sections") or []
+    for section in sections:
+        section_title = clean_html(section.get("title") or "")
+        for episode in section.get("episodes") or []:
+            ep_bvid = str(episode.get("bvid") or "")
+            arc = episode.get("arc") or {}
+            if not ep_bvid:
+                continue
+            parts.append({
+                "title": clean_html(episode.get("title") or ep_bvid),
+                "url": f"https://www.bilibili.com/video/{ep_bvid}",
+                "duration": int(arc.get("duration") or 0),
+                "group": section_title or "合集",
+            })
+    if len(parts) > 1:
+        return parts
+
+    pages = data.get("pages") or []
+    if isinstance(pages, list) and len(pages) > 1:
+        for i, page in enumerate(pages, 1):
+            parts.append({
+                "title": clean_html(page.get("part") or f"P{i}"),
+                "url": f"https://www.bilibili.com/video/{bvid}?p={i}",
+                "duration": int(page.get("duration") or 0),
+                "group": "分P",
+            })
+    return parts
+
+
+def probe_media(url: str) -> dict:
+    """Look before downloading: is this a single video or a collection?"""
+    url = str(url or "").strip()
+    bili = bilibili_parts(url)
+    if bili:
+        return {"kind": "collection", "title": "B站合集", "entries": bili}
+
+    ok, detail = dependencies_ready()
+    if not ok:
+        raise RuntimeError(detail)
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": False,
+        "extract_flat": "in_playlist",
+        "skip_download": True,
+        "http_headers": BILI_HEADERS,
+        "socket_timeout": 30,
+        "retries": 2,
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+    if not info:
+        return {"kind": "single", "title": "", "entries": []}
+    entries = info.get("entries") or []
+    flat = []
+    for i, entry in enumerate(entries, 1):
+        if not entry:
+            continue
+        flat.append({
+            "title": clean_html(entry.get("title") or f"第 {i} 段"),
+            "url": str(entry.get("webpage_url") or entry.get("url") or ""),
+            "duration": int(entry.get("duration") or 0),
+            "group": "播放列表",
+        })
+    if len(flat) > 1:
+        return {"kind": "collection", "title": clean_html(info.get("title") or "播放列表"), "entries": flat}
+    return {"kind": "single", "title": clean_html(info.get("title") or ""), "entries": []}
+
+
 def safe_filename(name: str, max_len: int = 86) -> str:
     name = re.sub(r'[\\/:*?"<>|\r\n\t]+', "_", name).strip()
     name = re.sub(r"\s+", " ", name)
@@ -260,23 +371,50 @@ class SearchThread(QThread):
             self.failed.emit(str(e))
 
 
-class ImportThread(QThread):
-    progress = pyqtSignal(int, str)
-    done = pyqtSignal(str)
+class ProbeThread(QThread):
+    """Ask whether a link is a single video or a collection before importing."""
+
+    ok = pyqtSignal(dict)
     failed = pyqtSignal(str)
 
-    def __init__(self, url: str, output_dir: str | Path, parent=None) -> None:
+    def __init__(self, url: str, parent=None) -> None:
         super().__init__(parent)
         self.url = url
-        self.output_dir = output_dir
 
     def run(self) -> None:
         try:
-            path = download_audio(
-                self.url,
-                self.output_dir,
-                progress=lambda p, s: self.progress.emit(p, s),
-            )
-            self.done.emit(str(path))
+            self.ok.emit(probe_media(self.url))
         except Exception as e:
             self.failed.emit(str(e))
+
+
+class ImportThread(QThread):
+    """Download one or more videos sequentially and convert each one to MP3."""
+
+    progress = pyqtSignal(int, str)
+    done = pyqtSignal(list)
+    failed = pyqtSignal(str)
+
+    def __init__(self, urls, output_dir: str | Path, parent=None) -> None:
+        super().__init__(parent)
+        if isinstance(urls, str):
+            urls = [urls]
+        self.urls = [str(u) for u in urls if u]
+        self.output_dir = output_dir
+
+    def run(self) -> None:
+        saved: list[str] = []
+        total = max(1, len(self.urls))
+        try:
+            for index, url in enumerate(self.urls, 1):
+                def hook(pct: int, text: str, _i: int = index) -> None:
+                    overall = int(((_i - 1) + max(0, min(100, pct)) / 100) / total * 100)
+                    prefix = f"第 {_i}/{total} 首 · " if total > 1 else ""
+                    self.progress.emit(overall, f"{prefix}{text}")
+
+                saved.append(str(download_audio(url, self.output_dir, progress=hook)))
+            self.done.emit(saved)
+        except Exception as e:
+            if saved:
+                self.done.emit(saved)
+            self.failed.emit(f"已完成 {len(saved)}/{total} 首，之后失败：{e}")

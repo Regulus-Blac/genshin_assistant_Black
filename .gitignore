@@ -46,6 +46,9 @@ id_rsa*
 id_ed25519*
 credentials*
 
+# Recovered DSH conversation history (personal)
+dsh-history/
+
 # OS/editor noise
 .DS_Store
 Thumbs.db

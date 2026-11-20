@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from ctypes import wintypes
 from datetime import date, timedelta
 
 from PyQt5.QtCore import QDate, QEvent, QPoint, QSize, Qt, QTime
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen
+from PyQt5.QtGui import QColor, QPainter, QPen
 from PyQt5.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -14,6 +15,8 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
+    QSizeGrip,
     QSizePolicy,
     QSpinBox,
     QTimeEdit,
@@ -26,6 +29,10 @@ from .content import SPEAKERS
 from .theme import ELEMENTS
 from .widgets import Divider, IconButton, ProgressBar
 
+# How far the frameless dialog's invisible shadow margin reaches.  The visible
+# card starts this many pixels inside the top-level window.
+SHADOW_MARGIN = 24
+
 
 class GenshinDialog(QDialog):
     def __init__(self, parent: QWidget | None, title: str, subtitle: str = "", width: int = 500) -> None:
@@ -33,11 +40,12 @@ class GenshinDialog(QDialog):
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setModal(True)
         self.setWindowTitle(title)
+        self.setSizeGripEnabled(True)
         self._drag_offset: QPoint | None = None
         self._width = width
-
+        self.setMinimumSize(360, 240)
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(24, 24, 24, 24)
+        outer.setContentsMargins(SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN)
         self.card = QFrame()
         self.card.setObjectName("DialogCard")
         shadow = QGraphicsDropShadowEffect(self.card)
@@ -45,7 +53,7 @@ class GenshinDialog(QDialog):
         shadow.setOffset(0, 12)
         shadow.setColor(QColor(0, 0, 0, 180))
         self.card.setGraphicsEffect(shadow)
-        self.card.setMinimumWidth(width)
+        self.card.setMinimumWidth(0)
         outer.addWidget(self.card)
 
         root = QVBoxLayout(self.card)
@@ -76,10 +84,19 @@ class GenshinDialog(QDialog):
         root.addWidget(Divider(faint=True))
         root.addSpacing(10)
 
-        self.body = QVBoxLayout()
+        body_host = QWidget()
+        body_host.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.body = QVBoxLayout(body_host)
         self.body.setContentsMargins(0, 0, 0, 0)
         self.body.setSpacing(11)
-        root.addLayout(self.body, 1)
+        self.body_scroll = QScrollArea()
+        self.body_scroll.setFrameShape(QFrame.NoFrame)
+        self.body_scroll.setWidgetResizable(True)
+        self.body_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.body_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        self.body_scroll.setWidget(body_host)
+        self.body_scroll.setMinimumHeight(80)
+        root.addWidget(self.body_scroll, 1)
         root.addSpacing(12)
         root.addWidget(Divider(faint=True))
         root.addSpacing(10)
@@ -88,6 +105,61 @@ class GenshinDialog(QDialog):
         self.footer.setSpacing(8)
         root.addLayout(self.footer)
         self._header.installEventFilter(self)
+
+        self._size_grip = QSizeGrip(self)
+        self._size_grip.setFixedSize(18, 18)
+        self._size_grip.setStyleSheet("background: transparent;")
+        self._size_grip.setToolTip("拖动这里或窗口边缘调整大小")
+
+    # ------------------------------------------------------------------ resizing
+    def _position_size_grip(self) -> None:
+        if not hasattr(self, "_size_grip"):
+            return
+        pos = QPoint(
+            self.width() - SHADOW_MARGIN - 16,
+            self.height() - SHADOW_MARGIN - 16,
+        )
+        if self._size_grip.pos() != pos:
+            self._size_grip.move(pos)
+        self._size_grip.raise_()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._position_size_grip()
+
+    def nativeEvent(self, event_type, message):  # noqa: N802
+        """Windows edge hit-testing so every dialog can be resized by mouse."""
+        if event_type == b"windows_generic_MSG":
+            try:
+                msg = wintypes.MSG.from_address(int(message))
+                if msg.message == 0x0084:  # WM_NCHITTEST
+                    if not self.isMaximized():
+                        local = self.mapFromGlobal(self.cursor().pos())
+                        w, h = self.width(), self.height()
+                        border = SHADOW_MARGIN + 8
+                        left = local.x() <= border
+                        right = local.x() >= w - border
+                        top = local.y() <= border
+                        bottom = local.y() >= h - border
+                        if left and top:
+                            return True, 13  # HTTOPLEFT
+                        if right and top:
+                            return True, 14  # HTTOPRIGHT
+                        if left and bottom:
+                            return True, 16  # HTBOTTOMLEFT
+                        if right and bottom:
+                            return True, 17  # HTBOTTOMRIGHT
+                        if left:
+                            return True, 10  # HTLEFT
+                        if right:
+                            return True, 11  # HTRIGHT
+                        if top:
+                            return True, 12  # HTTOP
+                        if bottom:
+                            return True, 15  # HTBOTTOM
+            except Exception:
+                pass
+        return super().nativeEvent(event_type, message)
 
     def add_field(self, label: str, widget: QWidget, hint: str = "") -> None:
         box = QVBoxLayout()
@@ -125,6 +197,10 @@ class GenshinDialog(QDialog):
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
         self.adjustSize()
+        wanted_w = self._width + 2 * SHADOW_MARGIN
+        if self.width() < wanted_w:
+            self.resize(wanted_w, max(self.height(), 320))
+        self._position_size_grip()
         parent = self.parentWidget()
         if parent:
             geo = parent.window().frameGeometry()
@@ -380,6 +456,53 @@ class ConfirmDialog(GenshinDialog):
     def ask(cls, parent: QWidget | None, title: str, message: str, confirm_text: str = "确定", danger: bool = False) -> bool:
         dlg = cls(parent, title, message, confirm_text, danger)
         return dlg.exec_() == QDialog.Accepted
+
+
+class NoticeDialog(GenshinDialog):
+    """Resizable replacement for QMessageBox.information / warning."""
+
+    def __init__(self, parent: QWidget | None, title: str, message: str, ok_text: str = "知道了", width: int = 430) -> None:
+        super().__init__(parent, title, "", width=width)
+        label = QLabel(message)
+        label.setWordWrap(True)
+        label.setStyleSheet(f"font-size: 12px; color: {theme.TEXT_SOFT}; line-height: 150%;")
+        self.body.addWidget(label)
+        self.body.addStretch(1)
+        self.footer.addStretch(1)
+        ok = self.add_button(ok_text, primary=True)
+        ok.clicked.connect(self.accept)
+
+    @classmethod
+    def show_message(cls, parent: QWidget | None, title: str, message: str, ok_text: str = "知道了") -> None:
+        cls(parent, title, message, ok_text).exec_()
+
+
+class InputDialog(GenshinDialog):
+    """Resizable replacement for QInputDialog.getText."""
+
+    def __init__(self, parent: QWidget | None, title: str, label: str, text: str = "", width: int = 430) -> None:
+        super().__init__(parent, title, "", width=width)
+        self._edit = QLineEdit(text)
+        self._edit.setPlaceholderText(label)
+        self._edit.setMinimumHeight(34)
+        self._edit.returnPressed.connect(self.accept)
+        self.add_field(label, self._edit)
+        self.footer.addStretch(1)
+        cancel = self.add_button("取消")
+        cancel.clicked.connect(self.reject)
+        ok = self.add_button("确定", primary=True)
+        ok.clicked.connect(self.accept)
+        self._edit.setFocus()
+        self._edit.selectAll()
+
+    def value(self) -> str:
+        return self._edit.text().strip()
+
+    @classmethod
+    def get_text(cls, parent: QWidget | None, title: str, label: str, text: str = "") -> tuple[str, bool]:
+        dialog = cls(parent, title, label, text)
+        accepted = dialog.exec_() == QDialog.Accepted
+        return dialog.value(), accepted
 
 
 class CountdownOrnament(QWidget):

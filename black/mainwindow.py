@@ -27,11 +27,11 @@ from PyQt5.QtWidgets import (
     QLabel,
     QMainWindow,
     QMenu,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizeGrip,
     QSizePolicy,
+    QLayout,
     QStackedWidget,
     QSystemTrayIcon,
     QToolButton,
@@ -42,6 +42,7 @@ from PyQt5.QtWidgets import (
 
 from . import content, theme
 from .character_picker import CharacterPickerDialog
+from .dialogs import NoticeDialog
 from .characters import (
     DEFAULT_CHARACTER_ID,
     get_character,
@@ -159,6 +160,7 @@ class MainWindow(QMainWindow):
         self._shutting_down = False
         self._maximized = False
         self._compact = False
+        self._narrow = False
         self._normal_geometry: QRect | None = None
         self._recent_quotes: list[str] = []
         self._last_greeting_key = ""
@@ -212,6 +214,12 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         self.outer = QVBoxLayout(central)
+        # The layout must not advertise its content minimum as the window
+        # minimum: otherwise Windows clamps a shrinking window at the wide
+        # pre-compact layout size and the window visibly jumps when the
+        # compact layout finally kicks in.  Content reflows and scrolls
+        # instead, and setMinimumSize() below stays authoritative.
+        self.outer.setSizeConstraint(QLayout.SetNoConstraint)
         self.outer.setContentsMargins(18, 18, 18, 18)
         self.outer.setSpacing(0)
         self.root = QWidget()
@@ -315,23 +323,55 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "_compact_timer"):
             self._compact_timer = QTimer(self)
             self._compact_timer.setSingleShot(True)
-            self._compact_timer.setInterval(24)
+            # Long enough that a drag does not rebuild the page on every pixel;
+            # the layout still reflows while dragging, only the structural swap
+            # (stage on/off, one vs two columns) waits for the drag to settle.
+            self._compact_timer.setInterval(90)
             self._compact_timer.timeout.connect(self._apply_compact_mode)
         self._compact_timer.start()
+
+    # Hysteresis bands: enter compact below the first value, only leave it
+    # above the second one.  Without the gap a window hovering on the border
+    # flips between layouts and flickers.
+    COMPACT_ENTER_W, COMPACT_EXIT_W = 980, 1012
+    COMPACT_ENTER_H, COMPACT_EXIT_H = 620, 650
+    NARROW_ENTER_W, NARROW_EXIT_W = 760, 790
 
     def _apply_compact_mode(self) -> None:
         if not hasattr(self, "stage") or not hasattr(self, "study_page"):
             return
-        compact = self.width() < 980 or self.height() < 620
-        if compact != self._compact:
-            self._compact = compact
-            self.stage.setVisible(not compact)
-        if hasattr(self, "titlebar"):
-            self.titlebar.set_compact(self.width() < 760)
-        self.study_page.set_compact(self.width() < 760)
-        self.music_page.set_compact(self.width() < 760)
+        width, height = self.width(), self.height()
+        if self._compact:
+            compact = not (width >= self.COMPACT_EXIT_W and height >= self.COMPACT_EXIT_H)
+        else:
+            compact = width < self.COMPACT_ENTER_W or height < self.COMPACT_ENTER_H
+        if self._narrow:
+            narrow = width < self.NARROW_EXIT_W
+        else:
+            narrow = width < self.NARROW_ENTER_W
+        structural = compact != self._compact or narrow != self._narrow
         expanded = self.body_orientation == "landscape" and not compact
-        self.study_page.set_expanded(expanded)
+
+        if structural:
+            # Bundle the widget-tree changes into one repaint so no half-built
+            # frame is ever shown.
+            self.setUpdatesEnabled(False)
+        try:
+            if narrow != self._narrow:
+                self._narrow = narrow
+                if hasattr(self, "titlebar"):
+                    self.titlebar.set_compact(narrow)
+                self.study_page.set_compact(narrow)
+                self.music_page.set_compact(narrow)
+            if compact != self._compact:
+                self._compact = compact
+                self.stage.setVisible(not compact)
+            self.study_page.set_expanded(expanded)
+        finally:
+            if structural:
+                self.setUpdatesEnabled(True)
+                self.update()
+
         if self.stack_scroll.horizontalScrollBarPolicy() != Qt.ScrollBarAlwaysOff:
             self.stack_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._sync_stack_min_height()
@@ -520,7 +560,7 @@ class MainWindow(QMainWindow):
             candidates = [l for l in looks if l.get("orientation") == "landscape"]
             look = candidates[0] if candidates else None
         if not look:
-            QMessageBox.information(self, "切换立绘", "这个角色还没有对应方向的立绘。")
+            NoticeDialog.show_message(self, "切换立绘", "这个角色还没有对应方向的立绘。")
             return
         # If the character has several art pieces in the requested direction
         # (Vodyanitsa has eight), let the user pick one instead of silently
@@ -560,7 +600,9 @@ class MainWindow(QMainWindow):
             str(self._character_meta.get("id", DEFAULT_CHARACTER_ID)),
             str(self.store.settings.get("look", "") or ""),
         )
+        self.sounds.open()
         if dialog.exec_() != dialog.Accepted or not dialog.result_data:
+            self.sounds.cancel()
             return
         cid = str(dialog.result_data.get("character", DEFAULT_CHARACTER_ID))
         meta = get_character(cid)
@@ -867,6 +909,7 @@ class MainWindow(QMainWindow):
     def _goto_page(self, index: int) -> None:
         if index < 0 or index >= self.stack.count():
             return
+        changed = self.stack.currentIndex() != index
         self.stack.setCurrentIndex(index)
         if 0 <= index < len(self.nav_tabs):
             self.nav_tabs[index].setChecked(True)
@@ -875,6 +918,8 @@ class MainWindow(QMainWindow):
         elif index == 3:
             self.chat_page.refresh_status()
         self._sync_stack_min_height()
+        if changed:
+            self.sounds.click()
 
     def _open_journal(self) -> None:
         self._goto_page(1)
@@ -882,12 +927,16 @@ class MainWindow(QMainWindow):
 
     def _open_settings(self) -> None:
         dialog = SettingsDialog(self, self.store)
+        self.sounds.open()
         accepted = dialog.exec_() == dialog.Accepted
         if getattr(dialog, "quit_requested", False):
             self._shutdown()
             return
         if accepted and dialog.result_data:
+            self.sounds.confirm()
             self._apply_settings(dialog.result_data)
+        else:
+            self.sounds.cancel()
 
     def _apply_settings(self, data: dict) -> None:
         self.store.settings.update(data)
@@ -1042,6 +1091,7 @@ class MainWindow(QMainWindow):
             self.stage.set_track("正在获取乐曲…", text, False)
 
     def _on_music_error(self, message: str) -> None:
+        self.sounds.error()
         self.stage.set_track("乐音暂时停下", "点开「乐音」看看发生了什么", False)
 
     # ------------------------------------------------------------------ journal
@@ -1247,14 +1297,12 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
-        QTimer.singleShot(0, self._position_resize_handles)
-
-    def showEvent(self, event) -> None:  # noqa: N802
-        super().showEvent(event)
         if hasattr(self, "stage"):
             self.stage.resume_animation()
         if hasattr(self, "overlay") and self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
+        QTimer.singleShot(0, self._position_resize_handles)
+        QTimer.singleShot(0, self._apply_compact_mode)
 
     def hideEvent(self, event) -> None:  # noqa: N802
         if hasattr(self, "stage"):

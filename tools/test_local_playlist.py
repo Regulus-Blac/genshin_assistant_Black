@@ -1,4 +1,4 @@
-"""Local-library playlist mode: sort/rename, and custom three actions."""
+"""Local library (sort/rename/search) and custom playlist actions."""
 from __future__ import annotations
 
 import os
@@ -35,53 +35,66 @@ def main() -> int:
     theme.set_mode("dark")
     apply_theme(app)
     folder = TEST / "music"
-    for i, name in enumerate(("alpha.mp3", "beta.mp3", "gamma.mp3")):
+    for name in ("alpha.mp3", "beta.mp3", "gamma.mp3"):
         shutil.copyfile(ROOT / "assets" / "music" / "星落之庭.wav", folder / name)
     store = Store()
     store.update_settings(music_folder=str(folder))
     window = MainWindow(store)
+    window.sounds.enabled = False
     window.show()
     QTest.qWait(500)
     window._goto_page(2)
     page = window.music_page
     page.load_local()
-    page._refresh_playlists("local")
     QTest.qWait(100)
 
-    assert page.playlist_sort_btn.isVisible()
-    assert page.playlist_local_rename_btn.isVisible()
-    assert not page.playlist_add_btn.isVisible()
-    assert not page.playlist_remove_btn.isVisible()
-    print("local actions", page.playlist_sort_btn.text(), page.playlist_local_rename_btn.text())
+    # local tab: the library is not a playlist any more
+    assert page.tabs.currentIndex() == 0
+    page.tabs.setCurrentIndex(1)
+    QTest.qWait(80)
+    assert page.local_list.count() == 3
+    assert page.local_sort_btn.isVisible()
+    print("local rows", page.local_list.count(), page.local_count.text())
 
-    page._set_playlist_mode("sort")
-    assert page._playlist_mode == "sort"
-    item = page.playlist_list.takeItem(0)
-    page.playlist_list.insertItem(2, item)
-    page.playlist_list.reordered.emit()
-    QTest.qWait(120)
+    # drag order persists into settings.local_order
+    page._toggle_local_sort()
+    assert page._local_sort
+    item = page.local_list.takeItem(0)
+    page.local_list.insertItem(2, item)
+    page.local_list.reordered.emit()
+    QTest.qWait(150)
     order = store.settings.get("local_order", [])
     print("local order", [Path(p).name for p in order])
-    assert len(order) == 3 and order[0].endswith("beta.mp3")
+    assert len(order) == 3 and order[-1].endswith("alpha.mp3")
 
-    page._set_playlist_mode("browse")
-    page.playlist_list.setCurrentRow(0)
-    selected = Path(str(page.playlist_list.currentItem().data(Qt.UserRole)["path"]))
-    with patch("black.pages.music.QInputDialog.getText", return_value=("renamed", True)):
-        page._rename_local_track()
-    QTest.qWait(150)
+    # rename the first file through the local context action
+    page._toggle_local_sort()
+    page.local_list.setCurrentRow(0)
+    selected = Path(str(page.local_list.currentItem().data(Qt.UserRole)))
+    with patch("black.pages.music.InputDialog.get_text", return_value=("renamed", True)):
+        page._rename_local_track(selected)
+    QTest.qWait(200)
     print("renamed exists", (folder / "renamed.mp3").exists(), "old", selected.exists())
     assert (folder / "renamed.mp3").exists()
     assert not selected.exists()
+    assert str(folder / "renamed.mp3") in [str(p) for p in store.settings.get("local_order", [])]
 
+    # custom playlists expose the three management actions
     custom = store.create_playlist("自定义")
+    page.tabs.setCurrentIndex(0)
     page._refresh_playlists(custom["id"])
-    QTest.qWait(80)
-    assert page.playlist_sort_btn.isVisible()
-    assert page.playlist_add_btn.isVisible()
-    assert page.playlist_remove_btn.isVisible()
-    assert not page.playlist_local_rename_btn.isVisible()
-    print("custom actions visible")
+    QTest.qWait(100)
+    assert page.playlist_sort_btn.isEnabled()
+    assert page.playlist_add_btn.isVisible() and page.playlist_add_btn.isEnabled()
+    assert page.playlist_remove_btn.isVisible() and page.playlist_remove_btn.isEnabled()
+    assert page.playlist_rename_btn.isEnabled()
+    print("custom actions ready")
+
+    page._set_playlist_mode("sort")
+    assert page._playlist_mode == "sort"
+    page._set_playlist_mode("browse")
+    assert page._playlist_mode == "browse"
+
     window._shutdown()
     app.quit()
     print("OK")

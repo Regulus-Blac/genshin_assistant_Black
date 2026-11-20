@@ -427,6 +427,7 @@ class StudyPage(QWidget):
         self.timer = timer
         self.cards: dict[str, SubjectCard] = {}
         self.exam_cards: list[ExamCard] = []
+        self.add_card = None
         self._last_day = ""
         self._compact = False
         self._expanded = False
@@ -624,17 +625,66 @@ class StudyPage(QWidget):
             add = AddSubjectCard()
             add.clicked.connect(self._add_subject)
             self.grid.addWidget(add, len(subjects) // cols, len(subjects) % cols)
+            self.add_card = add
+        else:
+            self.add_card = None
         self.grid.setColumnStretch(0, 1)
         self.grid.setColumnStretch(1, 0 if self._compact else 1)
         self.refresh_live()
         self._update_expanded_height()
+
+    def _can_relayout(self) -> bool:
+        """True when the existing cards can simply be re-gridded.
+
+        Destroying and recreating every card while the user drags the window
+        is what used to produce the blank flash; a re-grid keeps the very same
+        widgets and only changes their positions.
+        """
+        subjects = self.store.subjects()
+        if not subjects or self.add_card is None:
+            return False
+        if len(self.cards) != len(subjects):
+            return False
+        if any(info["id"] not in self.cards for info in subjects):
+            return False
+        exams = self.store.exams()
+        return len(self.exam_cards) == min(len(exams), 6)
+
+    def _relayout_cards(self) -> None:
+        cols = 1 if self._compact else 2
+        self.grid_host.setUpdatesEnabled(False)
+        try:
+            for card in self.exam_cards:
+                self.exam_grid.removeWidget(card)
+            for i, card in enumerate(self.exam_cards):
+                self.exam_grid.addWidget(card, i // cols, i % cols)
+            self.exam_grid.setColumnStretch(0, 1)
+            self.exam_grid.setColumnStretch(1, 0 if self._compact else 1)
+
+            widgets = [self.cards[info["id"]] for info in self.store.subjects()]
+            if self.add_card is not None:
+                widgets.append(self.add_card)
+            for widget in widgets:
+                self.grid.removeWidget(widget)
+            for i, widget in enumerate(widgets):
+                self.grid.addWidget(widget, i // cols, i % cols)
+            self.grid.setColumnStretch(0, 1)
+            self.grid.setColumnStretch(1, 0 if self._compact else 1)
+        finally:
+            self.grid_host.setUpdatesEnabled(True)
+            self.grid_host.update()
 
     def set_compact(self, compact: bool) -> None:
         compact = bool(compact)
         if compact == self._compact:
             return
         self._compact = compact
-        self.rebuild()
+        if self._can_relayout():
+            self._relayout_cards()
+            self.refresh_live()
+            self._update_expanded_height()
+        else:
+            self.rebuild()
 
     def set_expanded(self, expanded: bool) -> None:
         expanded = bool(expanded)

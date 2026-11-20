@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import sys
 import time
 from dataclasses import dataclass, field
@@ -266,6 +267,22 @@ def download_track(
     tmp.replace(target)
     if progress:
         progress(100, "已缓存到本地")
+    return target
+
+
+def save_track_to_folder(track: Track, folder: str | Path) -> Path:
+    """Copy an online track into the local music folder as a normal file."""
+    cached = download_track(track)
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    suffix = cached.suffix or ".mp3"
+    base = _safe_name(track.title)
+    target = folder / f"{base}{suffix}"
+    n = 2
+    while target.exists():
+        target = folder / f"{base} ({n}){suffix}"
+        n += 1
+    shutil.copyfile(cached, target)
     return target
 
 

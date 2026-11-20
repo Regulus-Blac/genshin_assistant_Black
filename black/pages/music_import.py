@@ -4,6 +4,8 @@ from pathlib import Path
 
 from PyQt5.QtCore import QSize, Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -20,6 +22,7 @@ from .. import theme
 from ..dialogs import GenshinDialog
 from ..media_import import (
     ImportThread,
+    ProbeThread,
     SearchThread,
     convert_local_media,
     dependencies_ready,
@@ -48,17 +51,18 @@ class ConvertThread(QThread):
 
 
 class ImportRow(QWidget):
-    def __init__(self, title: str, meta: str, parent=None) -> None:
+    def __init__(self, title: str, meta: str, badge_text: str = "B站", parent=None) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setFixedHeight(52)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(7, 4, 8, 4)
         lay.setSpacing(8)
-        badge = QLabel("B站")
+        badge = QLabel(badge_text)
+        badge_bg = theme.mix(theme.GOLD, theme.PANEL, 0.9).name()
         badge.setStyleSheet(
-            f"font-size: 8px; color: {theme.GOLD}; background: rgba(217,188,125,14); "
-            "border: 1px solid rgba(217,188,125,38); border-radius: 6px; padding: 2px 5px;"
+            f"font-size: 8px; color: {theme.GOLD}; background: {badge_bg}; "
+            f"border: 1px solid {theme.mix(theme.GOLD, theme.PANEL, 0.7).name()}; border-radius: 6px; padding: 2px 5px;"
         )
         lay.addWidget(badge, 0, Qt.AlignVCenter)
         col = QVBoxLayout()
@@ -70,6 +74,127 @@ class ImportRow(QWidget):
         col.addWidget(name)
         col.addWidget(sub)
         lay.addLayout(col, 1)
+
+
+def result_list_style() -> str:
+    """Search result list colours that stay readable in both themes."""
+    if theme.is_light():
+        # A warm inset panel instead of a pure-white sheet on the cream card.
+        bg = theme.PANEL2
+        border = theme.mix(theme.GOLD, theme.PANEL, 0.55).name()
+        row_line = theme.mix(theme.GOLD, theme.PANEL, 0.78).name()
+        selected = "rgba(152, 117, 54, 52)"
+        selected_text = theme.TEXT
+        text = theme.TEXT_SOFT
+    else:
+        bg = "rgba(8, 14, 21, 140)"
+        border = "rgba(217, 188, 125, 34)"
+        row_line = "rgba(217, 188, 125, 14)"
+        selected = "rgba(217, 188, 125, 26)"
+        selected_text = "#f3ddaa"
+        text = theme.TEXT
+    return (
+        f"QListWidget {{ background: {bg}; border: 1px solid {border}; border-radius: 8px; color: {text}; }}"
+        # Qt falls back to the palette base (pure white) for item backgrounds,
+        # so paint the items with the same colour as the list itself.
+        f"QListWidget::item {{ background: {bg}; border-bottom: 1px solid {row_line}; color: {text}; }}"
+        f"QListWidget::item:hover {{ background: {selected}; }}"
+        f"QListWidget::item:selected {{ background: {selected}; color: {selected_text}; }}"
+    )
+
+
+class CollectionDialog(GenshinDialog):
+    """Pick which parts of a Bilibili collection / multi-P video to import."""
+
+    def __init__(self, parent, data: dict) -> None:
+        entries = data.get("entries") or []
+        total_seconds = sum(int(e.get("duration") or 0) for e in entries)
+        hours, rem = divmod(total_seconds, 3600)
+        minutes = rem // 60
+        length = f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
+        super().__init__(
+            parent,
+            "选择要下载的片段",
+            f"「{data.get('title') or '合集'}」共 {len(entries)} 段，总时长约 {length}。",
+            width=640,
+        )
+        self.entries = entries
+        self.selected_urls: list[str] = []
+        # Very long collections start unchecked so a stray double-click cannot
+        # start a 200-file download.
+        default_checked = len(entries) <= 25
+
+        top = QHBoxLayout()
+        top.setSpacing(8)
+        self.summary = QLabel("")
+        self.summary.setStyleSheet(f"font-size: 10px; color: {theme.TEXT_SOFT};")
+        top.addWidget(self.summary, 1)
+        self.all_btn = QPushButton("全选")
+        self.none_btn = QPushButton("全不选")
+        for btn in (self.all_btn, self.none_btn):
+            btn.setObjectName("TextButton")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
+            top.addWidget(btn)
+        self.body.addLayout(top)
+
+        if not default_checked:
+            hint = QLabel("项目较多，默认没有勾选。请自己选择，或点「全选」下载整部合集。")
+            hint.setWordWrap(True)
+            hint.setStyleSheet(f"font-size: 9px; color: {theme.ROSE};")
+            self.body.addWidget(hint)
+
+        self.list = QListWidget()
+        self.list.setStyleSheet(result_list_style())
+        self.list.setMinimumHeight(300)
+        self.list.itemChanged.connect(self._refresh_summary)
+        self.body.addWidget(self.list, 1)
+
+        for i, entry in enumerate(entries, 1):
+            duration = int(entry.get("duration") or 0)
+            minutes, seconds = divmod(duration, 60)
+            meta = f"{entry.get('group') or '片段'} · {minutes}:{seconds:02d}"
+            item = QListWidgetItem()
+            item.setData(Qt.UserRole, entry.get("url", ""))
+            item.setSizeHint(QSize(100, 52))
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if default_checked else Qt.Unchecked)
+            self.list.addItem(item)
+            self.list.setItemWidget(item, ImportRow(f"{i:02d}. {entry.get('title', '')}", meta, "B站"))
+            item.setToolTip(entry.get("title", ""))
+
+        self.all_btn.clicked.connect(lambda: self._set_all(Qt.Checked))
+        self.none_btn.clicked.connect(lambda: self._set_all(Qt.Unchecked))
+        self._refresh_summary()
+
+        self.footer.addStretch(1)
+        cancel = self.add_button("取消")
+        cancel.clicked.connect(self.reject)
+        ok = self.add_button("下载选中片段", primary=True)
+        ok.clicked.connect(self._accept_selection)
+
+    def _set_all(self, state) -> None:
+        self.list.blockSignals(True)
+        for i in range(self.list.count()):
+            self.list.item(i).setCheckState(state)
+        self.list.blockSignals(False)
+        self._refresh_summary()
+
+    def _refresh_summary(self) -> None:
+        total = self.list.count()
+        checked = sum(1 for i in range(total) if self.list.item(i).checkState() == Qt.Checked)
+        self.summary.setText(f"已选 {checked}/{total} 段")
+
+    def _accept_selection(self) -> None:
+        self.selected_urls = [
+            str(self.list.item(i).data(Qt.UserRole) or "")
+            for i in range(self.list.count())
+            if self.list.item(i).checkState() == Qt.Checked
+        ]
+        if not self.selected_urls:
+            self.summary.setText("至少选一段，或者点「取消」。")
+            return
+        self.accept()
 
 
 class MusicImportDialog(GenshinDialog):
@@ -84,6 +209,7 @@ class MusicImportDialog(GenshinDialog):
         )
         self.store = store
         self._search_worker: SearchThread | None = None
+        self._probe_worker: ProbeThread | None = None
         self._import_worker: ImportThread | None = None
         self._convert_worker: ConvertThread | None = None
         self._results = []
@@ -99,8 +225,8 @@ class MusicImportDialog(GenshinDialog):
             note.setStyleSheet(f"font-size: 10px; color: {theme.ROSE};")
             self.body.addWidget(note)
         self.hint = QLabel(
-            "搜索 B 站公开视频，选择一条后下载音频并转换为 192kbps MP3；也可以直接粘贴 Bilibili 链接。"
-            "只用于个人本地试听。"
+            "搜索 B 站公开视频，选中后下载音频并转换为 192kbps MP3；也可以直接粘贴视频或合集链接。"
+            "如果链接是一个合集（多 P / UP 主合集），会先让你勾选要下载哪几段。只用于个人本地试听。"
         )
         self.hint.setWordWrap(True)
         self.hint.setStyleSheet(f"font-size: 10px; color: {theme.MUTED};")
@@ -122,14 +248,10 @@ class MusicImportDialog(GenshinDialog):
         self.body.addLayout(search_row)
 
         self.results = QListWidget()
-        self.results.setFixedHeight(176)
-        self.results.setStyleSheet(
-            "QListWidget { background: rgba(8,14,21,120); border: 1px solid rgba(217,188,125,28); border-radius: 8px; }"
-            "QListWidget::item { border-bottom: 1px solid rgba(217,188,125,12); }"
-            "QListWidget::item:selected { background: rgba(217,188,125,26); color: #f3ddaa; }"
-        )
+        self.results.setMinimumHeight(150)
+        self.results.setStyleSheet(result_list_style())
         self.results.itemDoubleClicked.connect(self._import_selected)
-        self.body.addWidget(self.results)
+        self.body.addWidget(self.results, 1)
         bottom_search = QHBoxLayout()
         bottom_search.setSpacing(6)
         self.results_status = QLabel("搜索后选择一条视频。")
@@ -145,14 +267,14 @@ class MusicImportDialog(GenshinDialog):
 
         line = QFrame()
         line.setFixedHeight(1)
-        line.setStyleSheet("background: rgba(217,188,125,24); border: none;")
+        line.setStyleSheet(f"background: {theme.mix(theme.GOLD, theme.PANEL, 0.7).name()}; border: none;")
         self.body.addWidget(line)
 
         # direct URL
         link_row = QHBoxLayout()
         link_row.setSpacing(6)
         self.url_edit = QLineEdit()
-        self.url_edit.setPlaceholderText("粘贴 Bilibili / YouTube 等视频链接")
+        self.url_edit.setPlaceholderText("粘贴 Bilibili / YouTube 等视频或合集链接")
         self.url_edit.returnPressed.connect(self._import_url)
         link_row.addWidget(self.url_edit, 1)
         self.url_btn = QPushButton("链接转 MP3")
@@ -179,10 +301,10 @@ class MusicImportDialog(GenshinDialog):
         self.progress.setValue(0)
         self.body.addWidget(self.progress)
         self.status = QLabel("准备就绪。")
+        self.status.setWordWrap(True)
         self.status.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         self.body.addWidget(self.status)
 
-        self.body.addStretch(1)
         self.footer.addStretch(1)
         close = self.add_button("关闭")
         close.clicked.connect(self.reject)
@@ -191,10 +313,8 @@ class MusicImportDialog(GenshinDialog):
                 w.setEnabled(False)
 
     def _set_busy(self, busy: bool, label: str = "") -> None:
-        self.search_btn.setEnabled(not busy)
-        self.import_selected_btn.setEnabled(not busy)
-        self.url_btn.setEnabled(not busy)
-        self.local_btn.setEnabled(not busy)
+        for widget in (self.search_btn, self.import_selected_btn, self.url_btn, self.local_btn):
+            widget.setEnabled(not busy)
         if label:
             self.status.setText(label)
 
@@ -246,21 +366,57 @@ class MusicImportDialog(GenshinDialog):
         if not url:
             self.status.setText("先在列表里选一条视频。")
             return
-        self._start_import(url)
+        self._probe_then_import(url)
 
     def _import_url(self) -> None:
         url = self.url_edit.text().strip()
         if not url.startswith(("http://", "https://")):
             self.status.setText("请粘贴完整视频链接（http/https）。")
             return
-        self._start_import(url)
+        self._probe_then_import(url)
 
-    def _start_import(self, url: str) -> None:
+    # ------------------------------------------------------------------ probing
+    def _probe_then_import(self, url: str) -> None:
         if self._import_worker and self._import_worker.isRunning():
             return
-        self._set_busy(True, "正在连接视频…")
+        if self._probe_worker and self._probe_worker.isRunning():
+            return
+        self._set_busy(True, "正在解析链接，确认是不是合集…")
+        worker = ProbeThread(url, self)
+        worker.ok.connect(lambda data: self._on_probed(url, data))
+        worker.failed.connect(lambda message: self._on_probe_failed(url, message))
+        worker.finished.connect(lambda: self._set_busy(False))
+        self._probe_worker = worker
+        worker.start()
+
+    def _on_probed(self, url: str, data: dict) -> None:
+        entries = data.get("entries") or []
+        if data.get("kind") == "collection" and len(entries) > 1:
+            dialog = CollectionDialog(self, data)
+            if dialog.exec_() != QDialog.Accepted or not dialog.selected_urls:
+                self.status.setText("已取消，没有下载。")
+                return
+            self._start_import(dialog.selected_urls)
+            return
+        self._start_import([url])
+
+    def _on_probe_failed(self, url: str, message: str) -> None:
+        # Probing is best-effort: if it fails we still try the plain download.
+        self._start_import([url])
+
+    # ------------------------------------------------------------------ importing
+    def _start_import(self, urls) -> None:
+        if isinstance(urls, str):
+            urls = [urls]
+        urls = [u for u in urls if u]
+        if not urls:
+            return
+        if self._import_worker and self._import_worker.isRunning():
+            return
+        label = "正在连接视频…" if len(urls) == 1 else f"正在下载 {len(urls)} 段音频…"
+        self._set_busy(True, label)
         self.progress.setValue(0.02)
-        worker = ImportThread(url, self.output_dir, self)
+        worker = ImportThread(urls, self.output_dir, self)
         worker.progress.connect(self._on_progress)
         worker.done.connect(self._on_done)
         worker.failed.connect(self._on_failed)
@@ -272,10 +428,15 @@ class MusicImportDialog(GenshinDialog):
         self.progress.setValue(max(0.01, min(1.0, pct / 100)), animate=True)
         self.status.setText(text)
 
-    def _on_done(self, path: str) -> None:
+    def _on_done(self, paths) -> None:
+        paths = list(paths or [])
         self.progress.setValue(1.0, animate=True)
-        self.status.setText(f"已保存：{Path(path).name}")
-        self.imported.emit(path)
+        if len(paths) == 1:
+            self.status.setText(f"已保存：{Path(paths[0]).name}")
+        else:
+            self.status.setText(f"已保存 {len(paths)} 首，最后一首：{Path(paths[-1]).name}")
+        for path in paths:
+            self.imported.emit(path)
         self._set_busy(False)
 
     def _on_failed(self, message: str) -> None:
@@ -295,14 +456,19 @@ class MusicImportDialog(GenshinDialog):
         self._set_busy(True, "正在转换为 MP3…")
         self.progress.setValue(0.3)
         worker = ConvertThread(Path(path), self.output_dir, self)
-        worker.done.connect(self._on_done)
+        worker.done.connect(lambda p: self._on_done([p]))
         worker.failed.connect(self._on_failed)
         worker.finished.connect(lambda: self._set_busy(False))
         self._convert_worker = worker
         worker.start()
 
     def _wait_workers(self) -> None:
-        for worker in (self._search_worker, self._import_worker, self._convert_worker):
+        for worker in (
+            self._search_worker,
+            self._probe_worker,
+            self._import_worker,
+            self._convert_worker,
+        ):
             if worker and worker.isRunning():
                 worker.wait(2200)
                 if worker.isRunning():
