@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from .. import theme
+from .. import render_mode, theme
 from ..dialogs import ConfirmDialog, ExamDetailDialog, ExamDialog, SubjectDialog
 from ..levels import format_duration, format_short_duration
 from ..stage import ElidedLabel
@@ -35,6 +35,16 @@ def clock_text(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
+def _card_shadow(parent: QWidget, blur: int, dy: int, color: QColor) -> QGraphicsDropShadowEffect:
+    """Card drop shadow; ``setGraphicsEffect(None)`` deletes it, so the spec is
+    kept around and the effect is rebuilt when fast paint mode turns off."""
+    shadow = QGraphicsDropShadowEffect(parent)
+    shadow.setBlurRadius(blur)
+    shadow.setOffset(0, dy)
+    shadow.setColor(color)
+    return shadow
+
+
 class ExamCard(QFrame):
     clicked = pyqtSignal()
     edit_clicked = pyqtSignal()
@@ -47,12 +57,10 @@ class ExamCard(QFrame):
         self.setAttribute(Qt.WA_StyledBackground, False)
         self.setMinimumHeight(104)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._shadow_spec = None
         if theme.is_light():
-            shadow = QGraphicsDropShadowEffect(self)
-            shadow.setBlurRadius(22)
-            shadow.setOffset(0, 5)
-            shadow.setColor(QColor(91, 69, 38, 38))
-            self.setGraphicsEffect(shadow)
+            self._shadow_spec = (22, 5, QColor(91, 69, 38, 38))
+            self.setGraphicsEffect(_card_shadow(self, *self._shadow_spec))
         self._build()
 
     def _build(self) -> None:
@@ -126,7 +134,23 @@ class ExamCard(QFrame):
             return
         super().mousePressEvent(event)
 
+    def set_fast_paint(self, enabled: bool) -> None:
+        """Cheap paint path used while the window is being dragged."""
+        enabled = bool(enabled)
+        if getattr(self, "_fast_paint", False) == enabled:
+            return
+        self._fast_paint = enabled
+        if getattr(self, "_shadow_spec", None) is not None:
+            # Qt owns (and deletes) the previous effect, so rebuild from spec.
+            self.setGraphicsEffect(None if enabled else _card_shadow(self, *self._shadow_spec))
+        self.update()
+
     def paintEvent(self, event) -> None:  # noqa: N802
+        if getattr(self, "_fast_paint", False):
+            p = QPainter(self)
+            p.fillRect(self.rect(), QColor(255, 251, 243) if theme.is_light() else QColor(21, 33, 47))
+            p.end()
+            return
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing, True)
         rect = QRectF(0.8, 0.8, self.width() - 1.6, self.height() - 1.6)
@@ -222,12 +246,10 @@ class SubjectCard(QFrame):
         self.setAttribute(Qt.WA_StyledBackground, False)
         self.setMinimumHeight(170)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._shadow_spec = None
         if theme.is_light():
-            shadow = QGraphicsDropShadowEffect(self)
-            shadow.setBlurRadius(24)
-            shadow.setOffset(0, 6)
-            shadow.setColor(QColor(91, 69, 38, 42))
-            self.setGraphicsEffect(shadow)
+            self._shadow_spec = (24, 6, QColor(91, 69, 38, 42))
+            self.setGraphicsEffect(_card_shadow(self, *self._shadow_spec))
         self._build()
         self.update_info(info)
 
@@ -361,7 +383,23 @@ class SubjectCard(QFrame):
         self._hover = False
         self.update()
 
+    def set_fast_paint(self, enabled: bool) -> None:
+        """Cheap paint path used while the window is being dragged."""
+        enabled = bool(enabled)
+        if getattr(self, "_fast_paint", False) == enabled:
+            return
+        self._fast_paint = enabled
+        if getattr(self, "_shadow_spec", None) is not None:
+            # Qt owns (and deletes) the previous effect, so rebuild from spec.
+            self.setGraphicsEffect(None if enabled else _card_shadow(self, *self._shadow_spec))
+        self.update()
+
     def paintEvent(self, event) -> None:  # noqa: N802
+        if getattr(self, "_fast_paint", False):
+            p = QPainter(self)
+            p.fillRect(self.rect(), QColor(255, 251, 243) if theme.is_light() else QColor(21, 33, 47))
+            p.end()
+            return
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing, True)
         rect = QRectF(0.8, 0.8, self.width() - 1.6, self.height() - 1.6)
@@ -674,6 +712,11 @@ class StudyPage(QWidget):
             self.grid_host.setUpdatesEnabled(True)
             self.grid_host.update()
 
+    def set_fast_paint(self, enabled: bool) -> None:
+        for card in list(self.cards.values()) + list(self.exam_cards):
+            card.set_fast_paint(enabled)
+        self.update()
+
     def set_compact(self, compact: bool) -> None:
         compact = bool(compact)
         if compact == self._compact:
@@ -718,11 +761,28 @@ class StudyPage(QWidget):
                 card.update_info(info)
         overall = self.store.overall(now)
         self.total_chip.setText(f"今日 {format_duration(overall['today_seconds'])}")
-        active = self.store.active_subject()
-        self.active_chip.setVisible(bool(active))
-        if active:
-            elapsed = self.store.active_elapsed(now)
-            self.active_chip.setText(f"● 正在修习「{active['name']}」 · {format_short_duration(elapsed)}")
+        running = self.store.active_subjects()
+        self.active_chip.setVisible(bool(running))
+
+        def _live_clock(seconds: int) -> str:
+            seconds = max(0, int(seconds))
+            if seconds < 3600:
+                mins, rest = divmod(seconds, 60)
+                return f"{mins}:{rest:02d}"
+            return format_short_duration(seconds)
+
+        if running:
+            if len(running) == 1:
+                sub = running[0]
+                elapsed = self.store.active_elapsed(now, subject_id=sub["id"])
+                text = f"● 正在修习「{sub['name']}」 · {_live_clock(elapsed)}"
+            else:
+                parts = [
+                    f"{sub['name']} {_live_clock(self.store.active_elapsed(now, subject_id=sub['id']))}"
+                    for sub in running[:3]
+                ]
+                text = "● 同时修习 " + " · ".join(parts) + ("…" if len(running) > 3 else "")
+            self.active_chip.setText(text)
             self.active_chip.setStyleSheet(
                 f"font-size: 9px; color: {theme.GREEN}; background: rgba(154,202,132,14); "
                 "border: 1px solid rgba(154,202,132,38); border-radius: 8px; padding: 2px 7px;"
@@ -737,11 +797,9 @@ class StudyPage(QWidget):
 
     # ------------------------------------------------------------------ actions
     def _toggle_subject(self, subject_id: str) -> None:
-        active = self.store.active()
-        if active and active.get("subject_id") == subject_id:
-            self.timer.pause()
-        else:
-            self.timer.start(subject_id)
+        # Subjects run independently, so starting a second one does not stop
+        # the first: two things can be timed at the same time.
+        self.timer.toggle(subject_id)
         self.refresh_live()
 
     def _on_active_changed(self, subject_id) -> None:
@@ -777,7 +835,7 @@ class StudyPage(QWidget):
         ):
             return
         if self.timer.is_active_subject(subject_id):
-            self.timer.pause()
+            self.timer.pause(subject_id)
         self.store.delete_subject(subject_id)
         self.rebuild()
         self.data_changed.emit()

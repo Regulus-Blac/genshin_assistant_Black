@@ -27,6 +27,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from . import render_mode
 from . import theme as _theme
 from .characters import get_look
 from .paths import IMAGES, avatar_path
@@ -547,6 +548,17 @@ class CharacterStage(QWidget):
         self._fit_key = (max_width, text, font_key)
 
     def paintEvent(self, event) -> None:  # noqa: N802
+        if render_mode.is_fast():
+            # Dragging the window edge: skip gradients, particles and halos and
+            # just blit the cached artwork, keeping the frame under budget.
+            p = QPainter(self)
+            p.fillRect(self.rect(), QColor("#f1e7d8" if _theme.is_light() else "#111b26"))
+            if self._cover is None:
+                self._build_cover()
+            if self._cover is not None:
+                p.drawPixmap(self.rect(), self._cover)
+            p.end()
+            return
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing, True)
         rect = QRectF(1.5, 1.5, self.width() - 3.0, self.height() - 3.0)

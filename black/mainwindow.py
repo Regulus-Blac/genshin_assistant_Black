@@ -37,10 +37,11 @@ from PyQt5.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QWidgetAction,
     QAction,
 )
 
-from . import content, theme
+from . import content, render_mode, theme
 from .character_picker import CharacterPickerDialog
 from .dialogs import NoticeDialog
 from .characters import (
@@ -66,7 +67,7 @@ from .store import Store
 from .timer import TimerEngine
 from .tts import TTSService
 from .whispers import get_whisper_avatar
-from .widgets import Divider, IconButton, NavTab, TitleBar
+from .widgets import Divider, IconButton, NavTab, TitleBar, TrayPlayer
 
 WEEKDAYS = "一二三四五六日"
 
@@ -648,21 +649,21 @@ class MainWindow(QMainWindow):
     def _refresh_global(self) -> None:
         now = datetime.now()
         self._update_clock()
-        active = self.store.active_subject()
+        actives = self.store.active_subjects()
         overall = self.store.overall(now)
         subjects = self.store.subjects(now)
         streak = max([s["streak"] for s in subjects], default=0)
         self.stage.set_stats(format_duration(overall["today_seconds"]), streak)
         self.stage.set_greeting(
             content.greeting(now, str(self.store.settings.get("user_name", "旅行者"))),
-            content.greeting_sub(now, bool(active)),
+            content.greeting_sub(now, bool(actives)),
         )
         self.stage.set_date(
             f"{now.month}月{now.day}日 · 周{WEEKDAYS[now.weekday()]}",
             f"尘歌壶 · {self._character_meta.get('name', '沃雅妮莎')}",
         )
         self._update_exam_label(now)
-        self._update_active_ui(active, now)
+        self._update_active_ui(actives, now)
         self._update_music_initial()
         self.study_page.refresh_live()
 
@@ -672,17 +673,27 @@ class MainWindow(QMainWindow):
         m, s = divmod(seconds, 60)
         return f"{m}:{s:02d}"
 
+    def _active_status(self, now: datetime) -> tuple[str, bool]:
+        running = self.store.active_subjects()
+        if not running:
+            return "待机中", False
+        if len(running) == 1:
+            elapsed = self.store.active_elapsed(now, subject_id=running[0]["id"])
+            return f"专注中 · {running[0]['name']} {self._elapsed_clock(elapsed)}", True
+        return f"专注中 · {len(running)} 项并行", True
+
     def _update_clock(self) -> None:
         now = datetime.now()
         self.stage.set_time(now.strftime("%H:%M"))
-        active = self.store.active_subject()
+        text, active = self._active_status(now)
+        self.titlebar.set_status(text, active)
         if active:
-            elapsed = self.store.active_elapsed(now)
-            self.titlebar.set_status(f"专注中 · {active['name']} {self._elapsed_clock(elapsed)}", True)
+            elapsed = max(
+                (self.store.active_elapsed(now, subject_id=sub["id"]) for sub in self.store.active_subjects()),
+                default=0,
+            )
             if elapsed % 30 == 0:
                 self.stage.set_stats(self.store.overall(now)["today_text"], max([s["streak"] for s in self.store.subjects(now)], default=0))
-        else:
-            self.titlebar.set_status("待机中", False)
         # refresh greeting when hour or active state changes
         key = f"{now.hour}-{bool(active)}-{self.store.settings.get('user_name')}"
         if key != self._last_greeting_key:
@@ -709,16 +720,17 @@ class MainWindow(QMainWindow):
             else:
                 self.stage.set_exam("考试日期待设定")
 
-    def _update_active_ui(self, active: dict | None, now: datetime) -> None:
+    def _update_active_ui(self, actives: list[dict], now: datetime) -> None:
         self._update_tray_status()
-        if active:
+        if actives:
+            names = "」「".join(sub["name"] for sub in actives)
             self.stage.set_stats(
                 format_duration(self.store.total_today(now)),
                 max([s["streak"] for s in self.store.subjects(now)], default=0),
             )
             self.stage.set_greeting(
                 content.greeting(now, str(self.store.settings.get("user_name", "旅行者"))),
-                f"「{active['name']}」的计时正在继续。我会替你守好这一小段安静。",
+                f"「{names}」的计时正在继续。我会替你守好这一小段安静。",
             )
         self.study_page.refresh_live()
 
@@ -737,14 +749,8 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ timer signals
     def _on_timer_tick(self) -> None:
         now = datetime.now()
-        active = self.store.active_subject()
-        if active:
-            self.titlebar.set_status(
-                f"专注中 · {active['name']} {self._elapsed_clock(self.store.active_elapsed(now))}",
-                True,
-            )
-        else:
-            self.titlebar.set_status("待机中", False)
+        text, active = self._active_status(now)
+        self.titlebar.set_status(text, active)
         subjects = self.store.subjects(now)
         self.stage.set_stats(
             format_duration(self.store.total_today(now)),
@@ -760,11 +766,10 @@ class MainWindow(QMainWindow):
         self._sync_stack_min_height()
 
     def _on_active_changed(self, subject_id) -> None:
-        active = self.store.active_subject()
-        self._update_active_ui(active, datetime.now())
+        actives = self.store.active_subjects()
+        self._update_active_ui(actives, datetime.now())
         self._update_tray_status()
-        if not active:
-            self.study_page.refresh_live()
+        self.study_page.refresh_live()
 
     def _on_session_finished(self, summary: dict) -> None:
         self.sounds.chime()
@@ -1133,16 +1138,16 @@ class MainWindow(QMainWindow):
         self.tray_pause_action.triggered.connect(self._tray_pause)
         menu.addAction(self.tray_pause_action)
         menu.addSeparator()
-        # Music controls stay reachable while the window sits in the tray.
-        self.tray_music_prev = QAction("上一首", menu)
-        self.tray_music_prev.triggered.connect(lambda: self.music_page.previous_track())
-        menu.addAction(self.tray_music_prev)
-        self.tray_music_play = QAction("播放音乐", menu)
-        self.tray_music_play.triggered.connect(self._tray_toggle_music)
-        menu.addAction(self.tray_music_play)
-        self.tray_music_next = QAction("下一首", menu)
-        self.tray_music_next.triggered.connect(lambda: self.music_page.next_track())
-        menu.addAction(self.tray_music_next)
+        # Music transport + play modes live in a small player widget instead of
+        # a pile of menu rows, so the tray menu stays short.
+        self.tray_player = TrayPlayer()
+        self.tray_player.play_toggled.connect(self._tray_toggle_music)
+        self.tray_player.previous_clicked.connect(self._tray_prev_music)
+        self.tray_player.next_clicked.connect(self._tray_next_music)
+        self.tray_player.mode_selected.connect(self._tray_set_music_mode)
+        player_action = QWidgetAction(menu)
+        player_action.setDefaultWidget(self.tray_player)
+        menu.addAction(player_action)
         self.tray_music_open = QAction("打开乐音页", menu)
         self.tray_music_open.triggered.connect(self._tray_open_music)
         menu.addAction(self.tray_music_open)
@@ -1153,7 +1158,20 @@ class MainWindow(QMainWindow):
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(self._tray_activated)
         self.tray_menu = menu
+        menu.aboutToShow.connect(self._update_tray_status)
         self.tray.show()
+        self._update_tray_status()
+
+    def _tray_prev_music(self) -> None:
+        self.music_page.previous_track()
+        self._update_tray_status()
+
+    def _tray_next_music(self) -> None:
+        self.music_page.next_track()
+        self._update_tray_status()
+
+    def _tray_set_music_mode(self, mode: str) -> None:
+        self.music_page.set_play_mode(mode)
         self._update_tray_status()
 
     def _tray_toggle_music(self) -> None:
@@ -1167,34 +1185,37 @@ class MainWindow(QMainWindow):
     def _update_tray_status(self) -> None:
         if not self.tray:
             return
-        active = self.store.active_subject()
+        running = self.store.active_subjects()
         playing = self.music_engine.is_playing()
         current = self.music_engine.current_playable()
         title = current.title if current else ""
         tips = []
-        if active:
-            tips.append(f"正在修习「{active['name']}」")
+        if len(running) == 1:
+            tips.append(f"正在修习「{running[0]['name']}」")
+        elif running:
+            tips.append("正在修习" + "」「".join(sub["name"] for sub in running[:2]) + (
+                f"」等 {len(running)} 项" if len(running) > 2 else "」"
+            ))
         if playing and title:
             tips.append(f"正在播放「{title}」")
         self.tray.setToolTip("Black · " + (" · ".join(tips) if tips else "在书桌边等你"))
-        if active:
-            self.tray_pause_action.setEnabled(True)
+        self.tray_pause_action.setEnabled(bool(running))
+        if not running:
+            self.tray_pause_action.setText("当前没有计时")
+        elif len(running) == 1:
             self.tray_pause_action.setText("暂停当前计时")
         else:
-            self.tray_pause_action.setEnabled(False)
-            self.tray_pause_action.setText("当前没有计时")
-        if hasattr(self, "tray_music_play"):
-            self.tray_music_play.setText("暂停音乐" if playing else "播放音乐")
-            has_queue = bool(self.music_engine.current_playable() or self.music_engine.queue)
-            self.tray_music_play.setEnabled(True)
-            self.tray_music_prev.setEnabled(has_queue)
-            self.tray_music_next.setEnabled(has_queue)
+            self.tray_pause_action.setText(f"暂停全部计时（{len(running)} 项）")
+        if hasattr(self, "tray_player"):
+            self.tray_player.refresh(title, playing, self.music_engine.play_mode)
 
     def _tray_pause(self) -> None:
-        if self.store.active():
-            self.timer.pause()
+        if self.store.actives():
+            count = len(self.store.actives())
+            self.timer.pause_all()
             if self.tray:
-                self.tray.showMessage("Black", "计时已暂停，今天的进度已经记下。", QSystemTrayIcon.Information, 2600)
+                text = "计时已暂停，今天的进度已经记下。" if count == 1 else f"{count} 项计时都已暂停，进度已经记下。"
+                self.tray.showMessage("Black", text, QSystemTrayIcon.Information, 2600)
 
     def _tray_activated(self, reason) -> None:
         if reason in (QSystemTrayIcon.DoubleClick, QSystemTrayIcon.Trigger):
@@ -1217,7 +1238,7 @@ class MainWindow(QMainWindow):
         if self._shutting_down:
             return
         try:
-            if self.store.active():
+            if self.store.actives():
                 self.timer.shutdown()
             self._write_note()
             self.store.save()
@@ -1266,10 +1287,16 @@ class MainWindow(QMainWindow):
         if close_to_tray and self.tray and self.tray.isVisible():
             self.hide()
             event.ignore()
-            if self.store.active():
+            if self.store.actives():
+                running = len(self.store.actives())
+                text = (
+                    "我还在替你计时。双击托盘里的小黑猫，就能把我叫回来。"
+                    if running == 1
+                    else f"我还在替你计时（{running} 项同时进行）。双击托盘里的小黑猫，就能把我叫回来。"
+                )
                 self.tray.showMessage(
                     "Black",
-                    "我还在替你计时。双击托盘里的小黑猫，就能把我叫回来。",
+                    text,
                     QSystemTrayIcon.Information,
                     3200,
                 )
@@ -1337,21 +1364,28 @@ class MainWindow(QMainWindow):
         self._in_size_move = False
         if hasattr(self, "_size_move_watchdog"):
             self._size_move_watchdog.stop()
+        render_mode.set_fast(False)
+        if hasattr(self, "study_page"):
+            self.study_page.set_fast_paint(False)
         if hasattr(self, "stage"):
             self.stage.resume_animation()
         album = getattr(getattr(self, "music_page", None), "album", None)
         if album is not None:
             album.resume_animation()
+        self.update()
 
     def _begin_interactive_resize(self) -> None:
         """Freeze everything that repaints on its own while the user drags."""
         if self._in_size_move:
             return
         self._in_size_move = True
+        render_mode.set_fast(True)
         if hasattr(self, "_resize_timer"):
             self._resize_timer.stop()
         if hasattr(self, "stage"):
             self.stage.pause_animation()
+        if hasattr(self, "study_page"):
+            self.study_page.set_fast_paint(True)
         album = getattr(getattr(self, "music_page", None), "album", None)
         if album is not None:
             album.pause_animation()

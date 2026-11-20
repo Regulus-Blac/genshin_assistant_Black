@@ -31,15 +31,10 @@ class TimerEngine(QObject):
         self._timer.start()
 
     def is_active_subject(self, subject_id: str) -> bool:
-        active = self.store.active()
-        return bool(active and active.get("subject_id") == subject_id)
+        return self.store.is_active(subject_id)
 
     def start(self, subject_id: str) -> bool:
-        active = self.store.active()
-        if active and active.get("subject_id") != subject_id:
-            # Finishing through pause() makes switching directions trigger the
-            # same journal write, chime and level-up checks as a manual pause.
-            self.pause()
+        """Start one subject's timer; other running timers keep counting."""
         if self.store.start(subject_id):
             if not self._timer.isActive():
                 self._timer.start()
@@ -48,23 +43,41 @@ class TimerEngine(QObject):
             return True
         return False
 
-    def pause(self) -> dict | None:
-        was_active = bool(self.store.active())
-        summary = self.store.pause()
+    def pause(self, subject_id: str | None = None) -> dict | None:
+        """Stop one timer, or every running timer when no id is given."""
+        if subject_id is None:
+            return self.pause_all()
+        if not self.store.is_active(subject_id):
+            return None
+        summary = self.store.pause(subject_id=subject_id)
         self._save_acc = 0
         if summary and summary.get("seconds", 0) > 0:
             self.session_finished.emit(summary)
-        if was_active:
-            ups = self.store.collect_level_ups()
-            if ups:
-                self.level_ups.emit(ups)
-            self.active_changed.emit(None)
-            self.tick.emit()
+        ups = self.store.collect_level_ups()
+        if ups:
+            self.level_ups.emit(ups)
+        self.active_changed.emit(subject_id)
+        self.tick.emit()
         return summary
+
+    def pause_all(self) -> dict | None:
+        if not self.store.actives():
+            return None
+        summaries = self.store.pause_all()
+        self._save_acc = 0
+        for summary in summaries:
+            if summary.get("seconds", 0) > 0:
+                self.session_finished.emit(summary)
+        ups = self.store.collect_level_ups()
+        if ups:
+            self.level_ups.emit(ups)
+        self.active_changed.emit(None)
+        self.tick.emit()
+        return summaries[-1] if summaries else None
 
     def toggle(self, subject_id: str) -> None:
         if self.is_active_subject(subject_id):
-            self.pause()
+            self.pause(subject_id)
         else:
             self.start(subject_id)
 
@@ -75,7 +88,7 @@ class TimerEngine(QObject):
             self._day = new_day
             self.day_changed.emit(new_day)
 
-        if self.store.active():
+        if self.store.actives():
             self.store.heartbeat(now, save=False)
             self._save_acc += 1
             self._level_acc += 1
@@ -91,8 +104,7 @@ class TimerEngine(QObject):
         self.tick.emit()
 
     def shutdown(self) -> dict | None:
-        if not self.store.active():
+        if not self.store.actives():
             self._timer.stop()
             return None
-        summary = self.pause()
-        return summary
+        return self.pause_all()

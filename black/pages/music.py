@@ -302,6 +302,7 @@ class PlaylistAddDialog(GenshinDialog):
             f"QListWidget::item {{ min-height: 42px; padding: 3px 8px; }}"
         )
         self.song_list.itemClicked.connect(self._toggle_item)
+        self.song_list.pressed.connect(self._on_pressed)
         right_col.addWidget(self.song_list, 1)
 
         tools = QHBoxLayout()
@@ -372,10 +373,20 @@ class PlaylistAddDialog(GenshinDialog):
             self.song_list.addItem(placeholder)
         self._refresh_selection()
 
+    def _on_pressed(self, index) -> None:
+        item = self.song_list.itemFromIndex(index)
+        self._press_state = item.checkState() if item is not None else None
+
     def _toggle_item(self, item: QListWidgetItem) -> None:
         if not (item.flags() & Qt.ItemIsUserCheckable):
             return
-        item.setCheckState(Qt.Unchecked if item.checkState() == Qt.Checked else Qt.Checked)
+        now = item.checkState()
+        # Clicking the check box itself already flips the state natively; only
+        # toggle ourselves when the click landed on the rest of the row (or
+        # when the platform did not flip it).  Otherwise the two toggles cancel
+        # out and a checked song could not be unchecked.
+        if now == getattr(self, "_press_state", None):
+            item.setCheckState(Qt.Unchecked if now == Qt.Checked else Qt.Checked)
         self._refresh_selection()
 
     def _set_all(self, state) -> None:
@@ -925,6 +936,10 @@ class MusicPage(QWidget):
         return btn
 
     # ------------------------------------------------------------------ playlists / modes
+    def set_play_mode(self, mode: str) -> None:
+        """Public entry point for the tray player's mode buttons."""
+        self._set_play_mode(mode)
+
     def _set_play_mode(self, mode: str) -> None:
         mode = self.engine.set_play_mode(mode)
         self.store.settings["music_mode"] = mode
@@ -968,7 +983,13 @@ class MusicPage(QWidget):
         self._on_playlist_changed()
 
     def _size_playlist_popup(self) -> None:
-        """Let the dropdown be as wide as the longest playlist name."""
+        """Widen the dropdown for long names and reserve enough rows.
+
+        QComboBox computes the popup height from a row height measured before
+        the themed item heights apply, so with two playlists only one row was
+        visible and a scroll arrow appeared.  Reserving the row height on the
+        view fixes both the height and the scroll arrows.
+        """
         combo = self.playlist_combo
         view = combo.view()
         metrics = view.fontMetrics()
@@ -976,6 +997,9 @@ class MusicPage(QWidget):
         for i in range(combo.count()):
             widest = max(widest, metrics.horizontalAdvance(combo.itemText(i)))
         view.setMinimumWidth(max(combo.width(), min(360, widest + 48)))
+        rows = max(1, min(combo.count() or 1, combo.maxVisibleItems()))
+        row_height = view.sizeHintForRow(0) if combo.count() else 24
+        view.setMinimumHeight(rows * max(20, row_height) + 4)
 
     def _selected_playlist(self) -> dict | None:
         if not self._current_playlist_id:

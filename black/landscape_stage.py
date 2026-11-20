@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from . import render_mode
 from .stage import CharacterStage, ElidedLabel, Equalizer, theme
 from .widgets import Avatar, WrappedText
 
@@ -293,6 +294,16 @@ class LandscapeStage(CharacterStage):
         self._cover = self._art.scaled(QSize(max(1, w), max(1, h)), Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
     def paintEvent(self, event) -> None:  # noqa: N802
+        if render_mode.is_fast():
+            p = QPainter(self)
+            p.fillRect(self.rect(), QColor("#f1e7d8" if theme.is_light() else "#101a25"))
+            if self._cover is None:
+                self._build_cover()
+            if self._cover is not None and not self._cover.isNull():
+                art = self.art_panel.geometry()
+                p.drawPixmap(art.topLeft(), self._cover)
+            p.end()
+            return
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing, True)
         rect = QRectF(1.5, 1.5, self.width() - 3.0, self.height() - 3.0)

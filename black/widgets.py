@@ -607,6 +607,86 @@ class WrappedText(QWidget):
         painter.end()
 
 
+class TrayPlayer(QWidget):
+    """Compact music player embedded in the tray menu.
+
+    Keeping the transport and the three play modes here avoids a long list of
+    menu items while still being usable with the window hidden.
+    """
+
+    play_toggled = pyqtSignal()
+    previous_clicked = pyqtSignal()
+    next_clicked = pyqtSignal()
+    mode_selected = pyqtSignal(str)
+
+    MODES = (
+        ("sequence", "order", "顺序播放"),
+        ("shuffle", "shuffle", "随机播放"),
+        ("single", "repeat-one", "单曲循环"),
+    )
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._playing = False
+        self._mode = "sequence"
+        self._title = ""
+        self.setFixedWidth(268)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(9, 4, 9, 5)
+        lay.setSpacing(3)
+
+        self.title_label = QLabel("未在播放")
+        self.title_label.setStyleSheet(f"font-size: 11px; color: {theme.TEXT};")
+        self.title_label.setFixedWidth(250)
+        lay.addWidget(self.title_label)
+
+        row = QHBoxLayout()
+        row.setSpacing(1)
+        self.prev_btn = IconButton("prev", "上一首", size=12, button_size=26, color=theme.MUTED)
+        self.play_btn = IconButton("play", "播放 / 暂停", size=13, button_size=28, color=theme.GOLD)
+        self.next_btn = IconButton("next", "下一首", size=12, button_size=26, color=theme.MUTED)
+        for btn in (self.prev_btn, self.play_btn, self.next_btn):
+            row.addWidget(btn)
+        row.addSpacing(10)
+        self.mode_buttons: dict[str, QToolButton] = {}
+        for mode, icon_name, tip in self.MODES:
+            btn = QToolButton()
+            btn.setCheckable(True)
+            btn.setFixedSize(26, 26)
+            btn.setIconSize(QSize(12, 12))
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setToolTip(tip)
+            btn.setAutoRaise(True)
+            btn.clicked.connect(lambda _checked=False, m=mode: self.mode_selected.emit(m))
+            row.addWidget(btn)
+            self.mode_buttons[mode] = btn
+        row.addStretch(1)
+        lay.addLayout(row)
+
+        self.prev_btn.clicked.connect(self.previous_clicked)
+        self.play_btn.clicked.connect(self.play_toggled)
+        self.next_btn.clicked.connect(self.next_clicked)
+        self.refresh("", False, "sequence")
+
+    def refresh(self, title: str, playing: bool, mode: str) -> None:
+        self._playing = bool(playing)
+        self._title = str(title or "")
+        self._mode = mode if mode in self.mode_buttons else "sequence"
+        metrics = self.title_label.fontMetrics()
+        text = self._title or "未在播放"
+        self.title_label.setText(metrics.elidedText(text, Qt.ElideRight, 246))
+        self.title_label.setToolTip(self._title)
+        self.play_btn.setIcon(theme.icon("pause" if playing else "play", theme.GOLD, 13))
+        self.play_btn.setToolTip("暂停" if playing else "播放")
+        labels = {key: tip for key, _icon, tip in self.MODES}
+        for key, btn in self.mode_buttons.items():
+            _mode, icon_name, _tip = next(item for item in self.MODES if item[0] == key)
+            active = key == self._mode
+            btn.setChecked(active)
+            btn.setIcon(theme.icon(icon_name, theme.GOLD if active else theme.MUTED, 12))
+            btn.setToolTip(labels[key] + (" · 当前" if active else ""))
+
+
 class Divider(QWidget):
     def __init__(self, parent: QWidget | None = None, *, faint: bool = False) -> None:
         super().__init__(parent)

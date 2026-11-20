@@ -47,31 +47,43 @@ def main() -> int:
     QTest.qWait(700)
 
     assert win.tray is not None, "no system tray in this session"
-    print("tray actions:", win.tray_music_prev.text(), "|", win.tray_music_play.text(), "|", win.tray_music_next.text())
+    player = win.tray_player
+    print("tray player title:", player.title_label.text(),
+          "modes:", [b.toolTip() for b in player.mode_buttons.values()])
 
     # controls work while the window is in the tray
     win.hide()
     QTest.qWait(150)
-    win._tray_toggle_music()
+    player.play_btn.click()
     QTest.qWait(500)
-    print("playing", win.music_engine.is_playing(), win.tray_music_play.text(), win.tray.toolTip())
+    print("playing", win.music_engine.is_playing(), player.play_btn.toolTip(), win.tray.toolTip())
     assert win.music_engine.is_playing()
-    assert win.tray_music_play.text() == "暂停音乐"
+    assert player.play_btn.toolTip() == "暂停"
     assert "正在播放" in win.tray.toolTip()
     first = win.music_engine.current_playable().title
-    win.tray_music_next.trigger()
+    player.next_btn.click()
     QTest.qWait(400)
     second = win.music_engine.current_playable().title
     print("next", first, "->", second)
     assert second != first
-    win.tray_music_prev.trigger()
+    player.prev_btn.click()
     QTest.qWait(300)
     assert win.music_engine.current_playable().title == first
-    win._tray_toggle_music()
+
+    # the three play modes are reachable from the tray widget
+    for mode in ("shuffle", "single", "sequence"):
+        player.mode_buttons[mode].click()
+        QTest.qWait(200)
+        print("mode", mode, "->", win.music_engine.play_mode, "checked",
+              [k for k, b in player.mode_buttons.items() if b.isChecked()])
+        assert win.music_engine.play_mode == mode
+        assert player.mode_buttons[mode].isChecked()
+
+    player.play_btn.click()
     QTest.qWait(300)
-    print("paused", win.music_engine.is_playing(), win.tray_music_play.text())
+    print("paused", win.music_engine.is_playing(), player.play_btn.toolTip())
     assert not win.music_engine.is_playing()
-    assert win.tray_music_play.text() == "播放音乐"
+    assert player.play_btn.toolTip() == "播放"
 
     # combo popup shows several rows and fits the longest name
     win._show_from_tray()

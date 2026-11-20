@@ -258,10 +258,33 @@ class Store:
             data["sessions"] = []
         data["sessions"] = data["sessions"][-MAX_SESSIONS:]
         self._normalise_playlists(data)
-        if not isinstance(data.get("active"), dict):
-            data["active"] = None
-        elif not data["active"].get("subject_id") or not data["active"].get("started_at"):
-            data["active"] = None
+        # Timers: 1.7 allows several subjects to run at the same time.  Older
+        # files kept exactly one timer in "active"; fold it into the new list.
+        legacy = data.get("active")
+        actives = data.get("actives")
+        if not isinstance(actives, list):
+            actives = []
+        if isinstance(legacy, dict) and legacy.get("subject_id") and legacy.get("started_at"):
+            if not any(item.get("subject_id") == legacy["subject_id"] for item in actives if isinstance(item, dict)):
+                actives.append(legacy)
+        clean_actives = []
+        seen: set[str] = set()
+        for entry in actives:
+            if not isinstance(entry, dict):
+                continue
+            sid = str(entry.get("subject_id") or "")
+            if not sid or sid in seen or not entry.get("started_at"):
+                continue
+            seen.add(sid)
+            clean_actives.append(
+                {
+                    "subject_id": sid,
+                    "started_at": str(entry["started_at"]),
+                    "heartbeat": str(entry.get("heartbeat") or entry["started_at"]),
+                }
+            )
+        data["actives"] = clean_actives
+        data["active"] = None
         data.setdefault("launches", 0)
 
         clean_subjects = []
@@ -352,28 +375,32 @@ class Store:
         data["playlists"] = clean
 
     def _recover_active(self, *, now: datetime) -> None:
-        active = self.data.get("active")
-        if not active:
-            return
-        start = _dt(active.get("started_at"))
-        heartbeat = _dt(active.get("heartbeat")) or start
-        if not start or not heartbeat:
-            self.data["active"] = None
-            return
-        age = (now - heartbeat).total_seconds()
-        if age <= 180:
-            return
-        # The app was probably force-closed; only count up to the last heartbeat
-        # so hours spent with a closed laptop are not silently added.
-        sid = active.get("subject_id")
-        sub = self.subject(sid)
-        if sub:
-            summary = self.pause(now=heartbeat, save=False)
+        notes = []
+        for entry in list(self.actives()):
+            start = _dt(entry.get("started_at"))
+            heartbeat = _dt(entry.get("heartbeat")) or start
+            sid = str(entry.get("subject_id"))
+            sub = self.subject(sid)
+            if not start or not heartbeat or not sub:
+                self._drop_active(sid)
+                continue
+            if (now - heartbeat).total_seconds() <= 180:
+                continue
+            # The app was probably force-closed; only count up to the last
+            # heartbeat so hours spent with a closed laptop are not added.
+            summary = self.pause(now=heartbeat, save=False, subject_id=sid)
             if summary and summary.get("seconds", 0) > 0:
-                mins = format_short_duration(summary["seconds"])
-                self.recovered_note = f"上次的「{sub['name']}」计时在 {heartbeat.strftime('%H:%M')} 自动收尾，记录了 {mins}。"
-        else:
-            self.data["active"] = None
+                notes.append(
+                    f"「{sub['name']}」在 {heartbeat.strftime('%H:%M')} 自动收尾，记录了 "
+                    f"{format_short_duration(summary['seconds'])}"
+                )
+        if notes:
+            self.recovered_note = "上次的计时" + "；".join(notes) + "。"
+
+    def _drop_active(self, subject_id: str) -> None:
+        self.data["actives"] = [
+            item for item in self.actives() if item.get("subject_id") != subject_id
+        ]
 
     def _backup_once(self) -> None:
         if not self.config_path.exists():
@@ -539,80 +566,117 @@ class Store:
         return True
 
     # ------------------------------------------------------------------ active
-    def active(self) -> dict | None:
-        active = self.data.get("active")
-        if not active:
-            return None
-        if not self.subject(active.get("subject_id")):
-            self.data["active"] = None
-            return None
-        return active
+    def actives(self) -> list[dict]:
+        """Every running timer, one entry per subject (several may run at once).
+
+        Returns the live list object when nothing needed cleaning, so callers
+        can append/remove entries directly.
+        """
+        raw = self.data.get("actives")
+        if not isinstance(raw, list):
+            raw = []
+            self.data["actives"] = raw
+            return raw
+        valid: list[dict] = []
+        changed = False
+        for entry in raw:
+            if not isinstance(entry, dict) or not self.subject(entry.get("subject_id")):
+                changed = True
+                continue
+            valid.append(entry)
+        if changed:
+            self.data["actives"] = valid
+            return valid
+        return raw
+
+    def active(self, subject_id: str | None = None) -> dict | None:
+        """First running timer (compatibility helper), or the one for a subject."""
+        for entry in self.actives():
+            if subject_id is None or entry.get("subject_id") == subject_id:
+                return entry
+        return None
+
+    def is_active(self, subject_id: str) -> bool:
+        return any(entry.get("subject_id") == subject_id for entry in self.actives())
+
+    def active_subjects(self) -> list[dict]:
+        names = []
+        for entry in self.actives():
+            sub = self.subject(entry.get("subject_id"))
+            if sub:
+                names.append(sub)
+        return names
 
     def active_subject(self) -> dict | None:
-        active = self.active()
-        return self.subject(active["subject_id"]) if active else None
+        running = self.active_subjects()
+        return running[0] if running else None
 
-    def active_elapsed(self, now: datetime | None = None) -> int:
-        active = self.active()
-        if not active:
+    def active_elapsed(self, now: datetime | None = None, subject_id: str | None = None) -> int:
+        entry = self.active(subject_id)
+        if not entry:
             return 0
-        start = _dt(active.get("started_at"))
+        start = _dt(entry.get("started_at"))
         if not start:
             return 0
         return max(0, int(((now or datetime.now()) - start).total_seconds()))
 
     def _live_map(self, now: datetime | None = None) -> dict[str, dict[str, int]]:
-        """Live seconds per subject and calendar day for the running timer."""
-        active = self.active()
-        if not active:
-            return {}
-        start = _dt(active.get("started_at"))
-        if not start:
-            return {}
+        """Live seconds per subject and calendar day for every running timer."""
         now = now or datetime.now()
-        if now <= start:
-            return {}
         result: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-        sid = active["subject_id"]
-        cursor = start
-        while cursor.date() < now.date():
-            boundary = datetime.combine(cursor.date() + timedelta(days=1), time.min)
-            secs = int((boundary - cursor).total_seconds())
+        for entry in self.actives():
+            start = _dt(entry.get("started_at"))
+            if not start or now <= start:
+                continue
+            sid = str(entry.get("subject_id"))
+            cursor = start
+            while cursor.date() < now.date():
+                boundary = datetime.combine(cursor.date() + timedelta(days=1), time.min)
+                secs = int((boundary - cursor).total_seconds())
+                if secs > 0:
+                    result[sid][_today_key(cursor)] += secs
+                cursor = boundary
+            secs = int((now - cursor).total_seconds())
             if secs > 0:
                 result[sid][_today_key(cursor)] += secs
-            cursor = boundary
-        secs = int((now - cursor).total_seconds())
-        if secs > 0:
-            result[sid][_today_key(cursor)] += secs
         return {sid: dict(days) for sid, days in result.items()}
 
     def start(self, subject_id: str, now: datetime | None = None) -> bool:
+        """Start a timer for one subject; other running timers keep running."""
         now = now or datetime.now()
         sub = self.subject(subject_id)
         if not sub:
             return False
-        active = self.active()
-        if active and active.get("subject_id") == subject_id:
+        if self.is_active(subject_id):
             return False
-        if active:
-            self.pause(now=now, save=False)
-        self.data["active"] = {
-            "subject_id": subject_id,
-            "started_at": now.isoformat(timespec="seconds"),
-            "heartbeat": now.isoformat(timespec="seconds"),
-        }
+        self.actives().append(
+            {
+                "subject_id": subject_id,
+                "started_at": now.isoformat(timespec="seconds"),
+                "heartbeat": now.isoformat(timespec="seconds"),
+            }
+        )
+        self.data["active"] = None  # legacy single-timer key, no longer used
         self.save()
         return True
 
-    def pause(self, now: datetime | None = None, *, save: bool = True) -> dict | None:
-        active = self.active()
-        if not active:
+    def pause(
+        self,
+        now: datetime | None = None,
+        *,
+        save: bool = True,
+        subject_id: str | None = None,
+    ) -> dict | None:
+        """Stop one timer (or the first running one) and record its segments."""
+        entry = self.active(subject_id)
+        if not entry:
             return None
         now = now or datetime.now()
-        start = _dt(active.get("started_at"))
-        sid = active["subject_id"]
+        start = _dt(entry.get("started_at"))
+        sid = str(entry.get("subject_id"))
         sub = self.subject(sid)
-        self.data["active"] = None
+        remaining = [item for item in self.actives() if item is not entry]
+        self.data["actives"] = remaining
         if not start or not sub or now <= start:
             if save:
                 self.save()
@@ -638,6 +702,17 @@ class Store:
             self.save()
         return {"subject_id": sid, "name": sub["name"], "seconds": total, "dates": dates}
 
+    def pause_all(self, now: datetime | None = None, *, save: bool = True) -> list[dict]:
+        """Stop every running timer, returning one summary per subject."""
+        summaries = []
+        for entry in list(self.actives()):
+            summary = self.pause(now, save=False, subject_id=str(entry.get("subject_id")))
+            if summary:
+                summaries.append(summary)
+        if save:
+            self.save()
+        return summaries
+
     def _add_segment(self, sub: dict, sid: str, start: datetime, end: datetime, seconds: int) -> None:
         key = _today_key(start)
         sub.setdefault("days", {})
@@ -657,11 +732,13 @@ class Store:
             del sessions[: len(sessions) - MAX_SESSIONS]
 
     def heartbeat(self, now: datetime | None = None, *, save: bool = True) -> None:
-        active = self.active()
-        if not active:
+        running = self.actives()
+        if not running:
             return
         now = now or datetime.now()
-        active["heartbeat"] = now.isoformat(timespec="seconds")
+        stamp = now.isoformat(timespec="seconds")
+        for entry in running:
+            entry["heartbeat"] = stamp
         if save:
             self.save()
 
@@ -732,8 +809,7 @@ class Store:
             s for s in self.data.get("sessions", [])
             if s.get("subject_id") == sub["id"] and s.get("date") == today_key
         ]
-        active = self.active()
-        is_active = bool(active and active.get("subject_id") == sub["id"])
+        is_active = self.is_active(sub["id"])
         try:
             color = str(sub.get("color", "#d9bc7d"))
         except Exception:
@@ -753,7 +829,7 @@ class Store:
             "goal_seconds": goal_seconds,
             "goal_progress": min(1.0, today / goal_seconds if goal_seconds else 0),
             "active": is_active,
-            "live_seconds": self.active_elapsed(now) if is_active else 0,
+            "live_seconds": self.active_elapsed(now, subject_id=sub["id"]) if is_active else 0,
             "today_sessions": sessions,
         }
 
@@ -807,8 +883,8 @@ class Store:
         sub = self.subject(subject_id)
         if not sub:
             return False
-        if self.active() and self.data["active"].get("subject_id") == subject_id:
-            self.pause()
+        if self.is_active(subject_id):
+            self.pause(subject_id=subject_id)
         self.data["subjects"] = [s for s in self.data["subjects"] if s.get("id") != subject_id]
         self.save()
         return True
@@ -828,14 +904,19 @@ class Store:
         now = now or datetime.now()
         today = self.total_today(now)
         goal = max(1, self.total_goal_today())
+        running = self.active_subjects()
         return {
             "today_seconds": today,
             "today_text": format_duration(today),
             "goal_seconds": goal,
             "goal_progress": min(1.0, today / goal),
             "total_seconds": self.total_all(now),
-            "active_name": (self.active_subject() or {}).get("name"),
-            "active_elapsed": self.active_elapsed(now),
+            "active_name": "、".join(sub["name"] for sub in running) if running else None,
+            "active_names": [sub["name"] for sub in running],
+            "active_elapsed": max(
+                (self.active_elapsed(now, subject_id=sub["id"]) for sub in running),
+                default=0,
+            ),
             "study_count": len([s for s in self.subjects(now) if s["today_seconds"] > 0]),
             "subject_count": len(self.data["subjects"]),
         }
@@ -940,14 +1021,16 @@ class Store:
             {"name": e["name"], "days": e.get("days"), "label": e.get("label"), "date_label": e.get("date_label")}
             for e in self.exams(now)
         ]
-        active = self.active_subject()
+        running = self.active_subjects()
+        names = [sub["name"] for sub in running]
         return {
             "name": self.settings.get("user_name", "旅行者"),
             "exams": exams,
             "today_seconds": overall["today_seconds"],
             "today_text": overall["today_text"],
-            "active": bool(active),
-            "active_name": active.get("name") if active else None,
+            "active": bool(names),
+            "active_name": "、".join(names) if names else None,
+            "active_names": names,
             "late": now.hour >= 23 or now.hour < 5,
             "overall": overall,
         }
