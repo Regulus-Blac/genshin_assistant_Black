@@ -6,6 +6,10 @@ from datetime import date, timedelta
 from PyQt5.QtCore import QDate, QEvent, QPoint, QSize, Qt, QTime
 from PyQt5.QtGui import QColor, QPainter, QPen
 from PyQt5.QtWidgets import (
+    QAbstractButton,
+    QAbstractItemView,
+    QAbstractScrollArea,
+    QAbstractSpinBox,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -18,6 +22,7 @@ from PyQt5.QtWidgets import (
     QScrollArea,
     QSizeGrip,
     QSizePolicy,
+    QSlider,
     QSpinBox,
     QTimeEdit,
     QVBoxLayout,
@@ -104,12 +109,43 @@ class GenshinDialog(QDialog):
         self.footer.setContentsMargins(0, 0, 0, 0)
         self.footer.setSpacing(8)
         root.addLayout(self.footer)
-        self._header.installEventFilter(self)
+        self._drag_targets: set = set()
+        self._drag_ready = False
 
         self._size_grip = QSizeGrip(self)
         self._size_grip.setFixedSize(18, 18)
         self._size_grip.setStyleSheet("background: transparent;")
         self._size_grip.setToolTip("拖动这里或窗口边缘调整大小")
+
+    # ------------------------------------------------------------------ dragging
+    # Interactive widgets keep their own mouse handling; everything else in the
+    # card (title, labels, empty space) drags the dialog around.
+    INTERACTIVE_TYPES = (
+        QAbstractButton,
+        QAbstractItemView,
+        QAbstractScrollArea,
+        QAbstractSpinBox,
+        QComboBox,
+        QLineEdit,
+        QSizeGrip,
+        QSlider,
+    )
+
+    def _ensure_drag_targets(self) -> None:
+        if self._drag_ready:
+            return
+        self._drag_ready = True
+        self._drag_targets = set()
+        self._collect_drag_targets(self.card)
+        self._drag_targets.add(self._header)
+
+    def _collect_drag_targets(self, widget: QWidget) -> None:
+        if isinstance(widget, self.INTERACTIVE_TYPES):
+            return
+        self._drag_targets.add(widget)
+        widget.installEventFilter(self)
+        for child in widget.findChildren(QWidget, options=Qt.FindDirectChildrenOnly):
+            self._collect_drag_targets(child)
 
     # ------------------------------------------------------------------ resizing
     def _position_size_grip(self) -> None:
@@ -196,6 +232,7 @@ class GenshinDialog(QDialog):
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
+        self._ensure_drag_targets()
         self.adjustSize()
         wanted_w = self._width + 2 * SHADOW_MARGIN
         if self.width() < wanted_w:
@@ -216,9 +253,9 @@ class GenshinDialog(QDialog):
             if screen:
                 self.move(screen.center().x() - self.width() // 2, screen.center().y() - self.height() // 2)
 
-    # dragging on the header
+    # dragging anywhere on the card except interactive widgets
     def eventFilter(self, obj, event):  # noqa: N802
-        if obj is self._header:
+        if obj in self._drag_targets:
             if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
                 self._drag_offset = event.globalPos() - self.frameGeometry().topLeft()
                 return True
@@ -227,6 +264,7 @@ class GenshinDialog(QDialog):
                 return True
             if event.type() == QEvent.MouseButtonRelease:
                 self._drag_offset = None
+                return True
         return super().eventFilter(obj, event)
 
 

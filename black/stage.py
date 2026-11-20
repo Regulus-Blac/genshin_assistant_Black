@@ -506,21 +506,39 @@ class CharacterStage(QWidget):
         self._build_cover()
         self.update()
 
-    def _fit_quote_text(self) -> None:
+    def _quote_available_width(self) -> int:
+        """Text width the quote bubble can give its label.
+
+        The card is capped at 316px with 12px layout margins; measuring against
+        anything wider than this made a two-line quote look like one line and
+        the last line got clipped.
+        """
+        limit = 316
+        if hasattr(self, "quote_card"):
+            limit = min(limit, self.quote_card.maximumWidth())
+        return max(120, limit - 24)
+
+    def _fit_quote_text(self, force: bool = False) -> None:
         if not hasattr(self, "quote_text"):
             return
-        width = self.quote_text.width()
-        if width < 80:
-            width = 380 if self.ORIENTATION == "landscape" else 292
-        if width == getattr(self, "_fitted_width", -1):
+        max_width = self._quote_available_width()
+        text = self.quote_text.text()
+        if not force and (max_width, text) == getattr(self, "_fit_key", None):
             return
-        needed = wrapped_label_height(self.quote_text, max(120, width))
-        if needed > 0:
-            self.quote_text.setMinimumHeight(needed + 2)
-            self.quote_text.setMaximumHeight(needed + 2)
-            if hasattr(self, "quote_card"):
-                self.quote_card.adjustSize()
-        self._fitted_width = width
+        line = QFontMetrics(self.quote_text.font()).lineSpacing()
+        self.quote_text.setMinimumWidth(0)
+        self.quote_text.setMaximumWidth(16777215)
+        needed = wrapped_label_height(self.quote_text, max_width)
+        if needed > line + 2:
+            # More than one line: pin the wrapping width.  Otherwise the card
+            # shrinks to the text's preferred width, the label gets narrower
+            # than the width we measured, and the last line is cut off.
+            self.quote_text.setFixedWidth(max_width)
+        self.quote_text.setMinimumHeight(needed + 2)
+        self.quote_text.setMaximumHeight(needed + 2)
+        if hasattr(self, "quote_card"):
+            self.quote_card.adjustSize()
+        self._fit_key = (max_width, text) if not force else (max_width, text)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -714,15 +732,9 @@ class CharacterStage(QWidget):
         text = str(quote.get("text", ""))
         self.quote_text.setText(text)
         self.quote_tag.setText("轻声")
-        # Let the quote card grow with the actual text instead of clipping long
-        # character lines (the 彩特琳德 card was the visible failure).
-        width = 440 if self.ORIENTATION == "landscape" else 292
-        if self.quote_text.width() > 80:
-            width = self.quote_text.width()
-        needed = wrapped_label_height(self.quote_text, max(120, width))
-        self.quote_text.setMinimumHeight(needed + 2)
-        self.quote_text.setMaximumHeight(needed + 2)
-        self._fitted_width = width
+        # Grow the bubble with the real text; the shared fit keeps a two-line
+        # quote from collapsing to one line and clipping the second line.
+        self._fit_quote_text(force=True)
         self.quote_card.adjustSize()
         # small fade so the bubble feels alive
         from PyQt5.QtWidgets import QGraphicsOpacityEffect

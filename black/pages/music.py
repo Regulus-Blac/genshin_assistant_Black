@@ -86,6 +86,14 @@ class AlbumArt(QWidget):
             self._timer.stop()
         self.update()
 
+    def pause_animation(self) -> None:
+        """Freeze the spinning record (used while the window is being resized)."""
+        self._timer.stop()
+
+    def resume_animation(self) -> None:
+        if self._playing and not self._timer.isActive():
+            self._timer.start()
+
     def _tick(self) -> None:
         self._angle = (self._angle + 0.6) % 360
         self.update()

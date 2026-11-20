@@ -127,6 +127,9 @@ class _ResizeHandle(QWidget):
         if event.button() == Qt.LeftButton:
             self._start = event.globalPos()
             self._start_geo = self.parentWidget().geometry()
+            begin = getattr(self.parentWidget(), "_begin_interactive_resize", None)
+            if begin is not None:
+                begin()
             event.accept()
             return
         super().mousePressEvent(event)
@@ -156,6 +159,9 @@ class _ResizeHandle(QWidget):
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         self._start = None
         self._start_geo = None
+        end = getattr(self.parentWidget(), "_end_interactive_resize", None)
+        if end is not None:
+            end()
         super().mouseReleaseEvent(event)
 class MainWindow(QMainWindow):
     def __init__(self, store: Store) -> None:
@@ -165,6 +171,7 @@ class MainWindow(QMainWindow):
         self._maximized = False
         self._compact = False
         self._narrow = False
+        self._in_size_move = False
         self._normal_geometry: QRect | None = None
         self._recent_quotes: list[str] = []
         self._last_greeting_key = ""
@@ -332,6 +339,10 @@ class MainWindow(QMainWindow):
 
     def _apply_compact_mode(self) -> None:
         if not hasattr(self, "stage") or not hasattr(self, "study_page"):
+            return
+        if self._in_size_move:
+            # Never swap the layout while the user is still dragging an edge;
+            # the structural change is applied once on WM_EXITSIZEMOVE.
             return
         width, height = self.width(), self.height()
         if self._compact:
@@ -1250,6 +1261,8 @@ class MainWindow(QMainWindow):
         self._resize_timer.start(60)
 
     def _after_resize(self) -> None:
+        if self._in_size_move:
+            return
         if hasattr(self, "size_grip") and not self._maximized:
             grip_pos = QPoint(self.width() - 22, self.height() - 22)
             if self.size_grip.pos() != grip_pos:
@@ -1259,6 +1272,38 @@ class MainWindow(QMainWindow):
         if hasattr(self, "overlay") and self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
         self._apply_compact_mode()
+
+    def _begin_interactive_resize(self) -> None:
+        """Freeze everything that repaints on its own while the user drags."""
+        if self._in_size_move:
+            return
+        self._in_size_move = True
+        if hasattr(self, "_resize_timer"):
+            self._resize_timer.stop()
+        if hasattr(self, "stage"):
+            self.stage.pause_animation()
+        album = getattr(getattr(self, "music_page", None), "album", None)
+        if album is not None:
+            album.pause_animation()
+        # Safety net: a lost WM_EXITSIZEMOVE must not leave the UI frozen.
+        if not hasattr(self, "_size_move_watchdog"):
+            self._size_move_watchdog = QTimer(self)
+            self._size_move_watchdog.setSingleShot(True)
+            self._size_move_watchdog.timeout.connect(self._end_interactive_resize)
+        self._size_move_watchdog.start(15000)
+
+    def _end_interactive_resize(self) -> None:
+        if not self._in_size_move:
+            return
+        self._in_size_move = False
+        if hasattr(self, "_size_move_watchdog"):
+            self._size_move_watchdog.stop()
+        if hasattr(self, "stage"):
+            self.stage.resume_animation()
+        album = getattr(getattr(self, "music_page", None), "album", None)
+        if album is not None:
+            album.resume_animation()
+        self._after_resize()
 
     def _schedule_compact(self) -> None:
         # Kept as the public name for "recheck the responsive layout".
@@ -1278,10 +1323,14 @@ class MainWindow(QMainWindow):
         towards the right/bottom edge on scaled displays (the whole window
         turned into a resize border).  QCursor already speaks Qt coordinates.
         """
-        if event_type == b"windows_generic_MSG" and not self._maximized:
+        if event_type == b"windows_generic_MSG":
             try:
                 msg = wintypes.MSG.from_address(int(message))
-                if msg.message == 0x0084:  # WM_NCHITTEST
+                if msg.message == 0x0231:  # WM_ENTERSIZEMOVE
+                    self._begin_interactive_resize()
+                elif msg.message == 0x0232:  # WM_EXITSIZEMOVE
+                    self._end_interactive_resize()
+                elif msg.message == 0x0084 and not self._maximized:  # WM_NCHITTEST
                     local = self.mapFromGlobal(QCursor.pos())
                     w, h = self.width(), self.height()
                     if not (-2 <= local.x() <= w + 2 and -2 <= local.y() <= h + 2):
