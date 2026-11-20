@@ -44,7 +44,7 @@ from PyQt5.QtWidgets import (
 
 from . import theme as _theme
 from .paths import AVATARS
-from .widgets import IconButton
+from .widgets import IconButton, wrapped_label_height
 
 
 class _PaimonPalette:
@@ -386,10 +386,10 @@ class PaimonWhisperPopup(QWidget):
         text = str(quote.get("text", ""))
         self.quote.setText(text)
         quote_width = max(150, self.width() - 36 - 34 - 88 - 2 - 14 - 28)
-        needed = self.quote.heightForWidth(quote_width)
-        if needed <= 0:
-            needed = QFontMetrics(self.quote.font()).lineSpacing()
+        self.quote.setFixedWidth(quote_width)
+        needed = wrapped_label_height(self.quote, quote_width)
         self.quote.setMinimumHeight(max(20, needed + 2))
+        self.quote.setMaximumHeight(max(20, needed + 2))
         if avatar:
             self.portrait.set_source(str(avatar))
         self.title.setText(f"{speaker}的悄悄话")
@@ -413,28 +413,33 @@ class PaimonWhisperPopup(QWidget):
 
     def pop(self, quote: dict, avatar: str = "", role: str = "", accent: str = theme.GOLD, duration_ms: int = 18000) -> None:
         was_visible = self.isVisible()
-        old_pos = self.pos()
+        old_geo = self.geometry()
         self.setFixedWidth(470)
         self.update_quote(quote, avatar, role, accent)
         screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
         geo = screen.availableGeometry()
-        # Calculate the real height after the word-wrapped quote has received
-        # its width.  The old fixed 330px cap clipped longer character lines.
-        self.adjustSize()
+        # Let the layout settle before measuring, then size the window to the
+        # real content height.  The height is not pinned, so a later (shorter)
+        # whisper can shrink the note again instead of accumulating padding.
+        self.setMinimumHeight(0)
+        self.setMaximumHeight(16777215)
         if self.layout():
             self.layout().activate()
         h = max(230, self.sizeHint().height())
         h = min(h, max(240, geo.height() - 30))
-        self.setFixedHeight(h)
-        self.adjustSize()
+        self.resize(self.width(), h)
+        if self.layout():
+            self.layout().activate()
         if was_visible:
-            # "再听一句" must not replay the entrance slide: clicking the
-            # whisper made the whole card jump upward.  Keep the top-left
-            # anchor and only refresh the words in place.
+            # "再听一句" must not replay the entrance slide.  Keep the bottom
+            # edge anchored so a taller note grows upward instead of walking
+            # down the screen, then clamp it inside the screen.
             if hasattr(self, "_show_anim"):
                 self._show_anim.stop()
-            x = max(geo.left() + 8, min(old_pos.x(), geo.right() - self.width() - 8))
-            y = max(geo.top() + 8, min(old_pos.y(), geo.bottom() - self.height() - 8))
+            x = max(geo.left() + 8, min(old_geo.x(), geo.right() - self.width() - 8))
+            bottom = old_geo.bottom()
+            y = bottom - self.height() + 1
+            y = max(geo.top() + 8, min(y, geo.bottom() - self.height() - 8))
             self.setWindowOpacity(1.0)
             self.move(x, y)
             self.show()

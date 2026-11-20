@@ -54,14 +54,25 @@ def main() -> int:
     QTest.qWait(350)
     popup = window._whisper_popup
     print("popup", popup.size(), "quote", popup.quote.size(), "need", popup.quote.heightForWidth(popup.quote.width()))
-    assert popup.height() > 231
+    # The window must be tall enough for the wrapped quote (>= sizeHint), and
+    # the label must not clip the text.
+    assert popup.height() >= popup.sizeHint().height()
     assert popup.quote.height() >= popup.quote.heightForWidth(popup.quote.width()) - 2
     first_pos = popup.pos()
+    first_height = popup.height()
     popup.pop({"speaker": "彩特琳德", "text": LONG}, "assets/avatars/brand_day.png", "白鸦的旅人")
     QTest.qWait(300)
-    print("replay position", first_pos, popup.pos())
+    print("replay position", first_pos, popup.pos(), "height", first_height, popup.height())
     assert abs(popup.pos().x() - first_pos.x()) < 2
     assert abs(popup.pos().y() - first_pos.y()) < 2
+    # Repeating the same whisper must not grow the note by a couple of pixels
+    # each time (the bubble used to creep upward until it covered the stage).
+    assert popup.height() == first_height
+    for _ in range(4):
+        popup.pop({"speaker": "彩特琳德", "text": LONG}, "assets/avatars/brand_day.png", "白鸦的旅人")
+        QTest.qWait(80)
+    print("after repeats", popup.size(), "quote", popup.quote.size())
+    assert popup.height() == first_height
     popup.grab().save(str(TEST / "popup_long_quote.png"))
     popup.close()
     window._shutdown()

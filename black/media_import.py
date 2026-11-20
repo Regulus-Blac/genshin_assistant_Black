@@ -140,17 +140,37 @@ def _fmt_duration(seconds: int) -> str:
     return f"{m}:{s:02d}"
 
 
-def bilibili_parts(url: str) -> list[dict]:
-    """Return the parts/collection of a Bilibili video.
+def _season_episodes(sections: list) -> list[dict]:
+    """Flatten a Bilibili season into download entries."""
+    entries: list[dict] = []
+    for section in sections:
+        section_title = clean_html(section.get("title") or "")
+        for episode in section.get("episodes") or []:
+            ep_bvid = str(episode.get("bvid") or "")
+            arc = episode.get("arc") or {}
+            if not ep_bvid:
+                continue
+            entries.append({
+                "title": clean_html(episode.get("title") or ep_bvid),
+                "url": f"https://www.bilibili.com/video/{ep_bvid}",
+                "duration": int(arc.get("duration") or 0),
+                "group": section_title or "合集",
+            })
+    return entries
 
-    Bilibili exposes two different multi-video shapes: ``pages`` (多 P, one BV
-    with several parts) and ``ugc_season`` (UP 主的合集, several BVs).  yt-dlp
-    only downloads the first one when ``noplaylist`` is on, which is why a
-    collection used to import just its first song.
+
+def bilibili_scopes(url: str) -> dict:
+    """All the scopes a Bilibili video can be imported in.
+
+    A video can be a multi-P upload (``pages``) *and* one episode of a UP's
+    season (``ugc_season``).  They are very different scopes: the 至冬 OST album
+    is 102 parts of one video, while the UP's "OST 合集" is 44 other albums.
+    So ``pages`` is the default and the season (or the section that actually
+    contains this video) is offered as an alternative instead of replacing it.
     """
     bvid = _parse_bvid(url)
     if not bvid:
-        return []
+        return {"title": "", "scopes": []}
     r = requests.get(
         "https://api.bilibili.com/x/web-interface/view",
         params={"bvid": bvid},
@@ -160,46 +180,65 @@ def bilibili_parts(url: str) -> list[dict]:
     r.raise_for_status()
     payload = r.json()
     if payload.get("code") != 0:
-        return []
+        return {"title": "", "scopes": []}
     data = payload.get("data") or {}
+    title = clean_html(data.get("title") or bvid)
 
-    parts: list[dict] = []
-    season = data.get("ugc_season") or {}
-    sections = season.get("sections") or []
-    for section in sections:
-        section_title = clean_html(section.get("title") or "")
-        for episode in section.get("episodes") or []:
-            ep_bvid = str(episode.get("bvid") or "")
-            arc = episode.get("arc") or {}
-            if not ep_bvid:
-                continue
-            parts.append({
-                "title": clean_html(episode.get("title") or ep_bvid),
-                "url": f"https://www.bilibili.com/video/{ep_bvid}",
-                "duration": int(arc.get("duration") or 0),
-                "group": section_title or "合集",
-            })
-    if len(parts) > 1:
-        return parts
-
+    scopes: list[dict] = []
     pages = data.get("pages") or []
     if isinstance(pages, list) and len(pages) > 1:
+        entries = []
         for i, page in enumerate(pages, 1):
-            parts.append({
+            entries.append({
                 "title": clean_html(page.get("part") or f"P{i}"),
                 "url": f"https://www.bilibili.com/video/{bvid}?p={i}",
                 "duration": int(page.get("duration") or 0),
-                "group": "分P",
+                "group": f"P{i}",
             })
-    return parts
+        scopes.append({"id": "pages", "label": f"本视频的分P（{len(entries)} 段）", "entries": entries})
+
+    season = data.get("ugc_season") or {}
+    sections = season.get("sections") or []
+    if sections:
+        season_title = clean_html(season.get("title") or "合集")
+        current = None
+        for index, section in enumerate(sections):
+            episodes = section.get("episodes") or []
+            if any(str(ep.get("bvid") or "") == bvid for ep in episodes):
+                current = (index, section, episodes)
+                break
+        if current is not None:
+            index, section, episodes = current
+            section_title = clean_html(section.get("title") or "")
+            section_label = section_title if section_title and section_title != "正片" else season_title
+            if len(episodes) > 1:
+                scopes.append({
+                    "id": f"section-{index}",
+                    "label": f"所在合集《{section_label}》（{len(episodes)} 段）",
+                    "entries": _season_episodes([section]),
+                })
+        every = _season_episodes(sections)
+        if len(every) > 1 and all(len(scope["entries"]) != len(every) for scope in scopes):
+            scopes.append({
+                "id": "season",
+                "label": f"整个合集《{season_title}》（{len(every)} 段）",
+                "entries": every,
+            })
+    return {"title": title, "scopes": scopes}
 
 
 def probe_media(url: str) -> dict:
     """Look before downloading: is this a single video or a collection?"""
     url = str(url or "").strip()
-    bili = bilibili_parts(url)
-    if bili:
-        return {"kind": "collection", "title": "B站合集", "entries": bili}
+    info = bilibili_scopes(url)
+    scopes = info.get("scopes") or []
+    if scopes:
+        return {
+            "kind": "collection",
+            "title": info.get("title") or "B站合集",
+            "scopes": scopes,
+            "entries": scopes[0]["entries"],
+        }
 
     ok, detail = dependencies_ready()
     if not ok:
@@ -230,7 +269,12 @@ def probe_media(url: str) -> dict:
             "group": "播放列表",
         })
     if len(flat) > 1:
-        return {"kind": "collection", "title": clean_html(info.get("title") or "播放列表"), "entries": flat}
+        return {
+            "kind": "collection",
+            "title": clean_html(info.get("title") or "播放列表"),
+            "scopes": [{"id": "playlist", "label": f"播放列表（{len(flat)} 段）", "entries": flat}],
+            "entries": flat,
+        }
     return {"kind": "single", "title": clean_html(info.get("title") or ""), "entries": []}
 
 

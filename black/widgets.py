@@ -483,6 +483,23 @@ class StatusChip(QFrame):
         self.label.setStyleSheet(f"color: {theme.GOLD if active else theme.MUTED}; font-size: 11px; letter-spacing: 1px;")
 
 
+def wrapped_label_height(label: QLabel, width: int) -> int:
+    """Height a word-wrapped QLabel needs at ``width``.
+
+    ``QLabel.heightForWidth`` returns the label's *current* height as soon as a
+    min/max height has been pinned on it.  Measuring without clearing those
+    constraints made speech bubbles grow by 2px on every whisper update until
+    they covered the whole stage.
+    """
+    label.setMinimumHeight(0)
+    label.setMaximumHeight(16777215)
+    width = max(60, int(width))
+    height = label.heightForWidth(width)
+    if height <= 0:
+        height = QFontMetrics(label.font()).lineSpacing()
+    return height
+
+
 class Divider(QWidget):
     def __init__(self, parent: QWidget | None = None, *, faint: bool = False) -> None:
         super().__init__(parent)

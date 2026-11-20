@@ -5,6 +5,7 @@ from pathlib import Path
 from PyQt5.QtCore import QSize, Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -104,28 +105,41 @@ def result_list_style() -> str:
 
 
 class CollectionDialog(GenshinDialog):
-    """Pick which parts of a Bilibili collection / multi-P video to import."""
+    """Pick which parts of a Bilibili collection / multi-P video to import.
+
+    A video can be both a multi-P upload (the album itself) and one episode of
+    an UP's bigger collection.  When both exist the dialog offers a scope
+    selector and defaults to the video's own parts, which is what people mean
+    when they click one album in the search results.
+    """
 
     def __init__(self, parent, data: dict) -> None:
-        entries = data.get("entries") or []
-        total_seconds = sum(int(e.get("duration") or 0) for e in entries)
-        hours, rem = divmod(total_seconds, 3600)
-        minutes = rem // 60
-        length = f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
+        scopes = list(data.get("scopes") or [])
+        if not scopes:
+            scopes = [{"id": "default", "label": "片段", "entries": data.get("entries") or []}]
+        entries = list(scopes[0].get("entries") or [])
         super().__init__(
             parent,
             "选择要下载的片段",
-            f"「{data.get('title') or '合集'}」共 {len(entries)} 段，总时长约 {length}。",
+            self._scope_caption(data, scopes[0]),
             width=640,
         )
-        self.entries = entries
+        self.scopes = scopes
         self.selected_urls: list[str] = []
-        # Very long collections start unchecked so a stray double-click cannot
-        # start a 200-file download.
-        default_checked = len(entries) <= 25
+        self._data = data
 
         top = QHBoxLayout()
         top.setSpacing(8)
+        if len(scopes) > 1:
+            self.scope_combo = QComboBox()
+            self.scope_combo.setFixedHeight(28)
+            self.scope_combo.setMinimumWidth(260)
+            for scope in scopes:
+                self.scope_combo.addItem(str(scope.get("label") or "片段"))
+            self.scope_combo.currentIndexChanged.connect(self._load_scope)
+            top.addWidget(self.scope_combo)
+        else:
+            self.scope_combo = None
         self.summary = QLabel("")
         self.summary.setStyleSheet(f"font-size: 10px; color: {theme.TEXT_SOFT};")
         top.addWidget(self.summary, 1)
@@ -138,11 +152,10 @@ class CollectionDialog(GenshinDialog):
             top.addWidget(btn)
         self.body.addLayout(top)
 
-        if not default_checked:
-            hint = QLabel("项目较多，默认没有勾选。请自己选择，或点「全选」下载整部合集。")
-            hint.setWordWrap(True)
-            hint.setStyleSheet(f"font-size: 9px; color: {theme.ROSE};")
-            self.body.addWidget(hint)
+        self.hint = QLabel("")
+        self.hint.setWordWrap(True)
+        self.hint.setStyleSheet(f"font-size: 9px; color: {theme.ROSE};")
+        self.body.addWidget(self.hint)
 
         self.list = QListWidget()
         self.list.setStyleSheet(result_list_style())
@@ -150,6 +163,35 @@ class CollectionDialog(GenshinDialog):
         self.list.itemChanged.connect(self._refresh_summary)
         self.body.addWidget(self.list, 1)
 
+        self.all_btn.clicked.connect(lambda: self._set_all(Qt.Checked))
+        self.none_btn.clicked.connect(lambda: self._set_all(Qt.Unchecked))
+        self._load_scope(0)
+
+        self.footer.addStretch(1)
+        cancel = self.add_button("取消")
+        cancel.clicked.connect(self.reject)
+        ok = self.add_button("下载选中片段", primary=True)
+        ok.clicked.connect(self._accept_selection)
+
+    @staticmethod
+    def _scope_caption(data: dict, scope: dict) -> str:
+        entries = scope.get("entries") or []
+        total_seconds = sum(int(e.get("duration") or 0) for e in entries)
+        hours, rem = divmod(total_seconds, 3600)
+        minutes = rem // 60
+        length = f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
+        return f"「{data.get('title') or '合集'}」当前范围 {len(entries)} 段，总时长约 {length}。"
+
+    def _load_scope(self, index: int) -> None:
+        if not (0 <= index < len(self.scopes)):
+            return
+        scope = self.scopes[index]
+        entries = list(scope.get("entries") or [])
+        # Very long collections start unchecked so a stray double-click cannot
+        # start a 200-file download.
+        default_checked = 0 < len(entries) <= 25
+        self.list.blockSignals(True)
+        self.list.clear()
         for i, entry in enumerate(entries, 1):
             duration = int(entry.get("duration") or 0)
             minutes, seconds = divmod(duration, 60)
@@ -162,16 +204,15 @@ class CollectionDialog(GenshinDialog):
             self.list.addItem(item)
             self.list.setItemWidget(item, ImportRow(f"{i:02d}. {entry.get('title', '')}", meta, "B站"))
             item.setToolTip(entry.get("title", ""))
-
-        self.all_btn.clicked.connect(lambda: self._set_all(Qt.Checked))
-        self.none_btn.clicked.connect(lambda: self._set_all(Qt.Unchecked))
+        self.list.blockSignals(False)
+        if self.hint is not None:
+            if len(entries) > 25:
+                self.hint.setText("项目较多，默认没有勾选。请自己选择，或点「全选」下载这个范围的全部片段。")
+            else:
+                self.hint.setText("")
+        if hasattr(self, "subtitle_label"):
+            self.subtitle_label.setText(self._scope_caption(self._data, scope))
         self._refresh_summary()
-
-        self.footer.addStretch(1)
-        cancel = self.add_button("取消")
-        cancel.clicked.connect(self.reject)
-        ok = self.add_button("下载选中片段", primary=True)
-        ok.clicked.connect(self._accept_selection)
 
     def _set_all(self, state) -> None:
         self.list.blockSignals(True)

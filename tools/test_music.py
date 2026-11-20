@@ -1,4 +1,4 @@
-"""v1.5 music page: playlist playback, per-tab queues, search, import flow."""
+"""Music page: playlist playback, per-tab queues, search, collection scopes, import."""
 from __future__ import annotations
 
 import os
@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-TEST = ROOT / "build" / "music-v15-test"
+TEST = ROOT / "build" / "music-test"
 if TEST.exists():
     shutil.rmtree(TEST, ignore_errors=True)
 for name in ("data", "journal", "cache", "music"):
@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import QApplication, QDialog  # noqa: E402
 
 from black import theme  # noqa: E402
 from black.mainwindow import MainWindow  # noqa: E402
-from black.media_import import ImportThread  # noqa: E402
+from black.media_import import ImportThread, bilibili_scopes  # noqa: E402
 from black.pages import music_import as import_ui  # noqa: E402
 from black.pages.music_import import CollectionDialog  # noqa: E402
 from black.store import Store  # noqa: E402
@@ -174,6 +174,40 @@ def main() -> int:
     assert checked == 3
     short.close()
 
+    # 6b. a video that is both multi-P and part of a season: the album's own
+    # parts are the default scope, the season is an alternative.
+    album = [
+        {"title": f"track {i}", "url": f"https://example/p{i}", "duration": 120, "group": f"P{i}"}
+        for i in range(1, 11)
+    ]
+    season = [
+        {"title": f"other album {i}", "url": f"https://example/s{i}", "duration": 600, "group": "正片"}
+        for i in range(1, 5)
+    ]
+    scoped = CollectionDialog(window, {
+        "title": "至冬 OST",
+        "scopes": [
+            {"id": "pages", "label": f"本视频的分P（{len(album)} 段）", "entries": album},
+            {"id": "season", "label": f"整个合集（{len(season)} 段）", "entries": season},
+        ],
+        "entries": album,
+    })
+    scoped.show()
+    QTest.qWait(200)
+    print("scope combo", scoped.scope_combo.currentText() if scoped.scope_combo else None,
+          "rows", scoped.list.count())
+    assert scoped.scope_combo is not None
+    assert scoped.list.count() == len(album)
+    assert "分P" in scoped.scope_combo.currentText()
+    scoped.scope_combo.setCurrentIndex(1)
+    QTest.qWait(150)
+    print("after switch", scoped.scope_combo.currentText(), "rows", scoped.list.count())
+    assert scoped.list.count() == len(season)
+    scoped._set_all(Qt.Checked)
+    scoped._accept_selection()
+    assert scoped.selected_urls == [e["url"] for e in season]
+    scoped.close()
+
     # 7. multi-URL import thread saves every file (download mocked)
     saved_paths = []
 
@@ -216,6 +250,49 @@ def main() -> int:
     dialog_import.close()
     dialog_import.deleteLater()
     QTest.qWait(120)
+
+    # 9. Bilibili scope detection: the album wins over the UP's big collection
+    class FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def payload(pages: int, season_eps: list[int] | None, bvid: str):
+        data = {
+            "title": f"video {bvid}",
+            "pages": [{"part": f"P{i}", "duration": 100} for i in range(1, pages + 1)],
+        }
+        if season_eps:
+            data["ugc_season"] = {
+                "title": "OST 大合集",
+                "sections": [{
+                    "title": "正片",
+                    "episodes": [
+                        {"bvid": f"BV{i:010d}", "title": f"album {i}", "arc": {"duration": 600}}
+                        for i in season_eps
+                    ] + [{"bvid": bvid, "title": "this one", "arc": {"duration": 600}}],
+                }],
+            }
+        return {"code": 0, "data": data}
+
+    # 102-part album that also belongs to a 45-episode season
+    with patch("black.media_import.requests.get", return_value=FakeResponse(payload(102, list(range(1, 45)), "BV1xtYC6UEJz"))):
+        info = bilibili_scopes("https://www.bilibili.com/video/BV1xtYC6UEJz")
+    print("scopes", [(s["id"], len(s["entries"])) for s in info["scopes"]])
+    assert info["scopes"][0]["id"] == "pages" and len(info["scopes"][0]["entries"]) == 102
+    assert info["scopes"][1]["id"] == "section-0" and len(info["scopes"][1]["entries"]) == 45
+
+    # single-part video inside a season: the season is the default scope
+    with patch("black.media_import.requests.get", return_value=FakeResponse(payload(1, list(range(1, 30)), "BV1s8u667Eim"))):
+        info = bilibili_scopes("https://www.bilibili.com/video/BV1s8u667Eim")
+    print("single-part scopes", [(s["id"], len(s["entries"])) for s in info["scopes"]])
+    assert len(info["scopes"]) == 1 and info["scopes"][0]["id"] == "section-0"
+    assert len(info["scopes"][0]["entries"]) == 30
 
     window.hide()
     QTest.qWait(120)

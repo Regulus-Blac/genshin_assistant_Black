@@ -1,8 +1,7 @@
-"""Install a personal sound pack into data/sounds (never committed).
+"""Install a collected sound pack into assets/audio/custom.
 
 The bundled sounds in assets/audio are original/CC0 and ship with the repo.
-If you want the official Genshin UI sounds on your own machine, put them in a
-folder with these names and run this script:
+A pack in assets/audio/custom overrides them by file name.  Names:
 
     chime.wav  levelup.wav  interact.wav  click.wav
     confirm.wav  open.wav  cancel.wav  error.wav
@@ -11,13 +10,11 @@ Usage:
     python tools/install_genshin_sfx.py --source build/sfx-candidates --prefix gi_
     python tools/install_genshin_sfx.py --source D:/my-sfx --dry-run
 
-The target is ``data/sounds`` (or ``BLACK_DATA_DIR/sounds`` when that env var
-is set), which .gitignore already excludes.
+Use --to data/sounds if you would rather keep a pack out of the repository.
 """
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -40,14 +37,15 @@ DEFAULT_MAP = {
 }
 
 
-def data_sounds_dir() -> Path:
-    return Path(os.environ.get("BLACK_DATA_DIR", ROOT / "data")) / "sounds"
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Install a personal UI sound pack")
+    parser = argparse.ArgumentParser(description="Install a collected UI sound pack")
     parser.add_argument("--source", required=True, help="folder containing the wav files")
     parser.add_argument("--prefix", default="gi_", help="file name prefix in the source folder (default gi_)")
+    parser.add_argument(
+        "--to",
+        default="assets/audio/custom",
+        help="target folder relative to the project (default assets/audio/custom)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="only show what would be copied")
     args = parser.parse_args()
 
@@ -55,7 +53,9 @@ def main() -> int:
     if not source.is_dir():
         print(f"source folder not found: {source}")
         return 1
-    target = data_sounds_dir()
+    target = Path(args.to)
+    if not target.is_absolute():
+        target = ROOT / target
     print(f"target: {target}")
 
     copied = 0
@@ -73,7 +73,7 @@ def main() -> int:
 
     print(f"\n{copied}/{len(TARGET_NAMES)} sounds {'planned' if args.dry_run else 'installed'}.")
     if not args.dry_run and copied:
-        print("Restart Black to hear them; the app prefers data/sounds over assets/audio.")
+        print("Restart Black to hear them; assets/audio/custom wins over assets/audio.")
     return 0 if copied else 1
 
 

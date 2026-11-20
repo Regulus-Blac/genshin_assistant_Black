@@ -60,6 +60,21 @@ def main() -> int:
     hit_edge = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
     print("visible-edge hit", hit_edge, "at", screen_pt)
     assert hit_edge == 10, hit_edge
+
+    # The middle of the window must stay client area.  A regression that
+    # decoded WM_NCHITTEST coordinates in physical pixels turned the whole
+    # window into a resize border on scaled displays and made it unclickable.
+    for label, point in (
+        ("center", QPoint(window.width() // 2, window.height() // 2)),
+        ("content", QPoint(window.width() // 2 + 100, window.height() // 2 + 80)),
+    ):
+        QCursor.setPos(window.mapToGlobal(point))
+        QTest.qWait(80)
+        screen_pt = QCursor.pos()
+        lparam = ((screen_pt.y() & 0xFFFF) << 16) | (screen_pt.x() & 0xFFFF)
+        hit_inside = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
+        print(f"{label} hit", hit_inside, "at", screen_pt)
+        assert hit_inside == 1, (label, hit_inside)
     right = next(h for h in window._resize_handles if h.edges == {"right"})
     before = window.size()
     start = window.mapToGlobal(right.geometry().center())

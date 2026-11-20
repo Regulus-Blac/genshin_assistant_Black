@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ctypes
 import random
 import sys
 from ctypes import wintypes
@@ -79,6 +78,7 @@ class _ResizeHandle(QWidget):
         self.edges = set(edges)
         self._start = None
         self._start_geo = None
+        self._raised = False
         self.setMouseTracking(True)
         self.setStyleSheet("background: transparent;")
         self.setCursor(self._cursor_for_edges())
@@ -116,8 +116,12 @@ class _ResizeHandle(QWidget):
         changed = self.geometry() != QRect(x, y, ww, hh)
         if changed:
             self.setGeometry(x, y, ww, hh)
-        if changed or not self.isVisible():
+        if not self._raised:
+            # Raising a widget forces a repaint of its area; doing that for all
+            # eight grips on every resize event is a large part of the visible
+            # flicker while the window is being dragged smaller.
             self.raise_()
+            self._raised = True
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
@@ -318,17 +322,6 @@ class MainWindow(QMainWindow):
 
         self._connect_stage_signals(self.stage)
         QTimer.singleShot(0, self._apply_compact_mode)
-
-    def _schedule_compact(self) -> None:
-        if not hasattr(self, "_compact_timer"):
-            self._compact_timer = QTimer(self)
-            self._compact_timer.setSingleShot(True)
-            # Long enough that a drag does not rebuild the page on every pixel;
-            # the layout still reflows while dragging, only the structural swap
-            # (stage on/off, one vs two columns) waits for the drag to settle.
-            self._compact_timer.setInterval(90)
-            self._compact_timer.timeout.connect(self._apply_compact_mode)
-        self._compact_timer.start()
 
     # Hysteresis bands: enter compact below the first value, only leave it
     # above the second one.  Without the gap a window hovering on the border
@@ -1244,15 +1237,32 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        if hasattr(self, "size_grip"):
+        # Do nothing expensive per mouse-move: moving eight fallback grips and
+        # re-raising them on every resize event repaints the window edges over
+        # and over, which is what made a shrink look like it was flashing.
+        self._schedule_resize_work()
+
+    def _schedule_resize_work(self) -> None:
+        if not hasattr(self, "_resize_timer"):
+            self._resize_timer = QTimer(self)
+            self._resize_timer.setSingleShot(True)
+            self._resize_timer.timeout.connect(self._after_resize)
+        self._resize_timer.start(60)
+
+    def _after_resize(self) -> None:
+        if hasattr(self, "size_grip") and not self._maximized:
             grip_pos = QPoint(self.width() - 22, self.height() - 22)
             if self.size_grip.pos() != grip_pos:
                 self.size_grip.move(grip_pos)
-                self.size_grip.raise_()
+            self.size_grip.raise_()
         self._position_resize_handles()
         if hasattr(self, "overlay") and self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
-        self._schedule_compact()
+        self._apply_compact_mode()
+
+    def _schedule_compact(self) -> None:
+        # Kept as the public name for "recheck the responsive layout".
+        self._schedule_resize_work()
 
     def nativeEvent(self, event_type, message):  # noqa: N802
         """Let Windows perform hit-testing on the frameless edges.
@@ -1261,6 +1271,12 @@ class MainWindow(QMainWindow):
         they can sit outside the visible rounded card and never receive hover
         events.  Returning HTLEFT/HTTOP... from WM_NCHITTEST gives the native
         resize cursor and drag behaviour at the real window border.
+
+        The hit point is taken from ``QCursor.pos()`` on purpose: Qt widget
+        geometry is in logical pixels while WM_NCHITTEST carries physical
+        pixels, so decoding lParam directly made every point look shifted
+        towards the right/bottom edge on scaled displays (the whole window
+        turned into a resize border).  QCursor already speaks Qt coordinates.
         """
         if event_type == b"windows_generic_MSG" and not self._maximized:
             try:
@@ -1268,9 +1284,11 @@ class MainWindow(QMainWindow):
                 if msg.message == 0x0084:  # WM_NCHITTEST
                     local = self.mapFromGlobal(QCursor.pos())
                     w, h = self.width(), self.height()
-                    # The visible card edge is inset 18px; a 30px native hit
+                    if not (-2 <= local.x() <= w + 2 and -2 <= local.y() <= h + 2):
+                        return super().nativeEvent(event_type, message)
+                    # The visible card edge is inset 18px; a 26px native hit
                     # zone reaches it while still sparing the page content.
-                    border = 30
+                    border = 26
                     left = local.x() <= border
                     right = local.x() >= w - border
                     top = local.y() <= border

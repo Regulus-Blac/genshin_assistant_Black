@@ -14,9 +14,11 @@ MUSIC = ASSETS / "music"
 DATA_DIR = Path(os.environ.get("BLACK_DATA_DIR", ROOT / "data"))
 JOURNAL_DIR = Path(os.environ.get("BLACK_JOURNAL_DIR", ROOT / "journal"))
 CACHE_DIR = Path(os.environ.get("BLACK_CACHE_DIR", ROOT / "cache"))
-# Personal sound pack (e.g. official Genshin rips) lives with the user's data
-# so it is never committed; the bundled set in assets/audio stays tracked.
-CUSTOM_AUDIO = DATA_DIR / "sounds"
+# Sound overrides live inside the project tree so collected packs are easy to
+# find and share.  ``assets/audio`` keeps the bundled (original/CC0) sounds.
+CUSTOM_AUDIO = AUDIO / "custom"
+# Older builds kept a personal pack under data/; still honoured as a fallback.
+LEGACY_CUSTOM_AUDIO = DATA_DIR / "sounds"
 
 CONFIG_PATH = DATA_DIR / "black.json"
 CHAT_PATH = DATA_DIR / "chat.json"

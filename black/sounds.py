@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt5.QtCore import QObject
 from PyQt5.QtMultimedia import QSound
 
-from .paths import AUDIO, CUSTOM_AUDIO
+from .paths import AUDIO, CUSTOM_AUDIO, LEGACY_CUSTOM_AUDIO
 
 # Logical event -> file name.  Every event can be overridden by dropping a file
 # with the same name into ``data/sounds`` (kept out of git, see README).
@@ -24,16 +24,20 @@ SOUND_FILES = {
 class Sounds(QObject):
     """Tiny UI sound layer. QSound keeps playback off the main thread."""
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self, parent: QObject | None = None, override_dirs=None) -> None:
         super().__init__(parent)
         self._cache: dict[str, QSound] = {}
         self.enabled = True
+        self.override_dirs = list(override_dirs) if override_dirs is not None else [
+            CUSTOM_AUDIO,
+            LEGACY_CUSTOM_AUDIO,
+        ]
 
     def _path(self, name: str) -> Path | None:
         filename = SOUND_FILES.get(name, name)
-        # data/sounds wins so a personal "official SFX" pack can replace the
-        # bundled ones without editing tracked files.
-        for folder in (CUSTOM_AUDIO, AUDIO):
+        # assets/audio/custom wins so a collected pack can replace the bundled
+        # sounds without editing tracked files; data/sounds is the old place.
+        for folder in [*self.override_dirs, AUDIO]:
             candidate = Path(folder) / filename
             if candidate.exists():
                 return candidate

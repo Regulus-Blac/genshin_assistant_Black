@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
 from . import theme as _theme
 from .characters import get_look
 from .paths import IMAGES, avatar_path
-from .widgets import Avatar, Dot, IconButton
+from .widgets import Avatar, Dot, IconButton, wrapped_label_height
 
 
 class _StagePalette:
@@ -200,8 +200,14 @@ class CharacterStage(QWidget):
             self._timer.start()
             self._cover_timer = QTimer(self)
             self._cover_timer.setSingleShot(True)
-            self._cover_timer.setInterval(35)
+            # Long enough that a continuous drag never re-scales the big image
+            # mid-gesture; it only rebuilds once the window settles.
+            self._cover_timer.setInterval(160)
             self._cover_timer.timeout.connect(self._refresh_cover)
+            self._quote_timer = QTimer(self)
+            self._quote_timer.setSingleShot(True)
+            self._quote_timer.setInterval(140)
+            self._quote_timer.timeout.connect(self._fit_quote_text)
             self.setStyleSheet(self._local_qss())
             self.set_orientation(self.ORIENTATION)
         finally:
@@ -486,12 +492,14 @@ class CharacterStage(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        # Rebuild the large illustration only after the drag has settled; doing
-        # it on every mouse-move was the main source of resize flicker.
+        # Rebuild the large illustration only after the drag has settled: the
+        # cached crop is merely stretched while dragging, which is cheap, and a
+        # long debounce keeps it from being re-scaled (and visibly jumping) on
+        # every intermediate size.
         if hasattr(self, "_cover_timer"):
             self._cover_timer.start()
-        if hasattr(self, "quote_text"):
-            QTimer.singleShot(0, self._fit_quote_text)
+        if hasattr(self, "_quote_timer"):
+            self._quote_timer.start()
 
     def _refresh_cover(self) -> None:
         self._cover = None
@@ -504,12 +512,15 @@ class CharacterStage(QWidget):
         width = self.quote_text.width()
         if width < 80:
             width = 380 if self.ORIENTATION == "landscape" else 292
-        needed = self.quote_text.heightForWidth(max(120, width))
+        if width == getattr(self, "_fitted_width", -1):
+            return
+        needed = wrapped_label_height(self.quote_text, max(120, width))
         if needed > 0:
             self.quote_text.setMinimumHeight(needed + 2)
             self.quote_text.setMaximumHeight(needed + 2)
             if hasattr(self, "quote_card"):
                 self.quote_card.adjustSize()
+        self._fitted_width = width
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -708,11 +719,10 @@ class CharacterStage(QWidget):
         width = 440 if self.ORIENTATION == "landscape" else 292
         if self.quote_text.width() > 80:
             width = self.quote_text.width()
-        needed = self.quote_text.heightForWidth(max(120, width))
-        if needed <= 0:
-            needed = QFontMetrics(self.quote_text.font()).lineSpacing()
+        needed = wrapped_label_height(self.quote_text, max(120, width))
         self.quote_text.setMinimumHeight(needed + 2)
         self.quote_text.setMaximumHeight(needed + 2)
+        self._fitted_width = width
         self.quote_card.adjustSize()
         # small fade so the bubble feels alive
         from PyQt5.QtWidgets import QGraphicsOpacityEffect

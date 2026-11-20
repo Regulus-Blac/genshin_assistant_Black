@@ -1,4 +1,4 @@
-"""Sound layer: custom pack overrides bundled files, all events resolve."""
+"""Sound layer: bundled files resolve, custom overrides win, all events load."""
 from __future__ import annotations
 
 import os
@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT))
 TEST = ROOT / "build" / "sounds-test"
 if TEST.exists():
     shutil.rmtree(TEST, ignore_errors=True)
-for name in ("data", "journal", "cache"):
+for name in ("data", "journal", "cache", "custom"):
     (TEST / name).mkdir(parents=True)
 os.environ["BLACK_DATA_DIR"] = str(TEST / "data")
 os.environ["BLACK_JOURNAL_DIR"] = str(TEST / "journal")
@@ -36,28 +36,29 @@ def main() -> int:
     app.setQuitOnLastWindowClosed(False)
     sounds = Sounds()
 
-    print("bundled dir", AUDIO)
+    print("bundled dir", AUDIO, "custom dir", CUSTOM_AUDIO)
     for event, filename in SOUND_FILES.items():
         path = sounds._path(event)
-        assert path is not None, f"missing bundled sound for {event}"
-        print(f"  {event:9s} -> {path.name:12s} {describe(path)}")
-        assert path.parent == AUDIO
+        assert path is not None, f"missing sound for {event}"
+        print(f"  {event:9s} -> {path.parent.name}/{path.name:12s} {describe(path)}")
 
-    # a personal pack in data/sounds wins over the bundled files
-    CUSTOM_AUDIO.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(AUDIO / "chime.wav", CUSTOM_AUDIO / "chime.wav")
-    custom = sounds._path("chime")
-    print("custom override", custom)
-    assert custom == CUSTOM_AUDIO / "chime.wav"
-    sounds.play("chime")
-    sounds.play("levelup")
-    sounds.play("unknown-event")
-    QTest.qWait(300)
-    print("playback calls ok")
+    # A file in the override directory wins over the bundled one.
+    override = TEST / "custom"
+    shutil.copyfile(AUDIO / "chime.wav", override / "chime.wav")
+    tweaked = Sounds(override_dirs=[override])
+    assert tweaked._path("chime") == override / "chime.wav", tweaked._path("chime")
+    assert tweaked._path("click").parent == AUDIO
+    print("override ok")
+
+    # The project tree has the collected pack in place.
+    collecton = CUSTOM_AUDIO.exists()
+    print("assets/audio/custom exists:", collecton,
+          "files:", len(list(CUSTOM_AUDIO.glob("*.wav"))) if collecton else 0)
 
     sounds.enabled = False
     sounds.play("chime")
-    print("disabled ok")
+    sounds.play("unknown-event")
+    print("disabled/unknown ok")
     app.quit()
     print("OK")
     return 0
