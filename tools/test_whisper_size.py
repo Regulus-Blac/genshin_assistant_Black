@@ -23,6 +23,7 @@ from PyQt5.QtTest import QTest  # noqa: E402
 from PyQt5.QtWidgets import QApplication  # noqa: E402
 
 from black import theme  # noqa: E402
+from black import content  # noqa: E402
 from black.mainwindow import MainWindow  # noqa: E402
 from black.store import Store  # noqa: E402
 from black.theme import apply_theme  # noqa: E402
@@ -75,6 +76,20 @@ def main() -> int:
     assert popup.height() == first_height
     popup.grab().save(str(TEST / "popup_long_quote.png"))
     popup.close()
+
+    # Every whisper in the pool must fit its bubble.  Two-line quotes used to
+    # be drawn about 1.5 lines tall and the second line was cut in half.
+    problems = []
+    for item in content.QUOTES:
+        window._set_stage_quote({"speaker": item["speaker"], "text": item["text"]})
+        QTest.qWait(5)
+        label = window.stage.quote_text
+        _lines, needed = label.measure(label.width())
+        if label.height() < needed:
+            problems.append((item["speaker"], item["text"][:16], label.height(), needed))
+    print("quote fit problems:", problems[:3], "count", len(problems))
+    assert not problems, problems[:3]
+
     window._shutdown()
     app.quit()
     print("OK")

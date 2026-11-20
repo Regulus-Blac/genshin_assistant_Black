@@ -27,6 +27,7 @@ from PyQt5.QtGui import (
     QPen,
     QPixmap,
     QRadialGradient,
+    QTextLayout,
 )
 from PyQt5.QtWidgets import (
     QAbstractButton,
@@ -483,21 +484,127 @@ class StatusChip(QFrame):
         self.label.setStyleSheet(f"color: {theme.GOLD if active else theme.MUTED}; font-size: 11px; letter-spacing: 1px;")
 
 
-def wrapped_label_height(label: QLabel, width: int) -> int:
-    """Height a word-wrapped QLabel needs at ``width``.
+def measure_wrapped_text(font: QFont, text: str, width: int) -> tuple[int, int]:
+    """(line_count, height) for ``text`` wrapped at ``width``.
 
-    ``QLabel.heightForWidth`` returns the label's *current* height as soon as a
-    min/max height has been pinned on it.  Measuring without clearing those
-    constraints made speech bubbles grow by 2px on every whisper update until
-    they covered the whole stage.
+    Uses ``QTextLayout`` — the same engine QLabel paints with — because
+    ``QFontMetrics.lineSpacing()`` and ``QLabel.heightForWidth()`` under-report
+    the real line height for some CJK serif fonts (Noto Serif SC needs 21px per
+    line at 12px while lineSpacing() says 17px), which clipped the second line
+    of every two-line whisper.
     """
+    width = max(40, int(width))
+    lines = 0
+    total = 0.0
+    for paragraph in (str(text) or "").split("\n") or [""]:
+        layout = QTextLayout(paragraph, font)
+        layout.beginLayout()
+        while True:
+            line = layout.createLine()
+            if not line.isValid():
+                break
+            line.setLineWidth(width)
+            total += line.height()
+            lines += 1
+            if lines > 400:
+                break
+        layout.endLayout()
+    if lines == 0:
+        metrics = QFontMetrics(font)
+        return 1, metrics.lineSpacing()
+    return lines, int(math.ceil(total))
+
+
+def wrapped_label_height(label: QLabel, width: int) -> int:
+    """Height a word-wrapped QLabel needs at ``width`` (kept for compatibility)."""
     label.setMinimumHeight(0)
     label.setMaximumHeight(16777215)
-    width = max(60, int(width))
-    height = label.heightForWidth(width)
-    if height <= 0:
-        height = QFontMetrics(label.font()).lineSpacing()
-    return height
+    return measure_wrapped_text(label.font(), label.text(), width)[1]
+
+
+class WrappedText(QWidget):
+    """Text that reserves exactly the height it paints.
+
+    QLabel's heightForWidth and its painting disagreed for the CJK serif fonts
+    used by the whisper bubbles (the reserved height could be 36px while the
+    painted two lines needed 42px), which cut the last line in half.  This
+    widget builds the real QTextLayout itself and draws those same lines, so
+    measurement and painting can never diverge.
+    """
+
+    def __init__(self, text: str = "", parent: QWidget | None = None, *, color: str | None = None) -> None:
+        super().__init__(parent)
+        self._text = str(text or "")
+        self._color = QColor(color or theme.TEXT)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+
+    # ------------------------------------------------------------------ content
+    def text(self) -> str:
+        return self._text
+
+    def setText(self, text: str) -> None:
+        text = str(text or "")
+        if text == self._text:
+            return
+        self._text = text
+        self.updateGeometry()
+        self.update()
+
+    def setTextColor(self, color: str) -> None:
+        self._color = QColor(color)
+        self.update()
+
+    def color(self) -> QColor:
+        return QColor(self._color)
+
+    # ------------------------------------------------------------------ layout
+    def _build(self, width: int):
+        width = max(40, int(width))
+        layouts = []
+        y = 0.0
+        for paragraph in (self._text or "").split("\n") or [""]:
+            layout = QTextLayout(paragraph, self.font())
+            layout.beginLayout()
+            while True:
+                line = layout.createLine()
+                if not line.isValid():
+                    break
+                line.setLineWidth(width)
+                line.setPosition(QPointF(0, y))
+                y += line.height()
+                if y > 20000:
+                    break
+            layout.endLayout()
+            layouts.append(layout)
+        return layouts, y
+
+    def measure(self, width: int | None = None) -> tuple[int, int]:
+        width = width or self.width() or 200
+        layouts, height = self._build(width)
+        lines = sum(max(1, layout.lineCount()) for layout in layouts)
+        return lines, max(1, int(math.ceil(height)))
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        return self.measure(width)[1]
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        width = self.width() if self.width() > 40 else 200
+        return QSize(width, self.heightForWidth(width))
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        return QSize(60, max(1, self.fontMetrics().lineSpacing()))
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        if not self._text:
+            return
+        painter = QPainter(self)
+        painter.setFont(self.font())
+        painter.setPen(QPen(self._color))
+        layouts, _height = self._build(self.width())
+        for layout in layouts:
+            layout.draw(painter, QPointF(0, 0))
+        painter.end()
 
 
 class Divider(QWidget):

@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import (
     QColor,
+    QFont,
     QFontMetrics,
     QLinearGradient,
     QPainter,
@@ -29,7 +30,7 @@ from PyQt5.QtWidgets import (
 from . import theme as _theme
 from .characters import get_look
 from .paths import IMAGES, avatar_path
-from .widgets import Avatar, Dot, IconButton, wrapped_label_height
+from .widgets import Avatar, Dot, IconButton, WrappedText
 
 
 class _StagePalette:
@@ -349,9 +350,12 @@ class CharacterStage(QWidget):
         self.quote_tag.setStyleSheet(f"font-size: 8px; color: {theme.FAINT}; letter-spacing: 1px;")
         qtop.addWidget(self.quote_tag)
         qlay.addLayout(qtop)
-        self.quote_text = QLabel("……")
-        self.quote_text.setObjectName("StageQuoteText")
-        self.quote_text.setWordWrap(True)
+        self.quote_text = WrappedText("……", color=theme.TEXT)
+        # Set the font through a stylesheet: the application-wide "*" rule
+        # otherwise wins over setFont() and the bubble would be measured and
+        # painted with the body font instead of the serif quote font.
+        self.quote_text.setStyleSheet(f"font-family: '{theme.SERIF}'; font-size: 12px;")
+        self.quote_text.ensurePolished()
         qlay.addWidget(self.quote_text)
         self.quote_card.setMaximumWidth(316)
         lay.addWidget(self.quote_card, 0, Qt.AlignLeft)
@@ -523,22 +527,24 @@ class CharacterStage(QWidget):
             return
         max_width = self._quote_available_width()
         text = self.quote_text.text()
-        if not force and (max_width, text) == getattr(self, "_fit_key", None):
+        font_key = self.quote_text.font().key()
+        if not force and (max_width, text, font_key) == getattr(self, "_fit_key", None):
             return
-        line = QFontMetrics(self.quote_text.font()).lineSpacing()
-        self.quote_text.setMinimumWidth(0)
-        self.quote_text.setMaximumWidth(16777215)
-        needed = wrapped_label_height(self.quote_text, max_width)
-        if needed > line + 2:
+        lines, _needed = self.quote_text.measure(max_width)
+        if lines > 1:
             # More than one line: pin the wrapping width.  Otherwise the card
-            # shrinks to the text's preferred width, the label gets narrower
+            # shrinks to the text's preferred width, the text rewraps narrower
             # than the width we measured, and the last line is cut off.
             self.quote_text.setFixedWidth(max_width)
-        self.quote_text.setMinimumHeight(needed + 2)
-        self.quote_text.setMaximumHeight(needed + 2)
+        else:
+            natural = self.quote_text.fontMetrics().horizontalAdvance(text) + 4
+            self.quote_text.setFixedWidth(max(60, min(max_width, natural)))
+        # Height comes from WrappedText.sizeHint(), which measures with the
+        # very layout it paints, so a font change can never clip the text.
+        self.quote_text.updateGeometry()
         if hasattr(self, "quote_card"):
             self.quote_card.adjustSize()
-        self._fit_key = (max_width, text) if not force else (max_width, text)
+        self._fit_key = (max_width, text, font_key)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)

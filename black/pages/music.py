@@ -558,7 +558,12 @@ class MusicPage(QWidget):
         pl.addWidget(pl_label)
         self.playlist_combo = QComboBox()
         self.playlist_combo.setMinimumWidth(150)
-        self.playlist_combo.setFixedHeight(30)
+        self.playlist_combo.setFixedHeight(34)
+        # The shared QComboBox rule uses 8px vertical padding, which squeezed
+        # the text inside a 30px box and clipped the glyph bottoms.
+        self.playlist_combo.setStyleSheet(
+            "QComboBox { padding: 4px 8px; } QComboBox::drop-down { width: 20px; border: none; }"
+        )
         self.playlist_combo.currentIndexChanged.connect(self._on_playlist_changed)
         pl.addWidget(self.playlist_combo)
         self.playlist_count = QLabel("0 首")

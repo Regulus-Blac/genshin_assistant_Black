@@ -23,6 +23,7 @@ from PyQt5.QtCore import (
 from PyQt5.QtGui import (
     QColor,
     QCursor,
+    QFont,
     QFontMetrics,
     QLinearGradient,
     QPainter,
@@ -44,7 +45,7 @@ from PyQt5.QtWidgets import (
 
 from . import theme as _theme
 from .paths import AVATARS
-from .widgets import IconButton, wrapped_label_height
+from .widgets import IconButton, WrappedText
 
 
 class _PaimonPalette:
@@ -336,13 +337,9 @@ class PaimonWhisperPopup(QWidget):
         bl = QVBoxLayout(self.bubble)
         bl.setContentsMargins(13, 9, 13, 9)
         bl.setSpacing(4)
-        self.quote = QLabel("")
-        self.quote.setWordWrap(True)
-        self.quote.setTextFormat(Qt.PlainText)
-        self.quote.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.quote.setStyleSheet(
-            f"font-family: '{theme.SERIF}'; font-size: 13px; color: {INK}; line-height: 150%;"
-        )
+        self.quote = WrappedText("", color=INK)
+        self.quote.setStyleSheet(f"font-family: '{theme.SERIF}'; font-size: 13px;")
+        self.quote.ensurePolished()
         bl.addWidget(self.quote)
         self.attribution = QLabel("")
         self.attribution.setStyleSheet("font-size: 9px; color: #8d7b60;")
@@ -387,9 +384,7 @@ class PaimonWhisperPopup(QWidget):
         self.quote.setText(text)
         quote_width = max(150, self.width() - 36 - 34 - 88 - 2 - 14 - 28)
         self.quote.setFixedWidth(quote_width)
-        needed = wrapped_label_height(self.quote, quote_width)
-        self.quote.setMinimumHeight(max(20, needed + 2))
-        self.quote.setMaximumHeight(max(20, needed + 2))
+        self.quote.updateGeometry()
         if avatar:
             self.portrait.set_source(str(avatar))
         self.title.setText(f"{speaker}的悄悄话")

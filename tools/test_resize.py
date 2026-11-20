@@ -40,25 +40,31 @@ def main() -> int:
     window = MainWindow(store)
     window.show()
     QTest.qWait(500)
-    print("handles", len(window._resize_handles), [(sorted(h.edges), h.geometry().getRect()) for h in window._resize_handles[:2]])
-    assert len(window._resize_handles) == 8
     from PyQt5.QtGui import QCursor
 
-    QCursor.setPos(window.mapToGlobal(QPoint(4, window.height() // 2)))
-    QTest.qWait(80)
     hwnd = int(window.winId())
-    screen_pt = QCursor.pos()
-    lparam = ((screen_pt.y() & 0xFFFF) << 16) | (screen_pt.x() & 0xFFFF)
-    hit = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
-    print("native hit", hit, "at", screen_pt)
+
+    def hit_at(local: QPoint) -> int:
+        """Hit-test a window point; retries while the cursor catches up."""
+        target = window.mapToGlobal(local)
+        for _ in range(20):
+            QCursor.setPos(target)
+            QTest.qWait(30)
+            if QCursor.pos() == target:
+                break
+        point = QCursor.pos()
+        lparam = ((point.y() & 0xFFFF) << 16) | (point.x() & 0xFFFF)
+        return ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
+
+    print("handles", len(window._resize_handles), [(sorted(h.edges), h.geometry().getRect()) for h in window._resize_handles[:2]])
+    assert len(window._resize_handles) == 8
+
+    hit = hit_at(QPoint(4, window.height() // 2))
+    print("native hit", hit, "at", QCursor.pos())
     assert hit == 10, hit  # HTLEFT
     # The visible rounded edge is inset 18px; it must also be a resize edge.
-    QCursor.setPos(window.mapToGlobal(QPoint(20, window.height() // 2)))
-    QTest.qWait(80)
-    screen_pt = QCursor.pos()
-    lparam = ((screen_pt.y() & 0xFFFF) << 16) | (screen_pt.x() & 0xFFFF)
-    hit_edge = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
-    print("visible-edge hit", hit_edge, "at", screen_pt)
+    hit_edge = hit_at(QPoint(20, window.height() // 2))
+    print("visible-edge hit", hit_edge, "at", QCursor.pos())
     assert hit_edge == 10, hit_edge
 
     # The middle of the window must stay client area.  A regression that
@@ -68,12 +74,8 @@ def main() -> int:
         ("center", QPoint(window.width() // 2, window.height() // 2)),
         ("content", QPoint(window.width() // 2 + 100, window.height() // 2 + 80)),
     ):
-        QCursor.setPos(window.mapToGlobal(point))
-        QTest.qWait(80)
-        screen_pt = QCursor.pos()
-        lparam = ((screen_pt.y() & 0xFFFF) << 16) | (screen_pt.x() & 0xFFFF)
-        hit_inside = ctypes.windll.user32.SendMessageW(hwnd, 0x0084, 0, lparam)
-        print(f"{label} hit", hit_inside, "at", screen_pt)
+        hit_inside = hit_at(point)
+        print(f"{label} hit", hit_inside, "at", QCursor.pos())
         assert hit_inside == 1, (label, hit_inside)
     right = next(h for h in window._resize_handles if h.edges == {"right"})
     before = window.size()

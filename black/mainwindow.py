@@ -1335,9 +1335,9 @@ class MainWindow(QMainWindow):
                     w, h = self.width(), self.height()
                     if not (-2 <= local.x() <= w + 2 and -2 <= local.y() <= h + 2):
                         return super().nativeEvent(event_type, message)
-                    # The visible card edge is inset 18px; a 26px native hit
+                    # The visible card edge is inset 18px; a 30px native hit
                     # zone reaches it while still sparing the page content.
-                    border = 26
+                    border = 30
                     left = local.x() <= border
                     right = local.x() >= w - border
                     top = local.y() <= border

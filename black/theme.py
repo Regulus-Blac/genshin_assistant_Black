@@ -546,6 +546,10 @@ QComboBox QAbstractItemView {
     padding: 4px;
     outline: none;
 }
+QComboBox QAbstractItemView::item {
+    min-height: 26px;
+    padding: 2px 6px;
+}
 QSpinBox::up-button, QSpinBox::down-button { width: 16px; border: none; background: transparent; }
 QCheckBox { spacing: 8px; color: __TEXT_SOFT__; }
 QCheckBox::indicator {

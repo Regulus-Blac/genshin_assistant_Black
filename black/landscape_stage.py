@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt5.QtCore import QPointF, QRectF, QSize, Qt
+from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from PyQt5.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen
 from PyQt5.QtWidgets import (
     QFrame,
@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
 )
 
 from .stage import CharacterStage, ElidedLabel, Equalizer, theme
-from .widgets import Avatar
+from .widgets import Avatar, WrappedText
 
 
 class LandscapeStage(CharacterStage):
@@ -231,13 +231,28 @@ class LandscapeStage(CharacterStage):
         qtop.addWidget(self.quote_tag)
         qtop.addStretch(1)
         qlay.addLayout(qtop)
-        self.quote_text = QLabel("……")
-        self.quote_text.setObjectName("StageQuoteText")
-        self.quote_text.setWordWrap(True)
+        self.quote_text = WrappedText("……", color=theme.TEXT)
+        self.quote_text.setStyleSheet(f"font-family: '{theme.SERIF}'; font-size: 12px;")
+        self.quote_text.ensurePolished()
         qlay.addWidget(self.quote_text)
         side.addWidget(self.quote_card)
         side.addStretch(1)
         root.addWidget(self.side_panel, 42)
+
+    def _quote_available_width(self) -> int:
+        """Landscape bubble spans the side panel, not the 316px portrait card."""
+        width = self.quote_card.width() if hasattr(self, "quote_card") else 0
+        if width < 200 and hasattr(self, "side_panel"):
+            width = self.side_panel.width()
+        if width < 140:
+            width = max(220, int(self.width() * 0.34)) if self.width() else 400
+        return max(120, width - 20)
+
+    def set_quote(self, quote: dict, avatar_file: str) -> None:
+        super().set_quote(quote, avatar_file)
+        # The banner is laid out after the first quote arrives; measure again
+        # once its real width is known so the bubble uses the full panel.
+        QTimer.singleShot(0, self._fit_quote_text)
 
     def _logo_button(self, icon_name: str, text: str, tip: str) -> QToolButton:
         light = theme.is_light()
