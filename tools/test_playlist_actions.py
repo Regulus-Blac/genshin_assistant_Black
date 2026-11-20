@@ -74,8 +74,8 @@ def main() -> int:
     page._confirm_remove_checked()
     assert len(store.playlist(pl["id"])["tracks"]) == 2
 
-    # Add-song dialog: click a song from the local library to add it to the
-    # custom target playlist.
+    # Add-song dialog: check one song from the local library and add it in
+    # batch mode to the custom target playlist.
     local_entries = [page._entry_from_local(p) for p in page._local_paths]
     dlg = PlaylistAddDialog(
         page,
@@ -89,10 +89,25 @@ def main() -> int:
         candidate = dlg.song_list.item(i)
         entry = candidate.data(Qt.UserRole)
         if entry and not any(t.get("path") == entry.get("path") for t in store.playlist(pl["id"])["tracks"]):
-            dlg._add_song(candidate)
+            candidate.setCheckState(Qt.Checked)
             added = True
             break
-    assert added and len(store.playlist(pl["id"])["tracks"]) == 3
+    assert added
+    dlg._refresh_selection()
+    print("batch selection", dlg.selection_label.text())
+    dlg._add_checked()
+    print("tracks after batch", len(store.playlist(pl["id"])["tracks"]),
+          [t.get("title") for t in store.playlist(pl["id"])["tracks"]])
+    assert len(store.playlist(pl["id"])["tracks"]) == 3
+
+    # 全选 + 批量加入：结果等于本地曲库全部曲目，重复的不会再加一遍
+    dlg._set_all(Qt.Checked)
+    assert dlg.selection_label.text() == f"已选 {dlg.song_list.count()} 首"
+    dlg._add_checked()
+    final_tracks = store.playlist(pl["id"])["tracks"]
+    print("after select-all", len(final_tracks), "local", len(local_entries))
+    assert len(final_tracks) == len(local_entries)
+    assert len({t.get("path") for t in final_tracks}) == len(final_tracks)
     dlg.close()
 
     page.speed_combo.setCurrentIndex(page.speed_combo.findData(1.5))

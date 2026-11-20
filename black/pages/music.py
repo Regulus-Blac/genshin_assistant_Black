@@ -261,29 +261,30 @@ class PlaylistList(QListWidget):
 
 
 class PlaylistAddDialog(GenshinDialog):
-    """Browse every playlist and click a song to add it to the current one."""
+    """Browse every playlist and add songs in batch with check boxes."""
 
     def __init__(self, parent, target_name: str, sources: list[dict], add_callback) -> None:
         super().__init__(
             parent,
             "添加歌曲",
-            f"从其他歌单挑歌，点击歌曲即可加入「{target_name}」。",
-            width=700,
+            f"勾选要加入「{target_name}」的歌曲，可以一次加入多首。",
+            width=760,
         )
         self._sources = sources
         self._add_callback = add_callback
         self._current_source = 0
+        self._target_name = target_name
 
         row = QHBoxLayout()
         row.setSpacing(10)
         left_col = QVBoxLayout()
         left_col.setSpacing(5)
-        left_title = QLabel("所有歌单")
+        left_title = QLabel("来源")
         left_title.setStyleSheet(f"font-size: 10px; color: {theme.GOLD}; letter-spacing: 1px;")
         left_col.addWidget(left_title)
         self.source_list = QListWidget()
-        self.source_list.setFixedWidth(210)
-        self.source_list.setMinimumHeight(300)
+        self.source_list.setFixedWidth(200)
+        self.source_list.setMinimumHeight(320)
         self.source_list.currentRowChanged.connect(self._show_source)
         left_col.addWidget(self.source_list)
         row.addLayout(left_col, 0)
@@ -294,16 +295,45 @@ class PlaylistAddDialog(GenshinDialog):
         self.song_title.setStyleSheet(f"font-size: 10px; color: {theme.GOLD}; letter-spacing: 1px;")
         right_col.addWidget(self.song_title)
         self.song_list = QListWidget()
-        self.song_list.setMinimumHeight(300)
-        self.song_list.itemClicked.connect(self._add_song)
-        right_col.addWidget(self.song_list)
+        self.song_list.setMinimumHeight(320)
+        self.song_list.setStyleSheet(
+            f"QListWidget {{ background: {theme.PANEL2}; border: 1px solid "
+            f"{theme.mix(theme.GOLD, theme.PANEL, 0.55).name()}; border-radius: 8px; }}"
+            f"QListWidget::item {{ min-height: 42px; padding: 3px 8px; }}"
+        )
+        self.song_list.itemClicked.connect(self._toggle_item)
+        right_col.addWidget(self.song_list, 1)
+
+        tools = QHBoxLayout()
+        tools.setSpacing(6)
+        self.select_all_btn = QPushButton("全选")
+        self.select_none_btn = QPushButton("全不选")
+        for btn in (self.select_all_btn, self.select_none_btn):
+            btn.setObjectName("TextButton")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
+            tools.addWidget(btn)
+        tools.addStretch(1)
+        self.selection_label = QLabel("已选 0 首")
+        self.selection_label.setStyleSheet(f"font-size: 10px; color: {theme.MUTED};")
+        tools.addWidget(self.selection_label)
+        right_col.addLayout(tools)
         row.addLayout(right_col, 1)
         self.body.addLayout(row)
 
-        self.add_status = QLabel("点击左侧歌单查看歌曲；点击右侧歌曲会直接加入当前歌单。")
+        self.add_status = QLabel("勾选左侧方框选择歌曲，再点「加入选中歌曲」。")
         self.add_status.setWordWrap(True)
         self.add_status.setStyleSheet(f"font-size: 10px; color: {theme.FAINT};")
         self.body.addWidget(self.add_status)
+
+        # Footer first: selecting a source builds the song list, which updates
+        # the "加入选中歌曲" button through _refresh_selection.
+        self.footer.addStretch(1)
+        close = self.add_button("关闭")
+        close.clicked.connect(self.accept)
+        self.add_selected_btn = self.add_button("加入选中歌曲", primary=True)
+        self.add_selected_btn.clicked.connect(self._add_checked)
+        self.add_selected_btn.setEnabled(False)
 
         for source in sources:
             item = QListWidgetItem(f"{source['name']}  ·  {len(source['entries'])} 首")
@@ -311,13 +341,16 @@ class PlaylistAddDialog(GenshinDialog):
             self.source_list.addItem(item)
         if sources:
             self.source_list.setCurrentRow(0)
-        self.footer.addStretch(1)
-        close = self.add_button("完成")
-        close.clicked.connect(self.accept)
+
+        self.select_all_btn.clicked.connect(lambda: self._set_all(Qt.Checked))
+        self.select_none_btn.clicked.connect(lambda: self._set_all(Qt.Unchecked))
+        self._refresh_selection()
 
     def _show_source(self, index: int) -> None:
+        self.song_list.blockSignals(True)
         self.song_list.clear()
         if not (0 <= index < len(self._sources)):
+            self.song_list.blockSignals(False)
             return
         source = self._sources[index]
         self._current_source = index
@@ -328,24 +361,70 @@ class PlaylistAddDialog(GenshinDialog):
             subtitle = str(entry.get("subtitle") or ("本地曲库" if kind == "local" else "在线曲目"))
             item = QListWidgetItem(f"{title}\n{subtitle}")
             item.setData(Qt.UserRole, entry)
-            item.setSizeHint(QSize(10, 44))
+            item.setSizeHint(QSize(10, 46))
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
             self.song_list.addItem(item)
+        self.song_list.blockSignals(False)
         if not source["entries"]:
-            placeholder = QListWidgetItem("这个歌单还没有歌曲")
+            placeholder = QListWidgetItem("这里还没有歌曲")
             placeholder.setFlags(Qt.NoItemFlags)
             self.song_list.addItem(placeholder)
+        self._refresh_selection()
 
-    def _add_song(self, item: QListWidgetItem) -> None:
-        entry = item.data(Qt.UserRole)
-        if not isinstance(entry, dict):
+    def _toggle_item(self, item: QListWidgetItem) -> None:
+        if not (item.flags() & Qt.ItemIsUserCheckable):
             return
-        if self._add_callback(entry):
-            item.setText(item.text().split("\n")[0] + "\n已加入当前歌单")
-            self.add_status.setText(f"已加入：{item.text().splitlines()[0]}")
+        item.setCheckState(Qt.Unchecked if item.checkState() == Qt.Checked else Qt.Checked)
+        self._refresh_selection()
+
+    def _set_all(self, state) -> None:
+        self.song_list.blockSignals(True)
+        for i in range(self.song_list.count()):
+            item = self.song_list.item(i)
+            if item.flags() & Qt.ItemIsUserCheckable:
+                item.setCheckState(state)
+        self.song_list.blockSignals(False)
+        self._refresh_selection()
+
+    def _checked_entries(self) -> list[dict]:
+        entries = []
+        for i in range(self.song_list.count()):
+            item = self.song_list.item(i)
+            if item.checkState() == Qt.Checked:
+                entry = item.data(Qt.UserRole)
+                if isinstance(entry, dict):
+                    entries.append(entry)
+        return entries
+
+    def _refresh_selection(self) -> None:
+        count = len(self._checked_entries())
+        self.selection_label.setText(f"已选 {count} 首")
+        self.add_selected_btn.setText(f"加入选中歌曲（{count}）" if count else "加入选中歌曲")
+        self.add_selected_btn.setEnabled(count > 0)
+
+    def _add_checked(self) -> None:
+        entries = self._checked_entries()
+        if not entries:
+            self.add_status.setText("先勾选要加入的歌曲。")
+            return
+        added = 0
+        duplicated = 0
+        for entry in entries:
+            if self._add_callback(entry):
+                added += 1
+            else:
+                duplicated += 1
+        if added:
+            self.add_status.setText(
+                f"已加入 {added} 首到「{self._target_name}」"
+                + (f"，{duplicated} 首已在歌单里被跳过。" if duplicated else "。")
+            )
             self.add_status.setStyleSheet(f"font-size: 10px; color: {theme.GREEN};")
         else:
-            self.add_status.setText("这首歌已经在当前歌单里了。")
+            self.add_status.setText("选中的歌曲都已经在这个歌单里了。")
             self.add_status.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
+        self._show_source(self._current_source)
 
 
 class MusicPage(QWidget):
@@ -564,6 +643,7 @@ class MusicPage(QWidget):
         self.playlist_combo.setStyleSheet(
             "QComboBox { padding: 4px 8px; } QComboBox::drop-down { width: 20px; border: none; }"
         )
+        self.playlist_combo.setMaxVisibleItems(5)
         self.playlist_combo.currentIndexChanged.connect(self._on_playlist_changed)
         pl.addWidget(self.playlist_combo)
         self.playlist_count = QLabel("0 首")
@@ -884,7 +964,18 @@ class MusicPage(QWidget):
             self.playlist_combo.setCurrentIndex(max(0, idx))
         self.playlist_combo.blockSignals(False)
         self._current_playlist_id = str(self.playlist_combo.currentData() or "")
+        self._size_playlist_popup()
         self._on_playlist_changed()
+
+    def _size_playlist_popup(self) -> None:
+        """Let the dropdown be as wide as the longest playlist name."""
+        combo = self.playlist_combo
+        view = combo.view()
+        metrics = view.fontMetrics()
+        widest = 0
+        for i in range(combo.count()):
+            widest = max(widest, metrics.horizontalAdvance(combo.itemText(i)))
+        view.setMinimumWidth(max(combo.width(), min(360, widest + 48)))
 
     def _selected_playlist(self) -> dict | None:
         if not self._current_playlist_id:
@@ -1795,6 +1886,11 @@ class MusicPage(QWidget):
     def _tab_source(self) -> tuple:
         index = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
         if index == 0:
+            # No user playlist yet: the 歌单 tab behaves like the local library
+            # so the global play/next/prev controls (and the tray menu) keep
+            # working instead of silently falling back.
+            if self._selected_playlist() is None:
+                return ("local",)
             return self._playlist_source()
         if index == 1:
             return ("local",)
@@ -1837,10 +1933,10 @@ class MusicPage(QWidget):
         if index is None:
             index = self._current_row()
         tab = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
-        if tab == 0:
+        if tab == 0 and self._selected_playlist() is not None:
             items = self._playlist_playables()
             source = self._playlist_source()
-        elif tab == 1:
+        elif tab == 0 or tab == 1:
             items = self._local_playables()
             source = ("local",)
         else:
@@ -1863,8 +1959,8 @@ class MusicPage(QWidget):
         if self.engine.queue and self._queue_matches_tab():
             self.engine.previous()
             return
-        if not self._start_current_tab():
-            self.start_default()
+        if not self._start_current_tab() and self.engine.queue:
+            self.engine.previous()
 
     def start_default(self) -> None:
         if self._start_current_tab():
@@ -1873,18 +1969,26 @@ class MusicPage(QWidget):
         self.engine.ensure_playing(folder)
 
     def toggle_playback(self) -> None:
-        if self.engine.current_playable() and self._queue_matches_tab():
+        # A playing song must always be pausable, even if the player queue came
+        # from another tab (or from the tray menu).  Only a *stopped* player
+        # switches over to the list currently on screen.
+        if self.engine.is_playing() or (self.engine.current_playable() and self._queue_matches_tab()):
             self.engine.toggle()
             return
         if not self._start_current_tab():
-            self.start_default()
+            if self.engine.current_playable():
+                self.engine.toggle()
+            else:
+                # Nothing playable on this tab (e.g. an empty playlist):
+                # fall back to the local library instead of doing nothing.
+                self.start_default()
 
     def next_track(self) -> None:
         if self.engine.queue and self._queue_matches_tab():
             self.engine.next()
             return
-        if not self._start_current_tab():
-            self.start_default()
+        if not self._start_current_tab() and self.engine.queue:
+            self.engine.next()
 
     def shutdown(self) -> None:
         for worker in (self._search_thread, getattr(self, "_copy_thread", None)):

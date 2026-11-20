@@ -103,20 +103,30 @@ def main() -> int:
     assert page.engine.current_playable().title == before
     page._set_play_mode("sequence")
 
-    # switching to the local tab and pressing play replaces the queue
+    # the player bar is a transport control: pressing play while something is
+    # playing pauses it instead of swapping the queue
     page.tabs.setCurrentIndex(1)
-    page.local_list.setCurrentRow(2)
+    assert page.engine.is_playing()
     page.toggle_playback()
+    QTest.qWait(300)
+    print("pause keeps queue", page._queue_source, page.engine.is_playing())
+    assert not page.engine.is_playing()
+    assert page._queue_source == ("playlist", pl["id"])
+
+    # starting a track in the local library replaces the queue
+    page.local_list.setCurrentRow(2)
+    page._play_local_item(page.local_list.currentItem())
     QTest.qWait(350)
     print("local source", page._queue_source, "queue", len(page.engine.queue))
     assert page._queue_source == ("local",)
     assert len(page.engine.queue) == 4
 
-    # pressing play again while a playlist is selected re-queues the playlist
+    # starting a track in the playlist replaces the queue again
     page.tabs.setCurrentIndex(0)
     page.playlist_list.setCurrentRow(1)
-    page.toggle_playback()
+    page._play_playlist_item(page.playlist_list.currentItem())
     QTest.qWait(300)
+    print("back to playlist", page._queue_source)
     assert page._queue_source == ("playlist", pl["id"])
 
     # 4. search inside playlist and local library

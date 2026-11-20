@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import random
 import sys
 from ctypes import wintypes
@@ -1084,11 +1085,13 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ music callbacks
     def _on_track_changed(self, title: str, subtitle: str, kind: str, playing: bool) -> None:
         self.stage.set_track(title, subtitle, playing)
+        self._update_tray_status()
 
     def _on_music_state(self, playing: bool) -> None:
         item = self.music_engine.current_playable()
         if item:
             self.stage.set_track(item.title, item.subtitle, playing)
+        self._update_tray_status()
 
     def _on_music_loading(self, loading: bool, text: str) -> None:
         if loading:
@@ -1130,6 +1133,20 @@ class MainWindow(QMainWindow):
         self.tray_pause_action.triggered.connect(self._tray_pause)
         menu.addAction(self.tray_pause_action)
         menu.addSeparator()
+        # Music controls stay reachable while the window sits in the tray.
+        self.tray_music_prev = QAction("上一首", menu)
+        self.tray_music_prev.triggered.connect(lambda: self.music_page.previous_track())
+        menu.addAction(self.tray_music_prev)
+        self.tray_music_play = QAction("播放音乐", menu)
+        self.tray_music_play.triggered.connect(self._tray_toggle_music)
+        menu.addAction(self.tray_music_play)
+        self.tray_music_next = QAction("下一首", menu)
+        self.tray_music_next.triggered.connect(lambda: self.music_page.next_track())
+        menu.addAction(self.tray_music_next)
+        self.tray_music_open = QAction("打开乐音页", menu)
+        self.tray_music_open.triggered.connect(self._tray_open_music)
+        menu.addAction(self.tray_music_open)
+        menu.addSeparator()
         quit_action = QAction("退出 Black", menu)
         quit_action.triggered.connect(self._quit)
         menu.addAction(quit_action)
@@ -1139,18 +1156,39 @@ class MainWindow(QMainWindow):
         self.tray.show()
         self._update_tray_status()
 
+    def _tray_toggle_music(self) -> None:
+        self.music_page.toggle_playback()
+        self._update_tray_status()
+
+    def _tray_open_music(self) -> None:
+        self._show_from_tray()
+        self._goto_page(2)
+
     def _update_tray_status(self) -> None:
         if not self.tray:
             return
         active = self.store.active_subject()
+        playing = self.music_engine.is_playing()
+        current = self.music_engine.current_playable()
+        title = current.title if current else ""
+        tips = []
         if active:
-            self.tray.setToolTip(f"Black · 正在修习「{active['name']}」")
+            tips.append(f"正在修习「{active['name']}」")
+        if playing and title:
+            tips.append(f"正在播放「{title}」")
+        self.tray.setToolTip("Black · " + (" · ".join(tips) if tips else "在书桌边等你"))
+        if active:
             self.tray_pause_action.setEnabled(True)
             self.tray_pause_action.setText("暂停当前计时")
         else:
-            self.tray.setToolTip("Black · 在书桌边等你")
             self.tray_pause_action.setEnabled(False)
             self.tray_pause_action.setText("当前没有计时")
+        if hasattr(self, "tray_music_play"):
+            self.tray_music_play.setText("暂停音乐" if playing else "播放音乐")
+            has_queue = bool(self.music_engine.current_playable() or self.music_engine.queue)
+            self.tray_music_play.setEnabled(True)
+            self.tray_music_prev.setEnabled(has_queue)
+            self.tray_music_next.setEnabled(has_queue)
 
     def _tray_pause(self) -> None:
         if self.store.active():
@@ -1251,18 +1289,38 @@ class MainWindow(QMainWindow):
         # Do nothing expensive per mouse-move: moving eight fallback grips and
         # re-raising them on every resize event repaints the window edges over
         # and over, which is what made a shrink look like it was flashing.
+        if self._left_button_down():
+            self._begin_interactive_resize()
         self._schedule_resize_work()
+
+    @staticmethod
+    def _left_button_down() -> bool:
+        """True while the user physically holds the left mouse button.
+
+        The WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE pair is the documented signal for a
+        native sizing loop, but it is not always delivered to a frameless Qt
+        window.  The real button state is always available, so a drag can never
+        be interrupted by a deferred layout swap (the first half of a shrink
+        crosses the stage/column thresholds, which is where the flashes were).
+        """
+        try:
+            return bool(ctypes.windll.user32.GetAsyncKeyState(0x01) & 0x8000)
+        except Exception:
+            return False
 
     def _schedule_resize_work(self) -> None:
         if not hasattr(self, "_resize_timer"):
             self._resize_timer = QTimer(self)
             self._resize_timer.setSingleShot(True)
             self._resize_timer.timeout.connect(self._after_resize)
-        self._resize_timer.start(60)
+        self._resize_timer.start(80)
 
     def _after_resize(self) -> None:
-        if self._in_size_move:
+        if self._left_button_down():
+            # Still dragging an edge: never swap the layout mid-gesture.
+            self._schedule_resize_work()
             return
+        self._finish_interactive_resize_state()
         if hasattr(self, "size_grip") and not self._maximized:
             grip_pos = QPoint(self.width() - 22, self.height() - 22)
             if self.size_grip.pos() != grip_pos:
@@ -1272,6 +1330,18 @@ class MainWindow(QMainWindow):
         if hasattr(self, "overlay") and self.overlay.isVisible():
             self.overlay.setGeometry(self.rect())
         self._apply_compact_mode()
+
+    def _finish_interactive_resize_state(self) -> None:
+        if not self._in_size_move:
+            return
+        self._in_size_move = False
+        if hasattr(self, "_size_move_watchdog"):
+            self._size_move_watchdog.stop()
+        if hasattr(self, "stage"):
+            self.stage.resume_animation()
+        album = getattr(getattr(self, "music_page", None), "album", None)
+        if album is not None:
+            album.resume_animation()
 
     def _begin_interactive_resize(self) -> None:
         """Freeze everything that repaints on its own while the user drags."""
@@ -1285,7 +1355,7 @@ class MainWindow(QMainWindow):
         album = getattr(getattr(self, "music_page", None), "album", None)
         if album is not None:
             album.pause_animation()
-        # Safety net: a lost WM_EXITSIZEMOVE must not leave the UI frozen.
+        # Safety net: a lost release must not leave the UI frozen.
         if not hasattr(self, "_size_move_watchdog"):
             self._size_move_watchdog = QTimer(self)
             self._size_move_watchdog.setSingleShot(True)
@@ -1295,15 +1365,8 @@ class MainWindow(QMainWindow):
     def _end_interactive_resize(self) -> None:
         if not self._in_size_move:
             return
-        self._in_size_move = False
-        if hasattr(self, "_size_move_watchdog"):
-            self._size_move_watchdog.stop()
-        if hasattr(self, "stage"):
-            self.stage.resume_animation()
-        album = getattr(getattr(self, "music_page", None), "album", None)
-        if album is not None:
-            album.resume_animation()
-        self._after_resize()
+        self._finish_interactive_resize_state()
+        self._schedule_resize_work()
 
     def _schedule_compact(self) -> None:
         # Kept as the public name for "recheck the responsive layout".
