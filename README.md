@@ -7,7 +7,10 @@ Black 是一个本地优先的 Windows 桌面学习助手：用提瓦特风格�
 - 修习计时、考试倒计时、60 级等级与连续修习（前期轻松，后期明显变慢）
 - 多个修习方向可以**同时计时**：比如一边背单词一边等编译，两边各自累计，互不影响；暂停其中一个，另一个继续走
 - 每日 Markdown 手札
-- 35 位角色、117 幅看板立绘，支持竖屏与横屏立绘；沃雅妮莎的 15 张资源已全部收录
+- 55 位角色、177 幅看板立绘，支持竖屏与横屏立绘；沃雅妮莎的 15 张资源已全部收录
+- 角色选择支持搜索（名字或称号），右键可以把喜欢的角色置顶或上下移动，排序会记住；默认沃雅妮莎在最前
+- 悄悄话头像可以选「随机（每次换一位）」，每次弹出都会换一位角色来说话
+- 设置里可以单独调「音效音量」（0% 即静音），不影响音乐音量
 - 夜晚 / 白天双主题：默认夜晚，左上角品牌头像会随主题切换为小王子 / 彩特琳德
 - 乐音页分成「歌单 / 本地曲库 / 在线寻音」三页，各自拖入播放器：播放模式跟着当前列表走，自定义歌单也能顺序 / 随机 / 单曲循环
 - 歌单与本地曲库都支持搜索；在线曲目可一键「下载到本地曲库」
@@ -39,6 +42,19 @@ python app.py
 ```
 
 如果缺少依赖，也可以双击 `安装依赖.bat`。`launch_black.vbs` 是不弹出控制台的启动方式。
+
+### 双击没反应怎么办
+
+启动器会先找 `run_black.pyw`，找不到就退回 `app.py`，仍找不到或没有 Python 时会弹窗/停在窗口里说明原因，不再静默退出。
+
+如果双击仍然没有窗口出现：
+
+1. 看 `data/launch_error.log`（启动阶段的异常会写在这里）；
+2. 看 `data/black.log` 里有没有 `Starting Black` 一行——有的话说明程序已经启动，可能只是被收进了托盘（双击托盘里的小黑猫）；
+3. 直接运行 `python app.py`，控制台会打印真正的报错；
+4. 重新跑一次 `创建桌面快捷方式.bat`，让桌面快捷方式指向当前的启动文件。
+
+> 1.7.1 曾出现 `run_black.pyw` 被外部工具（同步盘 / 杀毒软件 / 不完整解压）删掉、而两个启动器仍指向它的情况，表现为双击完全没反应。1.8 起启动器会自动回退并给出提示。
 
 ## 第一次使用
 
@@ -132,8 +148,18 @@ python tools/test_tray_music.py
 python tools/test_sounds.py
 python tools/test_whisper_size.py
 python tools/test_levels.py
+python tools/test_timer.py
+python tools/test_parallel_timer.py
 python tools/test_responsive.py
 python tools/test_resize.py
+python tools/test_resize_snapshot.py
+python tools/test_settings_picker.py
+```
+
+追加角色（素材脚本，需要联网，只补新增角色，不动已有素材）：
+
+```powershell
+python tools/add_characters.py
 ```
 
 主要目录：

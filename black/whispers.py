@@ -6,6 +6,8 @@ change with the selected face instead of always being Paimon's.
 """
 from __future__ import annotations
 
+import random
+
 from . import content
 from .paths import AVATARS, avatar_path
 
@@ -97,3 +99,13 @@ def get_whisper_avatar(speaker: str | None) -> dict:
         "avatar": "black.png",
         "path": AVATARS / "black.png",
     }
+
+
+RANDOM_CHOICE = "随机"
+
+
+def choose_whisper_avatar(speaker: str | None) -> dict:
+    """Resolve the configured persona; "随机" picks a different face each call."""
+    if speaker == RANDOM_CHOICE and WHISPER_AVATARS:
+        return random.choice(WHISPER_AVATARS)
+    return get_whisper_avatar(speaker)

@@ -1,11 +1,12 @@
 {
   "version": 1,
-  "generated_at": "2026-11-18T09:23:39",
+  "generated_at": "2026-11-23T13:31:59",
   "sources": {
     "metadata": "https://gi.yatta.moe/api/v2/chs/avatar",
     "official_art": "https://github.com/ScobbleQ/HoYo-Assets",
     "fallback_art": "https://enka.network/",
-    "local_art": "Vodyanitsa_image/"
+    "local_art": "Vodyanitsa_image/",
+    "avatars": "https://enka.network/"
   },
   "characters": [
     {
@@ -1207,6 +1208,646 @@
           "orientation": "landscape",
           "art": "gallery/albedo_wide.jpg",
           "thumb": "gallery/thumbs/albedo_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "jean",
+      "name": "琴",
+      "title": "蒲公英骑士",
+      "element": "anemo",
+      "color": "#82d6c6",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/jean_splash.jpg",
+          "thumb": "gallery/thumbs/jean_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/jean_wish.jpg",
+          "thumb": "gallery/thumbs/jean_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/jean_wide.jpg",
+          "thumb": "gallery/thumbs/jean_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "diluc",
+      "name": "迪卢克",
+      "title": "晨曦的暗面",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/diluc_splash.jpg",
+          "thumb": "gallery/thumbs/diluc_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/diluc_wish.jpg",
+          "thumb": "gallery/thumbs/diluc_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/diluc_wide.jpg",
+          "thumb": "gallery/thumbs/diluc_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "amber",
+      "name": "安柏",
+      "title": "飞行冠军",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/amber_splash.jpg",
+          "thumb": "gallery/thumbs/amber_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/amber_wish.jpg",
+          "thumb": "gallery/thumbs/amber_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/amber_wide.jpg",
+          "thumb": "gallery/thumbs/amber_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "lisa",
+      "name": "丽莎",
+      "title": "蔷薇魔女",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/lisa_splash.jpg",
+          "thumb": "gallery/thumbs/lisa_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/lisa_wish.jpg",
+          "thumb": "gallery/thumbs/lisa_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/lisa_wide.jpg",
+          "thumb": "gallery/thumbs/lisa_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "kaeya",
+      "name": "凯亚",
+      "title": "寒风剑士",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/kaeya_splash.jpg",
+          "thumb": "gallery/thumbs/kaeya_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/kaeya_wish.jpg",
+          "thumb": "gallery/thumbs/kaeya_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/kaeya_wide.jpg",
+          "thumb": "gallery/thumbs/kaeya_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "barbara",
+      "name": "芭芭拉",
+      "title": "闪耀偶像",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/barbara_splash.jpg",
+          "thumb": "gallery/thumbs/barbara_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/barbara_wish.jpg",
+          "thumb": "gallery/thumbs/barbara_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/barbara_wide.jpg",
+          "thumb": "gallery/thumbs/barbara_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "xiangling",
+      "name": "香菱",
+      "title": "万民百味",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/xiangling_splash.jpg",
+          "thumb": "gallery/thumbs/xiangling_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/xiangling_wish.jpg",
+          "thumb": "gallery/thumbs/xiangling_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/xiangling_wide.jpg",
+          "thumb": "gallery/thumbs/xiangling_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "beidou",
+      "name": "北斗",
+      "title": "无冕的龙王",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/beidou_splash.jpg",
+          "thumb": "gallery/thumbs/beidou_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/beidou_wish.jpg",
+          "thumb": "gallery/thumbs/beidou_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/beidou_wide.jpg",
+          "thumb": "gallery/thumbs/beidou_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "ningguang",
+      "name": "凝光",
+      "title": "掩月天权",
+      "element": "geo",
+      "color": "#e0bd78",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/ningguang_splash.jpg",
+          "thumb": "gallery/thumbs/ningguang_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/ningguang_wish.jpg",
+          "thumb": "gallery/thumbs/ningguang_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/ningguang_wide.jpg",
+          "thumb": "gallery/thumbs/ningguang_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "noelle",
+      "name": "诺艾尔",
+      "title": "未授勋之花",
+      "element": "geo",
+      "color": "#e0bd78",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/noelle_splash.jpg",
+          "thumb": "gallery/thumbs/noelle_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/noelle_wish.jpg",
+          "thumb": "gallery/thumbs/noelle_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/noelle_wide.jpg",
+          "thumb": "gallery/thumbs/noelle_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "fischl",
+      "name": "菲谢尔",
+      "title": "断罪皇女",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/fischl_splash.jpg",
+          "thumb": "gallery/thumbs/fischl_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/fischl_wish.jpg",
+          "thumb": "gallery/thumbs/fischl_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/fischl_wide.jpg",
+          "thumb": "gallery/thumbs/fischl_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "bennett",
+      "name": "班尼特",
+      "title": "命运试金石",
+      "element": "pyro",
+      "color": "#ec9b7b",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/bennett_splash.jpg",
+          "thumb": "gallery/thumbs/bennett_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/bennett_wish.jpg",
+          "thumb": "gallery/thumbs/bennett_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/bennett_wide.jpg",
+          "thumb": "gallery/thumbs/bennett_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "chongyun",
+      "name": "重云",
+      "title": "雪融有踪",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/chongyun_splash.jpg",
+          "thumb": "gallery/thumbs/chongyun_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/chongyun_wish.jpg",
+          "thumb": "gallery/thumbs/chongyun_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/chongyun_wide.jpg",
+          "thumb": "gallery/thumbs/chongyun_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "xingqiu",
+      "name": "行秋",
+      "title": "少年春衫薄",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/xingqiu_splash.jpg",
+          "thumb": "gallery/thumbs/xingqiu_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/xingqiu_wish.jpg",
+          "thumb": "gallery/thumbs/xingqiu_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/xingqiu_wide.jpg",
+          "thumb": "gallery/thumbs/xingqiu_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "razor",
+      "name": "雷泽",
+      "title": "狼少年",
+      "element": "electro",
+      "color": "#bda0e8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/razor_splash.jpg",
+          "thumb": "gallery/thumbs/razor_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/razor_wish.jpg",
+          "thumb": "gallery/thumbs/razor_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/razor_wide.jpg",
+          "thumb": "gallery/thumbs/razor_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "diona",
+      "name": "迪奥娜",
+      "title": "猫尾特调",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/diona_splash.jpg",
+          "thumb": "gallery/thumbs/diona_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/diona_wish.jpg",
+          "thumb": "gallery/thumbs/diona_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/diona_wide.jpg",
+          "thumb": "gallery/thumbs/diona_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "sucrose",
+      "name": "砂糖",
+      "title": "无害甜度",
+      "element": "anemo",
+      "color": "#82d6c6",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/sucrose_splash.jpg",
+          "thumb": "gallery/thumbs/sucrose_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/sucrose_wish.jpg",
+          "thumb": "gallery/thumbs/sucrose_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/sucrose_wide.jpg",
+          "thumb": "gallery/thumbs/sucrose_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "qiqi",
+      "name": "七七",
+      "title": "冻冻回魂夜",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/qiqi_splash.jpg",
+          "thumb": "gallery/thumbs/qiqi_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/qiqi_wish.jpg",
+          "thumb": "gallery/thumbs/qiqi_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/qiqi_wide.jpg",
+          "thumb": "gallery/thumbs/qiqi_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "ayato",
+      "name": "神里绫人",
+      "title": "磐祭叶守",
+      "element": "hydro",
+      "color": "#72cfe4",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/ayato_splash.jpg",
+          "thumb": "gallery/thumbs/ayato_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/ayato_wish.jpg",
+          "thumb": "gallery/thumbs/ayato_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/ayato_wide.jpg",
+          "thumb": "gallery/thumbs/ayato_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "yunjin",
+      "name": "云堇",
+      "title": "红毹婵娟",
+      "element": "geo",
+      "color": "#e0bd78",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/yunjin_splash.jpg",
+          "thumb": "gallery/thumbs/yunjin_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/yunjin_wish.jpg",
+          "thumb": "gallery/thumbs/yunjin_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/yunjin_wide.jpg",
+          "thumb": "gallery/thumbs/yunjin_wide.jpg"
         }
       ],
       "default_look": "splash",

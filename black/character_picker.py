@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer
+from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import (
     QColor,
     QFontMetrics,
@@ -22,6 +22,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -51,6 +52,8 @@ def _cover_pixmap(source: Path, width: int, height: int, focus_y: float = 0.5) -
 
 
 class CharacterTile(QAbstractButton):
+    order_requested = pyqtSignal(str, str)  # character id, action
+
     def __init__(self, meta: dict, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.meta = meta
@@ -58,11 +61,27 @@ class CharacterTile(QAbstractButton):
         self.setCheckable(True)
         self.setCursor(Qt.PointingHandCursor)
         self.setFixedSize(150, 194)
-        self.setToolTip(f"{meta.get('name')} · {meta.get('title', '')}")
+        self.setToolTip(f"{meta.get('name')} · {meta.get('title', '')}\n右键可以调整排序")
         self._thumb = ""
         self._pix = QPixmap()
         self.set_look(meta.get("default_look"))
         self._count = len(meta.get("looks", []))
+
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        menu = QMenu(self)
+        meta = self.meta
+        title = menu.addAction(f"{meta.get('name')} · 排序")
+        title.setEnabled(False)
+        menu.addSeparator()
+        for label, action in (
+            ("移到最前", "front"),
+            ("上移一位", "up"),
+            ("下移一位", "down"),
+            ("恢复默认顺序", "reset"),
+        ):
+            act = menu.addAction(label)
+            act.triggered.connect(lambda _checked=False, a=action: self.order_requested.emit(str(self.meta.get("id")), a))
+        menu.exec_(event.globalPos())
 
     def set_look(self, look_id: str | None) -> None:
         look = get_look(self.meta, look_id)
@@ -156,13 +175,17 @@ def accented(c: QColor, alpha: int) -> QColor:
 
 
 class CharacterPickerDialog(GenshinDialog):
-    def __init__(self, parent, character_id: str, look_id: str | None = None) -> None:
+    def __init__(self, parent, character_id: str, look_id: str | None = None, store=None) -> None:
         super().__init__(
             parent,
             "看板角色",
             "选一位陪你坐在书桌边的提瓦特来客，也可以为她换一幅立绘。",
             width=720,
         )
+        self.store = store
+        self._metas = {c["id"]: c for c in all_characters()}
+        self._order = self._load_order()
+        self._query = ""
         self._initial = get_character(character_id)
         self._initial_look = get_look(self._initial, look_id)
         self._selected_id = self._initial["id"]
@@ -172,6 +195,94 @@ class CharacterPickerDialog(GenshinDialog):
         self._tiles: dict[str, CharacterTile] = {}
         self._look_buttons: dict[str, QToolButton] = {}
         self._build()
+
+    # ------------------------------------------------------------------ order
+    def _load_order(self) -> list[str]:
+        ids = [c["id"] for c in all_characters()]
+        saved = []
+        if self.store is not None:
+            raw = self.store.settings.get("character_order")
+            if isinstance(raw, list):
+                saved = [str(item) for item in raw]
+        order = [cid for cid in saved if cid in ids]
+        order += [cid for cid in ids if cid not in order]
+        return order
+
+    def _save_order(self) -> None:
+        if self.store is None:
+            return
+        self.store.settings["character_order"] = list(self._order)
+        self.store.save()
+
+    def _matches(self, meta: dict) -> bool:
+        if not self._query:
+            return True
+        hay = " ".join(
+            str(meta.get(key, "")) for key in ("name", "title", "id", "element")
+        ).lower()
+        return self._query in hay
+
+    def _rebuild_grid(self) -> None:
+        grid = self._grid
+        while grid.count():
+            item = grid.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.hide()
+        row = col = 0
+        visible = 0
+        for cid in self._order:
+            meta = self._metas.get(cid)
+            if meta is None or not self._matches(meta):
+                continue
+            tile = self._tiles.get(cid)
+            if tile is None:
+                continue
+            grid.addWidget(tile, row, col)
+            tile.show()
+            visible += 1
+            col += 1
+            if col == 4:
+                col = 0
+                row += 1
+        self.empty_hint.setVisible(visible == 0)
+        if visible == 0:
+            # The grid was cleared above, so the placeholder must be re-added
+            # or it would float above the (empty) tile area.
+            grid.addWidget(self.empty_hint, 0, 0, 1, 4)
+        self.result_label.setText(
+            f"找到 {visible} 位角色" if self._query else f"{visible} 位角色 · 右键可以置顶或上下移动"
+        )
+
+    def _reorder(self, cid: str, action: str) -> None:
+        if action == "reset":
+            self._order = [c["id"] for c in all_characters()]
+            message = "已恢复默认排序（沃雅妮莎在最前）。"
+        else:
+            if cid not in self._order:
+                return
+            index = self._order.index(cid)
+            name = self._metas.get(cid, {}).get("name", cid)
+            if action == "front" and index > 0:
+                self._order.insert(0, self._order.pop(index))
+                message = f"已把「{name}」移到最前。"
+            elif action == "up" and index > 0:
+                self._order[index - 1], self._order[index] = self._order[index], self._order[index - 1]
+                message = f"「{name}」上移一位。"
+            elif action == "down" and index < len(self._order) - 1:
+                self._order[index + 1], self._order[index] = self._order[index], self._order[index + 1]
+                message = f"「{name}」下移一位。"
+            else:
+                return
+        self._save_order()
+        self._rebuild_grid()
+        self._ensure_visible(cid)
+        self.order_status.setText(message)
+
+    def _ensure_visible(self, cid: str) -> None:
+        tile = self._tiles.get(cid)
+        if tile is not None and tile.isVisible():
+            QTimer.singleShot(0, lambda: self._scroll.ensureWidgetVisible(tile, 20, 20))
 
     def _build(self) -> None:
         chars = all_characters()
@@ -185,10 +296,14 @@ class CharacterPickerDialog(GenshinDialog):
         self.body.addWidget(intro)
 
         self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("搜索角色，例如：芙宁娜、钟离、纳西妲…")
+        self.search_edit.setPlaceholderText("搜索角色（名字或称号），例如：芙宁娜、蒲公英骑士…")
         self.search_edit.setFixedHeight(32)
         self.search_edit.textChanged.connect(self._filter)
         self.body.addWidget(self.search_edit)
+
+        self.result_label = QLabel("")
+        self.result_label.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
+        self.body.addWidget(self.result_label)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -202,19 +317,29 @@ class CharacterPickerDialog(GenshinDialog):
         grid.setContentsMargins(2, 2, 6, 2)
         grid.setHorizontalSpacing(10)
         grid.setVerticalSpacing(10)
+        self._grid = grid
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
-        for i, meta in enumerate(chars):
+        for meta in chars:
             tile = CharacterTile(meta)
             self._tiles[meta["id"]] = tile
             self._group.addButton(tile)
             tile.clicked.connect(lambda _checked=False, cid=meta["id"]: self._select_character(cid))
-            grid.addWidget(tile, i // 4, i % 4)
+            tile.order_requested.connect(self._reorder)
         for c in range(4):
             grid.setColumnStretch(c, 1)
+        self.empty_hint = QLabel("没有找到匹配的角色，换个关键词试试。")
+        self.empty_hint.setAlignment(Qt.AlignCenter)
+        self.empty_hint.setStyleSheet(f"font-size: 10px; color: {theme.FAINT};")
+        self.empty_hint.setVisible(False)
+        grid.addWidget(self.empty_hint, 0, 0, 1, 4)
         scroll.setWidget(host)
         self.body.addWidget(scroll)
         self._scroll = scroll
+
+        self.order_status = QLabel("")
+        self.order_status.setStyleSheet(f"font-size: 9px; color: {theme.GOLD_SOFT};")
+        self.body.addWidget(self.order_status)
 
         self.art_frame = QFrame()
         self.art_frame.setStyleSheet(
@@ -291,20 +416,17 @@ class CharacterPickerDialog(GenshinDialog):
         self._tiles[self._selected_id].setChecked(True)
         self._refresh_looks()
         self._tiles[self._selected_id].set_look(self._selected_look)
-        QTimer.singleShot(80, lambda: self._scroll.ensureWidgetVisible(self._tiles[self._selected_id], 20, 20))
+        self._rebuild_grid()
+        self._ensure_visible(self._selected_id)
 
     def _filter(self, text: str) -> None:
-        needle = text.strip().lower()
-        for meta in all_characters():
-            tile = self._tiles.get(meta["id"])
-            if not tile:
-                continue
-            hay = (str(meta.get("name", "")) + " " + str(meta.get("title", ""))).lower()
-            tile.setVisible(not needle or needle in hay)
-        if needle:
-            for tile in self._tiles.values():
-                if tile.isVisible():
-                    self._scroll.ensureWidgetVisible(tile, 10, 10)
+        self._query = text.strip().lower()
+        self._rebuild_grid()
+        if self._query:
+            for cid in self._order:
+                tile = self._tiles.get(cid)
+                if tile is not None and tile.isVisible():
+                    QTimer.singleShot(0, lambda t=tile: self._scroll.ensureWidgetVisible(t, 10, 10))
                     break
 
     def _select_character(self, cid: str) -> None:

@@ -67,7 +67,7 @@ from .stage import CharacterStage
 from .store import Store
 from .timer import TimerEngine
 from .tts import TTSService
-from .whispers import get_whisper_avatar
+from .whispers import choose_whisper_avatar
 from .widgets import Divider, IconButton, NavTab, TitleBar, TrayPlayer
 
 WEEKDAYS = "一二三四五六日"
@@ -196,6 +196,7 @@ class MainWindow(QMainWindow):
 
         self.timer = TimerEngine(self.store, self)
         self.sounds = Sounds(self)
+        self.sounds.volume = float(self.store.settings.get("sound_volume", 80) or 0) / 100.0
         self.tts = TTSService(self)
         self.music_engine = MusicEngine(
             self, volume=int(self.store.settings.get("music_volume", 42) or 42)
@@ -606,6 +607,7 @@ class MainWindow(QMainWindow):
             self,
             str(self._character_meta.get("id", DEFAULT_CHARACTER_ID)),
             str(self.store.settings.get("look", "") or ""),
+            store=self.store,
         )
         self.sounds.open()
         if dialog.exec_() != dialog.Accepted or not dialog.result_data:
@@ -846,7 +848,7 @@ class MainWindow(QMainWindow):
         return quote
 
     def _whisper_persona(self) -> dict:
-        return get_whisper_avatar(str(self.store.settings.get("whisper_avatar", "派蒙")))
+        return choose_whisper_avatar(str(self.store.settings.get("whisper_avatar", "派蒙")))
 
     def _schedule_whisper(self, first: bool = False) -> None:
         try:
@@ -952,6 +954,7 @@ class MainWindow(QMainWindow):
     def _apply_settings(self, data: dict) -> None:
         self.store.settings.update(data)
         self.store.save()
+        self.sounds.volume = float(self.store.settings.get("sound_volume", 80) or 0) / 100.0
         top = bool(data.get("always_on_top", False))
         if top != bool(self.windowFlags() & Qt.WindowStaysOnTopHint):
             visible = self.isVisible()

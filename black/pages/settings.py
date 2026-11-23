@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSlider,
     QSpinBox,
     QToolButton,
     QVBoxLayout,
@@ -25,7 +26,7 @@ from PyQt5.QtWidgets import (
 from .. import ai, theme
 from ..dialogs import GenshinDialog
 from ..paths import MUSIC
-from ..whispers import WHISPER_AVATARS, get_whisper_avatar
+from ..whispers import RANDOM_CHOICE, WHISPER_AVATARS, get_whisper_avatar
 from ..widgets import IconButton, ToggleSwitch
 
 
@@ -103,6 +104,36 @@ class SettingsDialog(GenshinDialog):
         ap.addWidget(theme_note, 1, 0, 1, 2)
         lay.addWidget(self._wrap(ap))
 
+        # -- sound --
+        lay.addWidget(self._section("音效", "SOUND"))
+        snd = self._grid()
+        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setSingleStep(5)
+        self.volume_slider.setPageStep(10)
+        self.volume_slider.setValue(int(self.store.settings.get("sound_volume", 80) or 0))
+        self.volume_slider.setFixedHeight(22)
+        self.volume_slider.setCursor(Qt.PointingHandCursor)
+        self.volume_slider.setToolTip("调整提示音、点击音与升级音的音量；拖到最左为静音。")
+        self.volume_value = QLabel(f"{self.volume_slider.value()}%")
+        self.volume_value.setFixedWidth(40)
+        self.volume_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.volume_value.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
+        vol_row = QHBoxLayout()
+        vol_row.setContentsMargins(0, 0, 0, 0)
+        vol_row.setSpacing(8)
+        vol_row.addWidget(self.volume_slider, 1)
+        vol_row.addWidget(self.volume_value)
+        self.volume_slider.valueChanged.connect(self._on_volume_changed)
+        self.volume_slider.sliderReleased.connect(self._preview_volume)
+        snd.addWidget(self._label("音效音量"), 0, 0)
+        snd.addLayout(vol_row, 0, 1)
+        volume_note = QLabel("松手后会试听一声；调到 0% 就是静音。乐音页的音乐音量在那边单独调节。")
+        volume_note.setWordWrap(True)
+        volume_note.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
+        snd.addWidget(volume_note, 1, 0, 1, 2)
+        lay.addWidget(self._wrap(snd))
+
         # -- companion --
         lay.addWidget(self._section("陪伴与低语", "COMPANION"))
         s = self._grid()
@@ -114,11 +145,19 @@ class SettingsDialog(GenshinDialog):
         self.whisper_avatar_combo = QComboBox()
         self.whisper_avatar_combo.setIconSize(QSize(22, 22))
         current_persona = get_whisper_avatar(str(self.store.settings.get("whisper_avatar", "派蒙")))
+        current_choice = str(self.store.settings.get("whisper_avatar", "派蒙") or "派蒙")
+        # "随机" is a mode rather than a face: every popup picks another one.
+        self.whisper_avatar_combo.addItem(
+            theme.icon("sparkle", theme.GOLD, 20), "随机（每次换一位）", RANDOM_CHOICE
+        )
         for item in WHISPER_AVATARS:
             self.whisper_avatar_combo.addItem(QIcon(str(item["path"])), item["name"], item["speaker"])
-        avatar_idx = self.whisper_avatar_combo.findData(current_persona["speaker"])
+        if current_choice == RANDOM_CHOICE:
+            avatar_idx = 0
+        else:
+            avatar_idx = self.whisper_avatar_combo.findData(current_persona["speaker"])
         self.whisper_avatar_combo.setCurrentIndex(max(0, avatar_idx))
-        self.whisper_avatar_combo.setToolTip("头像会决定右下角悄悄话的配图、名字和台词。")
+        self.whisper_avatar_combo.setToolTip("头像会决定右下角悄悄话的配图、名字和台词；选「随机」则每次换一位。")
         s.addWidget(self._label("悄悄话头像"), 1, 0)
         s.addWidget(self.whisper_avatar_combo, 1, 1)
 
@@ -404,6 +443,18 @@ class SettingsDialog(GenshinDialog):
             self.test_status.setText(f"备份失败：{e}")
             self.test_status.setStyleSheet(f"font-size: 9px; color: {theme.ROSE};")
 
+    def _on_volume_changed(self, value: int) -> None:
+        self.volume_value.setText(f"{value}%")
+        if not self.volume_slider.isSliderDown():
+            self._preview_volume()
+
+    def _preview_volume(self) -> None:
+        sounds = getattr(self.parent(), "sounds", None)
+        if sounds is None:
+            return
+        sounds.volume = max(0, min(100, int(self.volume_slider.value()))) / 100.0
+        sounds.click()
+
     def _save(self) -> None:
         name = self.name_edit.text().strip() or "旅行者"
         checked = self.appearance_group.checkedButton()
@@ -411,6 +462,7 @@ class SettingsDialog(GenshinDialog):
         self.result_data = {
             "user_name": name[:18],
             "appearance": appearance,
+            "sound_volume": int(self.volume_slider.value()),
             "whisper_avatar": self.whisper_avatar_combo.currentData() or "派蒙",
             "quote_interval_min": int(self.interval_spin.value()),
             "desktop_whisper": bool(self.whisper_toggle.isChecked()),

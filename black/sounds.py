@@ -28,10 +28,28 @@ class Sounds(QObject):
         super().__init__(parent)
         self._cache: dict[str, QSound] = {}
         self.enabled = True
+        self._volume = 0.8
         self.override_dirs = list(override_dirs) if override_dirs is not None else [
             CUSTOM_AUDIO,
             LEGACY_CUSTOM_AUDIO,
         ]
+
+    @property
+    def volume(self) -> float:
+        return self._volume
+
+    @volume.setter
+    def volume(self, value) -> None:
+        try:
+            level = float(value)
+        except (TypeError, ValueError):
+            level = 0.8
+        self._volume = max(0.0, min(1.0, level))
+        for sound in self._cache.values():
+            try:
+                sound.setVolume(self._volume)
+            except Exception:
+                pass
 
     def _path(self, name: str) -> Path | None:
         filename = SOUND_FILES.get(name, name)
@@ -53,10 +71,14 @@ class Sounds(QObject):
         return self._cache[key]
 
     def play(self, name: str) -> None:
-        if not self.enabled:
+        if not self.enabled or self._volume <= 0.0:
             return
         sound = self._sound(name)
         if sound is not None:
+            try:
+                sound.setVolume(self._volume)
+            except Exception:
+                pass
             sound.play()
 
     # convenience wrappers -------------------------------------------------
