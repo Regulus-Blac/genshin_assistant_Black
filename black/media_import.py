@@ -11,6 +11,7 @@ import html
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -312,6 +313,41 @@ def _progress_hook_factory(callback: Callable[[int, str], None]):
     return hook
 
 
+def friendly_download_error(message: str) -> str:
+    """Short, actionable Chinese text for the common yt-dlp failures."""
+    text = str(message)
+    low = text.lower()
+    if "unable to extract initial state" in low:
+        return "B 站解析被拦截（多半需要登录或触发了风控），稍后重试或更新 yt-dlp"
+    if "video unavailable" in low or "404" in text or "not found" in low:
+        return "视频不存在或已被删除"
+    if "private" in low:
+        return "视频是私密的，无法下载"
+    if "sign in" in low or "login" in low or "cookies" in low:
+        return "需要登录 B 站才能下载"
+    if "timed out" in low or "timeout" in low:
+        return "网络超时"
+    if "ffmpeg" in low:
+        return "ffmpeg 转换失败"
+    return text[:140]
+
+
+def _retryable(message: str) -> bool:
+    low = str(message).lower()
+    return any(
+        key in low
+        for key in (
+            "unable to extract initial state",
+            "timed out",
+            "timeout",
+            "temporarily",
+            "connection reset",
+            "502",
+            "503",
+        )
+    )
+
+
 def download_audio(url: str, output_dir: str | Path, *, progress: Callable[[int, str], None] | None = None) -> Path:
     ok, detail = dependencies_ready()
     if not ok:
@@ -343,33 +379,41 @@ def download_audio(url: str, output_dir: str | Path, *, progress: Callable[[int,
         "retries": 3,
         "socket_timeout": 30,
     }
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if info is None:
-                raise RuntimeError("没有解析到可下载的音频")
-            prepared = Path(ydl.prepare_filename(info)).with_suffix(".mp3")
-            if prepared.exists():
-                progress(100, "已保存 MP3")
-                return prepared
-            track_id = str(info.get("id") or "")
-            for candidate in sorted(output_dir.glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True):
-                if track_id and track_id in candidate.name:
+    attempts = 2
+    for attempt in range(1, attempts + 1):
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                if info is None:
+                    raise RuntimeError("没有解析到可下载的音频")
+                prepared = Path(ydl.prepare_filename(info)).with_suffix(".mp3")
+                if prepared.exists():
                     progress(100, "已保存 MP3")
-                    return candidate
-            # The postprocessor may have used a truncated title; fall back to
-            # the newest MP3 if it was written during this call.
-            newest = sorted(output_dir.glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True)
-            if newest:
-                progress(100, "已保存 MP3")
-                return newest[0]
-            raise RuntimeError("转换完成后没有找到 MP3 文件")
-    except DownloadError as e:
-        raise RuntimeError(f"yt-dlp 解析失败：{str(e)[:300]}") from e
-    except Exception as e:
-        if isinstance(e, RuntimeError):
-            raise
-        raise RuntimeError(f"下载或转换失败：{type(e).__name__} · {str(e)[:300]}") from e
+                    return prepared
+                track_id = str(info.get("id") or "")
+                for candidate in sorted(output_dir.glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True):
+                    if track_id and track_id in candidate.name:
+                        progress(100, "已保存 MP3")
+                        return candidate
+                # The postprocessor may have used a truncated title; fall back to
+                # the newest MP3 if it was written during this call.
+                newest = sorted(output_dir.glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if newest:
+                    progress(100, "已保存 MP3")
+                    return newest[0]
+                raise RuntimeError("转换完成后没有找到 MP3 文件")
+        except DownloadError as e:
+            message = str(e)
+            if attempt < attempts and _retryable(message):
+                progress(0, f"解析失败，正在重试（{attempt}/{attempts - 1}）…")
+                time.sleep(1.5)
+                continue
+            raise RuntimeError(f"yt-dlp 解析失败：{friendly_download_error(message)}") from e
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            raise RuntimeError(f"下载或转换失败：{type(e).__name__} · {str(e)[:300]}") from e
+    raise RuntimeError("下载失败：重试后仍未成功")
 
 
 def convert_local_media(input_path: str | Path, output_dir: str | Path) -> Path:
@@ -433,11 +477,16 @@ class ProbeThread(QThread):
 
 
 class ImportThread(QThread):
-    """Download one or more videos sequentially and convert each one to MP3."""
+    """Download one or more videos sequentially and convert each one to MP3.
+
+    A single broken link must not throw away the songs that already arrived:
+    failures are skipped (with a short reason) and reported at the end.
+    """
 
     progress = pyqtSignal(int, str)
     done = pyqtSignal(list)
     failed = pyqtSignal(str)
+    skipped = pyqtSignal(str)
 
     def __init__(self, urls, output_dir: str | Path, parent=None) -> None:
         super().__init__(parent)
@@ -448,17 +497,35 @@ class ImportThread(QThread):
 
     def run(self) -> None:
         saved: list[str] = []
+        failures: list[tuple[int, str]] = []
         total = max(1, len(self.urls))
-        try:
-            for index, url in enumerate(self.urls, 1):
-                def hook(pct: int, text: str, _i: int = index) -> None:
-                    overall = int(((_i - 1) + max(0, min(100, pct)) / 100) / total * 100)
-                    prefix = f"第 {_i}/{total} 首 · " if total > 1 else ""
-                    self.progress.emit(overall, f"{prefix}{text}")
+        for index, url in enumerate(self.urls, 1):
+            def hook(pct: int, text: str, _i: int = index) -> None:
+                overall = int(((_i - 1) + max(0, min(100, pct)) / 100) / total * 100)
+                prefix = f"第 {_i}/{total} 首 · " if total > 1 else ""
+                self.progress.emit(overall, f"{prefix}{text}")
 
+            try:
                 saved.append(str(download_audio(url, self.output_dir, progress=hook)))
+            except Exception as e:
+                reason = friendly_download_error(str(e))
+                failures.append((index, reason))
+                self.progress.emit(
+                    int(index / total * 100),
+                    f"第 {index}/{total} 首失败，已跳过：{reason}",
+                )
+                # Small pause between items: blasting Bilibili back to back is
+                # what usually triggers its anti-bot page.
+                if index < total:
+                    time.sleep(0.8)
+        if saved:
             self.done.emit(saved)
-        except Exception as e:
+        if failures:
+            sample = "；".join(f"第 {i} 首：{msg}" for i, msg in failures[:3])
+            extra = f" 等 {len(failures)} 首" if len(failures) > 3 else ""
             if saved:
-                self.done.emit(saved)
-            self.failed.emit(f"已完成 {len(saved)}/{total} 首，之后失败：{e}")
+                self.skipped.emit(f"已跳过 {len(failures)} 首{extra}（{sample}），其余 {len(saved)} 首已保存。")
+            else:
+                self.failed.emit(f"全部 {len(failures)} 首都没能下载：{sample}")
+        elif not saved:
+            self.failed.emit("没有可下载的内容")

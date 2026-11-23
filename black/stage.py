@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
 
 from . import render_mode
 from . import theme as _theme
-from .characters import get_look
+from .characters import art_path, get_look
 from .paths import IMAGES, avatar_path
 from .widgets import Avatar, Dot, IconButton, WrappedText
 
@@ -468,7 +468,7 @@ class CharacterStage(QWidget):
         self.set_art(str(look.get("art") or "art_snow.jpg"))
 
     def set_art(self, art_name: str) -> None:
-        path = IMAGES / art_name
+        path = art_path(art_name)
         if not path.exists():
             visual = list(IMAGES.glob("art_*.jpg"))
             if visual:

@@ -68,6 +68,7 @@ from .store import Store
 from .timer import TimerEngine
 from .tts import TTSService
 from .whispers import choose_whisper_avatar
+from .voices import VoiceBank, VoicePlayer
 from .widgets import Divider, IconButton, NavTab, TitleBar, TrayPlayer
 
 WEEKDAYS = "一二三四五六日"
@@ -197,6 +198,8 @@ class MainWindow(QMainWindow):
         self.timer = TimerEngine(self.store, self)
         self.sounds = Sounds(self)
         self.sounds.volume = float(self.store.settings.get("sound_volume", 80) or 0) / 100.0
+        self.voices = VoiceBank()
+        self.voice_player = VoicePlayer(self)
         self.tts = TTSService(self)
         self.music_engine = MusicEngine(
             self, volume=int(self.store.settings.get("music_volume", 42) or 42)
@@ -883,7 +886,8 @@ class MainWindow(QMainWindow):
             str(persona.get("color", theme.GOLD)),
             duration_ms=18000,
         )
-        if self.store.settings.get("tts_enabled", False):
+        played = self._play_voice(persona["speaker"], str(quote.get("text", "")))
+        if not played and self.store.settings.get("tts_enabled", False):
             self.speak(str(quote.get("text", "")))
         if manual:
             self.sounds.interact()
@@ -899,8 +903,26 @@ class MainWindow(QMainWindow):
             str(persona.get("color", theme.GOLD)),
             duration_ms=18000,
         )
-        if self.store.settings.get("tts_enabled", False):
+        played = self._play_voice(persona["speaker"], str(quote.get("text", "")))
+        if not played and self.store.settings.get("tts_enabled", False):
             self.speak(str(quote.get("text", "")))
+
+    def _play_voice(self, speaker: str, text: str) -> bool:
+        """Play a user-imported line from data/voice if there is one."""
+        if not self.store.settings.get("voice_enabled", True):
+            return False
+        try:
+            path = self.voices.line_for(
+                speaker,
+                text,
+                loose=bool(self.store.settings.get("voice_loose", True)),
+            )
+        except Exception:
+            return False
+        if path is None:
+            return False
+        self.voice_player.volume = int(self.store.settings.get("sound_volume", 80) or 80)
+        return self.voice_player.play(path)
 
     def _on_stage_petted(self) -> None:
         self.sounds.interact()
@@ -1265,6 +1287,10 @@ class MainWindow(QMainWindow):
             pass
         try:
             self._whisper_popup.close()
+        except Exception:
+            pass
+        try:
+            self.voice_player.shutdown()
         except Exception:
             pass
         try:

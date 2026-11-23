@@ -10,10 +10,58 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-from .paths import ASSETS, IMAGES
+from .paths import ASSETS, DATA_DIR, IMAGES
 
 DEFAULT_CHARACTER_ID = "vodyanitsa"
 DEFAULT_LOOK_ID = "window"
+
+# Extra artwork the user collected themselves (pixiv / 米游社 / own files).
+# Kept outside the repo in data/art_extra so no third-party art is shipped.
+EXTRA_MANIFEST = DATA_DIR / "art_extra" / "manifest.json"
+_extra_cache: dict = {"mtime": -1.0, "data": {}}
+
+
+def extra_looks() -> dict[str, list[dict]]:
+    """Read data/art_extra/manifest.json, cached by modification time."""
+    try:
+        mtime = EXTRA_MANIFEST.stat().st_mtime
+    except OSError:
+        return {}
+    if _extra_cache["mtime"] == mtime:
+        return _extra_cache["data"]
+    data: dict[str, list[dict]] = {}
+    try:
+        raw = json.loads(EXTRA_MANIFEST.read_text(encoding="utf-8"))
+    except Exception:
+        raw = {}
+    if isinstance(raw, dict):
+        for cid, looks in raw.items():
+            clean = []
+            if not isinstance(looks, list):
+                continue
+            for look in looks:
+                if not isinstance(look, dict):
+                    continue
+                art = Path(str(look.get("art", "")))
+                if not art.is_file():
+                    continue
+                thumb = Path(str(look.get("thumb") or art))
+                clean.append(
+                    {
+                        "id": str(look.get("id") or art.stem),
+                        "label": str(look.get("label") or "收藏"),
+                        "orientation": str(look.get("orientation") or "portrait"),
+                        "art": str(art),
+                        "thumb": str(thumb if thumb.is_file() else art),
+                        "source": str(look.get("source") or "local"),
+                        "credit": str(look.get("credit") or ""),
+                    }
+                )
+            if clean:
+                data[str(cid)] = clean
+    _extra_cache["mtime"] = mtime
+    _extra_cache["data"] = data
+    return data
 
 _FALLBACK = {
     "version": 1,
@@ -54,7 +102,15 @@ def _by_id() -> dict[str, dict]:
 
 
 def all_characters() -> list[dict]:
-    return list(_manifest().get("characters", []))
+    extras = extra_looks()
+    out = []
+    for meta in _manifest().get("characters", []):
+        merged = dict(meta)
+        extra = extras.get(str(meta.get("id")))
+        if extra:
+            merged["looks"] = list(meta.get("looks", [])) + extra
+        out.append(merged)
+    return out
 
 
 def get_character(character_id: str | None) -> dict:
@@ -63,7 +119,12 @@ def get_character(character_id: str | None) -> dict:
     # Older builds used a few shortened IDs.
     aliases = {"raiden_shogun": "raiden", "yae_miko": "yae", "hu_tao": "hutao"}
     cid = aliases.get(cid, cid)
-    return chars.get(cid) or chars.get(DEFAULT_CHARACTER_ID) or _FALLBACK["characters"][0]
+    meta = chars.get(cid) or chars.get(DEFAULT_CHARACTER_ID) or _FALLBACK["characters"][0]
+    extra = extra_looks().get(str(meta.get("id")))
+    if extra:
+        meta = dict(meta)
+        meta["looks"] = list(meta.get("looks", [])) + extra
+    return meta
 
 
 def default_look(meta: dict) -> dict:
@@ -105,5 +166,7 @@ def look_count() -> int:
     return sum(len(c.get("looks", [])) for c in _manifest().get("characters", []))
 
 
-def art_path(relative: str) -> Path:
-    return IMAGES / relative
+def art_path(name: str | Path) -> Path:
+    """Resolve a look's art: absolute paths (user extras) or repo-relative."""
+    path = Path(str(name))
+    return path if path.is_absolute() else IMAGES / path

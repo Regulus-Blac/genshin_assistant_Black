@@ -5,6 +5,7 @@ from pathlib import Path
 from PyQt5.QtCore import QSize, Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -51,14 +52,24 @@ class ConvertThread(QThread):
             self.failed.emit(str(e))
 
 
+CHECK_ROLE = Qt.UserRole + 1
+
+
 class ImportRow(QWidget):
+    toggled = pyqtSignal(bool)
+
     def __init__(self, title: str, meta: str, badge_text: str = "B站", parent=None) -> None:
         super().__init__(parent)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setFixedHeight(52)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(7, 4, 8, 4)
         lay.setSpacing(8)
+        # A real checkbox: the item-widget covers the view's own check indicator,
+        # which is why clicking the little box never worked before.
+        self.check = QCheckBox()
+        self.check.setCursor(Qt.PointingHandCursor)
+        self.check.setToolTip("勾选这一段")
+        lay.addWidget(self.check, 0, Qt.AlignVCenter)
         badge = QLabel(badge_text)
         badge_bg = theme.mix(theme.GOLD, theme.PANEL, 0.9).name()
         badge.setStyleSheet(
@@ -75,6 +86,19 @@ class ImportRow(QWidget):
         col.addWidget(name)
         col.addWidget(sub)
         lay.addLayout(col, 1)
+        self.check.toggled.connect(self.toggled.emit)
+
+    def set_checked(self, checked: bool) -> None:
+        self.check.blockSignals(True)
+        self.check.setChecked(bool(checked))
+        self.check.blockSignals(False)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        # Clicking anywhere on the row flips the checkbox (same as the playlist
+        # batch dialog), so a near-miss doesn't silently do nothing.
+        if event.button() == Qt.LeftButton and not self.check.geometry().contains(event.pos()):
+            self.check.toggle()
+        super().mousePressEvent(event)
 
 
 def result_list_style() -> str:
@@ -127,6 +151,7 @@ class CollectionDialog(GenshinDialog):
         self.scopes = scopes
         self.selected_urls: list[str] = []
         self._data = data
+        self._rows: list[tuple[QListWidgetItem, ImportRow]] = []
 
         top = QHBoxLayout()
         top.setSpacing(8)
@@ -192,6 +217,7 @@ class CollectionDialog(GenshinDialog):
         default_checked = 0 < len(entries) <= 25
         self.list.blockSignals(True)
         self.list.clear()
+        self._rows = []
         for i, entry in enumerate(entries, 1):
             duration = int(entry.get("duration") or 0)
             minutes, seconds = divmod(duration, 60)
@@ -199,10 +225,16 @@ class CollectionDialog(GenshinDialog):
             item = QListWidgetItem()
             item.setData(Qt.UserRole, entry.get("url", ""))
             item.setSizeHint(QSize(100, 52))
-            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Checked if default_checked else Qt.Unchecked)
+            # The row widget owns the checkbox; keep the state in a custom role
+            # so the view never draws its own check indicator as well.
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            item.setData(CHECK_ROLE, bool(default_checked))
+            row = ImportRow(f"{i:02d}. {entry.get('title', '')}", meta, "B站")
+            row.set_checked(default_checked)
+            row.toggled.connect(lambda checked, it=item: it.setData(CHECK_ROLE, bool(checked)))
             self.list.addItem(item)
-            self.list.setItemWidget(item, ImportRow(f"{i:02d}. {entry.get('title', '')}", meta, "B站"))
+            self.list.setItemWidget(item, row)
+            self._rows.append((item, row))
             item.setToolTip(entry.get("title", ""))
         self.list.blockSignals(False)
         if self.hint is not None:
@@ -215,22 +247,25 @@ class CollectionDialog(GenshinDialog):
         self._refresh_summary()
 
     def _set_all(self, state) -> None:
+        checked = state == Qt.Checked
         self.list.blockSignals(True)
         for i in range(self.list.count()):
-            self.list.item(i).setCheckState(state)
+            self.list.item(i).setData(CHECK_ROLE, checked)
+        for _item, row in self._rows:
+            row.set_checked(checked)
         self.list.blockSignals(False)
         self._refresh_summary()
 
     def _refresh_summary(self) -> None:
         total = self.list.count()
-        checked = sum(1 for i in range(total) if self.list.item(i).checkState() == Qt.Checked)
+        checked = sum(1 for i in range(total) if self.list.item(i).data(CHECK_ROLE))
         self.summary.setText(f"已选 {checked}/{total} 段")
 
     def _accept_selection(self) -> None:
         self.selected_urls = [
             str(self.list.item(i).data(Qt.UserRole) or "")
             for i in range(self.list.count())
-            if self.list.item(i).checkState() == Qt.Checked
+            if self.list.item(i).data(CHECK_ROLE)
         ]
         if not self.selected_urls:
             self.summary.setText("至少选一段，或者点「取消」。")
@@ -461,6 +496,7 @@ class MusicImportDialog(GenshinDialog):
         worker.progress.connect(self._on_progress)
         worker.done.connect(self._on_done)
         worker.failed.connect(self._on_failed)
+        worker.skipped.connect(self._on_skipped)
         worker.finished.connect(lambda: self._set_busy(False))
         self._import_worker = worker
         worker.start()
@@ -472,6 +508,7 @@ class MusicImportDialog(GenshinDialog):
     def _on_done(self, paths) -> None:
         paths = list(paths or [])
         self.progress.setValue(1.0, animate=True)
+        self.status.setStyleSheet(f"font-size: 10px; color: {theme.MUTED};")
         if len(paths) == 1:
             self.status.setText(f"已保存：{Path(paths[0]).name}")
         else:
@@ -479,6 +516,12 @@ class MusicImportDialog(GenshinDialog):
         for path in paths:
             self.imported.emit(path)
         self._set_busy(False)
+
+    def _on_skipped(self, message: str) -> None:
+        # Partial success: the saved songs are kept, the broken links are listed.
+        self.progress.setValue(1.0, animate=True)
+        self.status.setText(message)
+        self.status.setStyleSheet(f"font-size: 10px; color: {theme.GOLD_SOFT};")
 
     def _on_failed(self, message: str) -> None:
         self.progress.setValue(0)

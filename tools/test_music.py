@@ -27,7 +27,7 @@ from black import theme  # noqa: E402
 from black.mainwindow import MainWindow  # noqa: E402
 from black.media_import import ImportThread, bilibili_scopes  # noqa: E402
 from black.pages import music_import as import_ui  # noqa: E402
-from black.pages.music_import import CollectionDialog  # noqa: E402
+from black.pages.music_import import CHECK_ROLE, CollectionDialog  # noqa: E402
 from black.store import Store  # noqa: E402
 from black.theme import apply_theme  # noqa: E402
 
@@ -166,7 +166,7 @@ def main() -> int:
     dialog = CollectionDialog(window, {"title": "合集", "entries": entries})
     dialog.show()
     QTest.qWait(200)
-    checked = sum(1 for i in range(dialog.list.count()) if dialog.list.item(i).checkState() == Qt.Checked)
+    checked = sum(1 for i in range(dialog.list.count()) if dialog.list.item(i).data(CHECK_ROLE))
     print("collection default", checked, dialog.summary.text())
     assert checked == 0
     dialog._set_all(Qt.Checked)
@@ -179,7 +179,7 @@ def main() -> int:
     short = CollectionDialog(window, {"title": "短合集", "entries": entries[:3]})
     short.show()
     QTest.qWait(150)
-    checked = sum(1 for i in range(short.list.count()) if short.list.item(i).checkState() == Qt.Checked)
+    checked = sum(1 for i in range(short.list.count()) if short.list.item(i).data(CHECK_ROLE))
     print("short collection default", checked)
     assert checked == 3
     short.close()

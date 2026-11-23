@@ -26,6 +26,7 @@ from PyQt5.QtWidgets import (
 from .. import ai, theme
 from ..dialogs import GenshinDialog
 from ..paths import MUSIC
+from ..voices import VOICE_DIR, VoiceBank
 from ..whispers import RANDOM_CHOICE, WHISPER_AVATARS, get_whisper_avatar
 from ..widgets import IconButton, ToggleSwitch
 
@@ -191,6 +192,34 @@ class SettingsDialog(GenshinDialog):
         self.tts_rate.setCurrentIndex(idx)
         s.addWidget(self._label("朗读语速"), 5, 0)
         s.addWidget(self.tts_rate, 5, 1)
+
+        # -- user-imported voices (data/voice) --
+        voice_count = VoiceBank().count()
+        voice_row = QHBoxLayout()
+        voice_row.setContentsMargins(0, 0, 0, 0)
+        voice_row.setSpacing(6)
+        self.voice_status = QLabel(
+            f"已导入 {voice_count} 条" if voice_count else "还没有导入语音"
+        )
+        self.voice_status.setStyleSheet(f"font-size: 10px; color: {theme.MUTED};")
+        voice_row.addWidget(self.voice_status, 1)
+        voice_open = QPushButton("打开 voice 文件夹")
+        voice_open.setObjectName("Ghost")
+        voice_open.setCursor(Qt.PointingHandCursor)
+        voice_open.setFixedHeight(30)
+        voice_open.clicked.connect(self._open_voice_folder)
+        voice_row.addWidget(voice_open)
+        self.voice_toggle = ToggleSwitch(bool(self.store.settings.get("voice_enabled", True)))
+        s.addWidget(self._label("角色语音"), 6, 0)
+        s.addWidget(self._with_desc(self.voice_toggle, "把录音放进 data/voice/<角色>/，悄悄话会优先播放它。程序本身不带任何游戏音频。"), 6, 1)
+        s.addLayout(voice_row, 7, 1)
+        self.voice_loose = ToggleSwitch(bool(self.store.settings.get("voice_loose", True)))
+        s.addWidget(self._label("宽松匹配"), 8, 0)
+        s.addWidget(
+            self._with_desc(self.voice_loose, "打开时，即使没有逐句对应的录音，也会从该角色的语音里随机播一条。"),
+            8,
+            1,
+        )
         lay.addWidget(self._wrap(s))
 
         # -- behavior --
@@ -443,6 +472,10 @@ class SettingsDialog(GenshinDialog):
             self.test_status.setText(f"备份失败：{e}")
             self.test_status.setStyleSheet(f"font-size: 9px; color: {theme.ROSE};")
 
+    def _open_voice_folder(self) -> None:
+        VOICE_DIR.mkdir(parents=True, exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(VOICE_DIR)))
+
     def _on_volume_changed(self, value: int) -> None:
         self.volume_value.setText(f"{value}%")
         if not self.volume_slider.isSliderDown():
@@ -468,6 +501,8 @@ class SettingsDialog(GenshinDialog):
             "desktop_whisper": bool(self.whisper_toggle.isChecked()),
             "tts_enabled": bool(self.tts_toggle.isChecked()),
             "tts_rate": int(self.tts_rate.currentData() or 0),
+            "voice_enabled": bool(self.voice_toggle.isChecked()),
+            "voice_loose": bool(self.voice_loose.isChecked()),
             "always_on_top": bool(self.top_toggle.isChecked()),
             "close_to_tray": bool(self.tray_toggle.isChecked()),
             "music_folder": self.music_edit.text().strip() or str(MUSIC),

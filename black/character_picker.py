@@ -32,7 +32,7 @@ from PyQt5.QtWidgets import (
 )
 
 from . import theme
-from .characters import all_characters, default_look, get_character, get_look
+from .characters import all_characters, art_path, default_look, get_character, get_look
 from .dialogs import GenshinDialog
 from .paths import IMAGES
 
@@ -68,7 +68,20 @@ class CharacterTile(QAbstractButton):
         self._count = len(meta.get("looks", []))
 
     def contextMenuEvent(self, event) -> None:  # noqa: N802
-        menu = QMenu(self)
+        # Parentless on purpose: a menu parented to a widget inside the
+        # translucent dialog window was drawn with a transparent background,
+        # which made the labels unreadable in the dark theme.
+        menu = QMenu()
+        menu.setStyleSheet(
+            f"QMenu {{ background: {theme.PANEL if not theme.is_light() else '#fbf6ed'}; "
+            f"border: 1px solid {theme.mix(theme.GOLD, theme.PANEL, 0.55).name()}; "
+            "border-radius: 9px; padding: 5px; "
+            f"color: {theme.TEXT}; }} "
+            "QMenu::item { padding: 7px 24px 7px 12px; border-radius: 5px; } "
+            f"QMenu::item:selected {{ background: {theme.mix(theme.GOLD, theme.PANEL, 0.72).name()}; "
+            f"color: {theme.GOLD_BRIGHT}; }} "
+            f"QMenu::item:disabled {{ color: {theme.MUTED}; }}"
+        )
         meta = self.meta
         title = menu.addAction(f"{meta.get('name')} · 排序")
         title.setEnabled(False)
@@ -82,6 +95,7 @@ class CharacterTile(QAbstractButton):
             act = menu.addAction(label)
             act.triggered.connect(lambda _checked=False, a=action: self.order_requested.emit(str(self.meta.get("id")), a))
         menu.exec_(event.globalPos())
+        menu.deleteLater()
 
     def set_look(self, look_id: str | None) -> None:
         look = get_look(self.meta, look_id)
@@ -89,7 +103,7 @@ class CharacterTile(QAbstractButton):
         if rel == self._thumb:
             return
         self._thumb = rel
-        self._pix = _cover_pixmap(IMAGES / rel, 150, 194, 0.12)
+        self._pix = _cover_pixmap(art_path(rel), 150, 194, 0.12)
         self.update()
 
     def enterEvent(self, event) -> None:  # noqa: N802
@@ -485,7 +499,7 @@ class CharacterPickerDialog(GenshinDialog):
             btn.setCursor(Qt.PointingHandCursor)
             btn.setText(str(look.get("label", "立绘")))
             btn.setToolTip(f"{meta.get('name')} · {look.get('label')}")
-            pix = _cover_pixmap(IMAGES / str(look.get("thumb", "art_snow.jpg")), 68, 82, 0.08)
+            pix = _cover_pixmap(art_path(str(look.get("thumb", "art_snow.jpg"))), 68, 82, 0.08)
             if not pix.isNull():
                 btn.setIcon(QIcon(pix))
             btn.setStyleSheet(

@@ -9,6 +9,8 @@ Black 是一个本地优先的 Windows 桌面学习助手：用提瓦特风格�
 - 每日 Markdown 手札
 - 55 位角色、177 幅看板立绘，支持竖屏与横屏立绘；沃雅妮莎的 15 张资源已全部收录
 - 角色选择支持搜索（名字或称号），右键可以把喜欢的角色置顶或上下移动，排序会记住；默认沃雅妮莎在最前
+- 选角色时除了内置立绘，还会显示你自己收集到 `data/art_extra/` 的同人图（见 `tools/fetch_popular_art.py`）
+- 悄悄话可以播放你自己导入到 `data/voice/` 的角色语音；程序不内置任何游戏音频
 - 悄悄话头像可以选「随机（每次换一位）」，每次弹出都会换一位角色来说话
 - 设置里可以单独调「音效音量」（0% 即静音），不影响音乐音量
 - 夜晚 / 白天双主题：默认夜晚，左上角品牌头像会随主题切换为小王子 / 彩特琳德
@@ -64,7 +66,7 @@ python app.py
 4. 左下角「角色」可以切换看板角色和立绘；「摸摸头」和「角色」之间的「横屏」按钮会切到横屏立绘，此时整个主界面从左右结构变为「上方横屏功能区 + 下方全宽页面」，横屏功能区左侧是完整宽幅立绘，右侧是播放器、三个快捷按钮和台词卡；再点「竖屏」可以切回。
 5. 「乐音」页有三个标签：
    - **歌单**：上方才会出现歌单选择框（一次显示 5 个左右，多了可以滚动）和「+ 新建 / 重命名 / 删除」。歌单需要自己创建、再往里加歌；下方按钮是「排序 / 添加歌曲 / 移除歌曲」，还可以在歌单内搜索。
-   - **添加歌曲**弹窗是批量的：每首歌左侧有勾选框，点一下勾选、再点一下取消，也可以用「全选 / 全不选」，点「加入选中歌曲（N）」一次加进去；已在歌单里的会自动跳过并提示。
+   - **添加歌曲**弹窗是批量的：每首歌左侧有勾选框，点一下勾选、再点一下取消，也可以用「全选 / 全不选」，点「加入选中歌曲（N）」一次加进去；已在歌单里的会自动跳过并提示。曲库很大时用上面的搜索框按名字 / 备注 / 路径过滤，此时「全选」只勾当前搜到的歌。
    - **本地曲库**：跟着音乐文件夹走，支持搜索、拖动排序；右键可以「加入歌单」或「重命名文件」。
    - **在线寻音**：网易云完整音源 + iTunes 试听，即点即听并自动缓存；选中后可以「加入歌单」或「下载到本地曲库」（下载会真正落一个 MP3 进曲库）。
 6. 上方播放器的播放键、上一首/下一首和三种播放模式，作用在**当前标签页的列表**上：在歌单页按播放，队列就是这个歌单；双击本地曲库里的歌，队列换成整个曲库。播放中按播放键是暂停（不会切掉当前队列），再按一次继续。播放器右侧会显示「顺序播放 · 歌单「xxx」」这样的当前队列提示，点击进度条任意位置可跳转，「倍率」可选 0.5x、0.75x、1.0x、1.5x、2.0x。
@@ -100,6 +102,10 @@ API Key 只保存在本机的 `data/black.json`。这个目录已在 `.gitignore
 
 默认选中的是「本视频的分P」，所以搜到某张专辑点下载时，拿到的是这张专辑本身，而不是 UP 主的整个大合集。超过 25 段时默认不勾选，可以逐条勾选或「全选」；进度条会显示第几首、共几首。搜索到的单个视频如果本身属于合集，同样会先让你选。
 
+合集里的勾选框是真正的复选框：点方框或点整行都能切换；「全选 / 全不选」会同步勾选框和时间显示。
+
+如果某一首解析失败（例如 B 站要求登录、视频被删除或触发风控），**只会跳过这一首，后面的继续下载**，结束后会提示跳过了哪几首。常见的「Unable to extract initial state」属于 B 站风控，稍后重试或用 `python -m pip install -U yt-dlp` 更新解析器通常能恢复。
+
 导入的 MP3 保存到当前本地曲库，默认是 `assets/music/`；可以在乐音页更换曲库目录。转换后的文件不是 MP4，原始音频/视频临时文件会在转换后删除。
 
 也可以使用命令行：
@@ -112,6 +118,40 @@ python tools/fetch_music.py --convert "D:\Videos\video.mp4"
 ```
 
 B 站部分视频需要登录或大会员权限；下载内容请仅用于个人合法用途。
+
+## 角色语音（自行导入）
+
+程序**不内置任何原神语音**（原因与来源调研见 [docs/voice-research.md](docs/voice-research.md)）。如果本机已经有录音，把它放进 `data/voice/<角色名>/`，悄悄话会优先播放它：
+
+```text
+data/voice/琴/rest.mp3
+data/voice/钟离/line01.wav
+data/voice/manifest.json      # 可选：把某句台词精确对应到某个文件
+```
+
+```powershell
+python tools/import_voices.py --list
+python tools/import_voices.py --speaker 琴 --source D:\my_voices
+python tools/import_voices.py --speaker 琴 --text "休息也是骑士团的规定。" --file rest.mp3
+```
+
+支持 mp3 / wav / ogg / m4a / flac / opus；`manifest.json` 的格式是
+`{"琴": {"台词原文": "rest.mp3"}}`。设置里可以开关「角色语音」，并决定是否在找不到对应台词时随机播一条该角色的录音。
+`data/` 已被 `.gitignore` 忽略，这些文件不会进入仓库。
+
+## 补充立绘（自行收集）
+
+除了内置的 177 幅立绘，还可以把自己收集的人物图放进 `data/art_extra/`，角色选择里会多出「人气 N」这一组：
+
+```powershell
+python tools/fetch_popular_art.py --list
+python tools/fetch_popular_art.py --character jean --limit 6
+python tools/fetch_popular_art.py --character 甘雨 --query "甘雨 原神" --name-tag "甘雨(原神)" --limit 8
+```
+
+脚本只会下载公开的 pixiv 搜索结果（按人气排序），并把标题、作者和作品链接写进
+`data/art_extra/manifest.json` 方便署名；同人图版权归原作者，仅供个人本地使用，不要随仓库分发。
+米游社的接口需要登录签名，脚本未实现，想用米游社的图请手动保存到同样的目录并在清单里补一条。
 
 ## 数据与隐私
 
@@ -154,12 +194,17 @@ python tools/test_responsive.py
 python tools/test_resize.py
 python tools/test_resize_snapshot.py
 python tools/test_settings_picker.py
+python tools/test_import_fixes.py
+python tools/test_voices.py
+python tools/test_extra_art.py
 ```
 
 追加角色（素材脚本，需要联网，只补新增角色，不动已有素材）：
 
 ```powershell
 python tools/add_characters.py
+python tools/fetch_popular_art.py --character jean --limit 6
+python tools/import_voices.py --speaker 琴 --source D:\my_voices
 ```
 
 主要目录：

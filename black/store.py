@@ -37,6 +37,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "assistant_name": "Black",
     "quote_interval_min": 20,
     "desktop_whisper": True,
+    "voice_enabled": True,
+    "voice_loose": True,
     "tts_enabled": False,
     "tts_rate": -1,
     "always_on_top": False,

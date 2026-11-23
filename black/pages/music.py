@@ -305,6 +305,13 @@ class PlaylistAddDialog(GenshinDialog):
         self.song_list.pressed.connect(self._on_pressed)
         right_col.addWidget(self.song_list, 1)
 
+        self.song_search = QLineEdit()
+        self.song_search.setPlaceholderText("在上面搜索这首歌的名字 / 备注 / 路径")
+        self.song_search.setFixedHeight(30)
+        self.song_search.setClearButtonEnabled(True)
+        self.song_search.textChanged.connect(self._apply_song_filter)
+        right_col.insertWidget(1, self.song_search)
+
         tools = QHBoxLayout()
         tools.setSpacing(6)
         self.select_all_btn = QPushButton("全选")
@@ -371,7 +378,30 @@ class PlaylistAddDialog(GenshinDialog):
             placeholder = QListWidgetItem("这里还没有歌曲")
             placeholder.setFlags(Qt.NoItemFlags)
             self.song_list.addItem(placeholder)
+        self._apply_song_filter()
         self._refresh_selection()
+
+    def _apply_song_filter(self, text: str | None = None) -> None:
+        """Hide rows that don't match so long playlists can be searched."""
+        needle = (self.song_search.text() if text is None else text).strip().lower()
+        visible = 0
+        for i in range(self.song_list.count()):
+            item = self.song_list.item(i)
+            entry = item.data(Qt.UserRole)
+            hay = item.text().lower()
+            if isinstance(entry, dict):
+                hay += " " + str(entry.get("path", "")).lower()
+                hay += " " + str(entry.get("url", "")).lower()
+                hay += " " + str(entry.get("subtitle", "")).lower()
+            hidden = bool(needle) and needle not in hay
+            item.setHidden(hidden)
+            if not hidden:
+                visible += 1
+        if needle:
+            self.song_title.setText(f"搜索「{needle}」· 匹配 {visible} 首")
+        elif 0 <= self._current_source < len(self._sources):
+            source = self._sources[self._current_source]
+            self.song_title.setText(f"{source['name']} · {len(source['entries'])} 首")
 
     def _on_pressed(self, index) -> None:
         item = self.song_list.itemFromIndex(index)
@@ -390,10 +420,11 @@ class PlaylistAddDialog(GenshinDialog):
         self._refresh_selection()
 
     def _set_all(self, state) -> None:
+        # "全选" only touches the rows currently visible after searching.
         self.song_list.blockSignals(True)
         for i in range(self.song_list.count()):
             item = self.song_list.item(i)
-            if item.flags() & Qt.ItemIsUserCheckable:
+            if (item.flags() & Qt.ItemIsUserCheckable) and not item.isHidden():
                 item.setCheckState(state)
         self.song_list.blockSignals(False)
         self._refresh_selection()

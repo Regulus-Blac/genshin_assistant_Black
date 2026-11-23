@@ -100,6 +100,23 @@ def main() -> int:
           [t.get("title") for t in store.playlist(pl["id"])["tracks"]])
     assert len(store.playlist(pl["id"])["tracks"]) == 3
 
+    # 搜索框：只留下匹配的歌，全选也只勾当前可见的
+    first_title = dlg.song_list.item(0).text().splitlines()[0]
+    needle = first_title[:4]
+    dlg.song_search.setText(needle)
+    QTest.qWait(80)
+    visible = [i for i in range(dlg.song_list.count()) if not dlg.song_list.item(i).isHidden()]
+    print("search", needle, "->", len(visible), dlg.song_title.text())
+    assert 0 < len(visible) < dlg.song_list.count()
+    dlg._set_all(Qt.Unchecked)
+    dlg._set_all(Qt.Checked)
+    checked = sum(1 for i in range(dlg.song_list.count()) if dlg.song_list.item(i).checkState() == Qt.Checked)
+    print("checked after filtered select-all", checked)
+    assert checked == len(visible)
+    dlg.song_search.clear()
+    QTest.qWait(80)
+    dlg._set_all(Qt.Unchecked)
+
     # 全选 + 批量加入：结果等于本地曲库全部曲目，重复的不会再加一遍
     dlg._set_all(Qt.Checked)
     assert dlg.selection_label.text() == f"已选 {dlg.song_list.count()} 首"
