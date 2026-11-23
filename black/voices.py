@@ -1,9 +1,11 @@
-"""User-imported character voice lines.
+"""Character voice lines: bundled in ``assets/audio/voices`` + user files.
 
-The project never ships Genshin audio (see ``docs/voice-research.md``).  If the
-user drops recorded lines into ``data/voice/<角色>/`` themselves, the whisper
-popup will play one before falling back to TTS.  An optional
-``data/voice/manifest.json`` maps an exact quote to a file so the audio and the
+The project ships a small, non-commercial set of Chinese voice lines under
+``assets/audio/voices/<角色>/`` (see the README there for attribution and the
+takedown note).  Users may drop their own recordings into ``data/voice/<角色>/``;
+those take precedence and stay out of git.
+
+An optional ``manifest.json`` maps an exact quote to a file so the audio and the
 text always match:
 
     {
@@ -21,44 +23,68 @@ from pathlib import Path
 from PyQt5.QtCore import QObject, QUrl
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 
-from .paths import DATA_DIR
+from .paths import BUNDLED_VOICES, DATA_DIR
 
 VOICE_DIR = DATA_DIR / "voice"
 AUDIO_SUFFIXES = {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".opus"}
 
 
 class VoiceBank:
-    """Looks up an imported recording for a speaker / quote."""
+    """Looks up a recording for a speaker / quote across several folders."""
 
-    def __init__(self, folder: str | Path | None = None) -> None:
-        self.folder = Path(folder) if folder else VOICE_DIR
+    def __init__(self, folders: list[str | Path] | None = None) -> None:
+        if folders is None:
+            # User files first so a personal replacement wins over the bundled one.
+            folders = [VOICE_DIR, BUNDLED_VOICES]
+        self.folders = [Path(folder) for folder in folders]
 
-    def _manifest(self) -> dict:
-        path = self.folder / "manifest.json"
-        if not path.exists():
-            return {}
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return data if isinstance(data, dict) else {}
-        except Exception:
-            return {}
+    def _manifests(self) -> list[dict]:
+        merged: dict[str, dict] = {}
+        for folder in reversed(self.folders):  # bundled first, user overrides
+            path = folder / "manifest.json"
+            if not path.exists():
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(data, dict):
+                continue
+            for speaker, mapping in data.items():
+                if isinstance(mapping, dict):
+                    merged.setdefault(str(speaker), {}).update(
+                        {str(k): str(v) for k, v in mapping.items()}
+                    )
+        return [merged] if merged else []
 
     def speakers(self) -> list[str]:
-        if not self.folder.exists():
-            return []
-        return sorted(
-            item.name
-            for item in self.folder.iterdir()
-            if item.is_dir() and any(p.suffix.lower() in AUDIO_SUFFIXES for p in item.iterdir())
-        )
+        names: set[str] = set()
+        for folder in self.folders:
+            if not folder.exists():
+                continue
+            for item in folder.iterdir():
+                if item.is_dir() and any(
+                    p.suffix.lower() in AUDIO_SUFFIXES for p in item.iterdir()
+                ):
+                    names.add(item.name)
+        return sorted(names)
 
     def files_for(self, speaker: str) -> list[Path]:
-        folder = self.folder / speaker
-        if not folder.exists():
-            return []
-        return sorted(
-            p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in AUDIO_SUFFIXES
-        )
+        files: list[Path] = []
+        seen: set[str] = set()
+        for folder in self.folders:
+            folder = folder / speaker
+            if not folder.exists():
+                continue
+            for path in sorted(folder.iterdir()):
+                if not path.is_file() or path.suffix.lower() not in AUDIO_SUFFIXES:
+                    continue
+                key = f"{path.parent.name}/{path.name}"
+                if key in seen:
+                    continue
+                seen.add(key)
+                files.append(path)
+        return files
 
     def count(self) -> int:
         return sum(len(self.files_for(speaker)) for speaker in self.speakers())
@@ -68,11 +94,12 @@ class VoiceBank:
         speaker = str(speaker or "")
         if not speaker:
             return None
-        mapping = self._manifest().get(speaker)
-        if isinstance(mapping, dict):
-            name = mapping.get(str(text or ""))
-            if name:
-                candidate = self.folder / speaker / str(name)
+        for mapping in self._manifests():
+            name = (mapping.get(speaker) or {}).get(str(text or ""))
+            if not name:
+                continue
+            for folder in self.folders:
+                candidate = folder / speaker / str(name)
                 if candidate.exists():
                     return candidate
         files = self.files_for(speaker)

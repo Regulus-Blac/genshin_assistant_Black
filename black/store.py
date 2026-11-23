@@ -54,6 +54,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "whisper_avatar": "派蒙",
     "character": "vodyanitsa",
     "character_order": [],
+    "show_extra_art": True,
     "look": "",
     "appearance": "dark",
     "api_base": "https://api.deepseek.com",

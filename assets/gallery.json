@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-11-23T13:31:59",
+  "generated_at": "2026-11-23T19:22:46",
   "sources": {
     "metadata": "https://gi.yatta.moe/api/v2/chs/avatar",
     "official_art": "https://github.com/ScobbleQ/HoYo-Assets",
@@ -1848,6 +1848,38 @@
           "orientation": "landscape",
           "art": "gallery/yunjin_wide.jpg",
           "thumb": "gallery/thumbs/yunjin_wide.jpg"
+        }
+      ],
+      "default_look": "splash",
+      "source": "HoYo-Assets / Enka Network"
+    },
+    {
+      "id": "odette",
+      "name": "奥黛塔",
+      "title": "翾风回雪",
+      "element": "cryo",
+      "color": "#a9dfe8",
+      "looks": [
+        {
+          "id": "splash",
+          "label": "全景",
+          "orientation": "portrait",
+          "art": "gallery/odette_splash.jpg",
+          "thumb": "gallery/thumbs/odette_splash.jpg"
+        },
+        {
+          "id": "wish",
+          "label": "全身",
+          "orientation": "portrait",
+          "art": "gallery/odette_wish.jpg",
+          "thumb": "gallery/thumbs/odette_wish.jpg"
+        },
+        {
+          "id": "wide",
+          "label": "横屏",
+          "orientation": "landscape",
+          "art": "gallery/odette_wide.jpg",
+          "thumb": "gallery/thumbs/odette_wide.jpg"
         }
       ],
       "default_look": "splash",

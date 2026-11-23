@@ -19,10 +19,23 @@ DEFAULT_LOOK_ID = "window"
 # Kept outside the repo in data/art_extra so no third-party art is shipped.
 EXTRA_MANIFEST = DATA_DIR / "art_extra" / "manifest.json"
 _extra_cache: dict = {"mtime": -1.0, "data": {}}
+_show_extras = True
+
+
+def set_show_extras(enabled: bool) -> None:
+    """Settings switch: mix user-collected art into the look lists or not."""
+    global _show_extras
+    _show_extras = bool(enabled)
+
+
+def show_extras() -> bool:
+    return _show_extras
 
 
 def extra_looks() -> dict[str, list[dict]]:
     """Read data/art_extra/manifest.json, cached by modification time."""
+    if not _show_extras:
+        return {}
     try:
         mtime = EXTRA_MANIFEST.stat().st_mtime
     except OSError:
@@ -43,9 +56,15 @@ def extra_looks() -> dict[str, list[dict]]:
                 if not isinstance(look, dict):
                     continue
                 art = Path(str(look.get("art", "")))
+                if not art.is_absolute():
+                    # Relative entries are resolved next to manifest.json, so a
+                    # user can write "jean/px123.jpg" and move the folder freely.
+                    art = EXTRA_MANIFEST.parent / art
                 if not art.is_file():
                     continue
                 thumb = Path(str(look.get("thumb") or art))
+                if not thumb.is_absolute():
+                    thumb = EXTRA_MANIFEST.parent / thumb
                 clean.append(
                     {
                         "id": str(look.get("id") or art.stem),

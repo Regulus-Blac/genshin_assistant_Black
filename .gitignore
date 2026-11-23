@@ -33,6 +33,10 @@ docs/screenshots/
 *.wma
 *.opus
 
+# Bundled character voice lines (non-commercial, see assets/audio/voices/README.md)
+!assets/audio/voices/
+!assets/audio/voices/**
+
 # Secrets and credentials
 .env
 .env.*

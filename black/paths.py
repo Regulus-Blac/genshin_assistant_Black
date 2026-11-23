@@ -17,6 +17,9 @@ CACHE_DIR = Path(os.environ.get("BLACK_CACHE_DIR", ROOT / "cache"))
 # Sound overrides live inside the project tree so collected packs are easy to
 # find and share.  ``assets/audio`` keeps the bundled (original/CC0) sounds.
 CUSTOM_AUDIO = AUDIO / "custom"
+# Bundled character voice lines (see assets/audio/voices/README.md).  Users can
+# add their own lines under data/voice, which takes precedence.
+BUNDLED_VOICES = AUDIO / "voices"
 # Older builds kept a personal pack under data/; still honoured as a fallback.
 LEGACY_CUSTOM_AUDIO = DATA_DIR / "sounds"
 

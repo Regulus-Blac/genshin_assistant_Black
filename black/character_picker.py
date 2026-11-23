@@ -416,7 +416,11 @@ class CharacterPickerDialog(GenshinDialog):
         self.art_frame.setFixedHeight(154)
         self.body.addWidget(self.art_frame)
 
-        note = QLabel("角色与立绘来自 GitHub HoYo-Assets、Enka Network 与工作区素材，仅供个人本地看板。")
+        note = QLabel(
+            "角色与立绘来自 GitHub HoYo-Assets、Enka Network 与工作区素材，仅供个人本地看板。"
+            "想加入自己收集的图：把图片放进 data/art_extra/<角色 id>/，在 manifest.json 里登记，"
+            "或运行 python tools/fetch_popular_art.py --list 查看角色 id。"
+        )
         note.setWordWrap(True)
         note.setStyleSheet(f"font-size: 9px; color: {theme.FAINT};")
         self.body.addWidget(note)

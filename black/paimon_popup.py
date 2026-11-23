@@ -39,6 +39,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -265,6 +266,7 @@ class PaimonWhisperPopup(QWidget):
     another_requested = pyqtSignal()
     accepted = pyqtSignal()
     closed = pyqtSignal()
+    voice_toggled = pyqtSignal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(None, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
@@ -355,6 +357,22 @@ class PaimonWhisperPopup(QWidget):
         self.meta.setStyleSheet(f"font-size: 9px; color: {theme.MUTED};")
         foot.addWidget(self.meta)
         foot.addStretch(1)
+        self.voice_btn = QToolButton()
+        self.voice_btn.setCheckable(True)
+        self.voice_btn.setCursor(Qt.PointingHandCursor)
+        self.voice_btn.setFixedSize(28, 28)
+        self.voice_btn.setIconSize(QSize(15, 15))
+        self.voice_btn.clicked.connect(lambda checked: self.voice_toggled.emit(bool(checked)))
+        self.voice_btn.setStyleSheet(
+            "QToolButton { background: rgba(8,14,21,100); border: 1px solid rgba(217,188,125,55); "
+            "border-radius: 8px; } "
+            "QToolButton:hover { background: rgba(217,188,125,26); border-color: rgba(217,188,125,110); } "
+            "QToolButton:checked { background: rgba(217,188,125,34); border-color: rgba(217,188,125,150); }"
+        )
+        self._voice_available = False
+        self._voice_enabled = False
+        self.set_voice_state(False, False)
+        foot.addWidget(self.voice_btn)
         another = QPushButton("再听一句")
         another.setCursor(Qt.PointingHandCursor)
         another.setFixedHeight(30)
@@ -406,11 +424,43 @@ class PaimonWhisperPopup(QWidget):
         if self.layout():
             self.layout().activate()
 
-    def pop(self, quote: dict, avatar: str = "", role: str = "", accent: str = theme.GOLD, duration_ms: int = 18000) -> None:
+    def set_voice_state(self, available: bool, enabled: bool) -> None:
+        """Reflect whether this speaker has imported audio and the user's choice."""
+        self._voice_available = bool(available)
+        self._voice_enabled = bool(available and enabled)
+        self.voice_btn.blockSignals(True)
+        self.voice_btn.setChecked(self._voice_enabled)
+        self.voice_btn.blockSignals(False)
+        self.voice_btn.setEnabled(self._voice_available)
+        if not self._voice_available:
+            self.voice_btn.setToolTip("还没有导入语音：把录音放进 data/voice/<角色>/ 就能在这里打开")
+        elif self._voice_enabled:
+            self.voice_btn.setToolTip("正在用角色语音朗读；点一下改用文字/系统朗读")
+        else:
+            self.voice_btn.setToolTip("点一下用角色语音朗读这句话")
+        self.voice_btn.setIcon(
+            theme.icon(
+                "volume" if self._voice_enabled else "mute",
+                theme.GOLD if self._voice_available else theme.MUTED,
+                15,
+            )
+        )
+
+    def pop(
+        self,
+        quote: dict,
+        avatar: str = "",
+        role: str = "",
+        accent: str = theme.GOLD,
+        duration_ms: int = 18000,
+        voice_available: bool = False,
+        voice_enabled: bool = True,
+    ) -> None:
         was_visible = self.isVisible()
         old_geo = self.geometry()
         self.setFixedWidth(470)
         self.update_quote(quote, avatar, role, accent)
+        self.set_voice_state(voice_available, voice_enabled)
         screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
         geo = screen.availableGeometry()
         # Let the layout settle before measuring, then size the window to the

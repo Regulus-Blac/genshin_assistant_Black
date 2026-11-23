@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QCursor, QFontMetrics, QLinearGradient, QPainter, QPainterPath, QPen, QRadialGradient
 from PyQt5.QtWidgets import (
+    QSizePolicy,
     QAbstractItemView,
     QComboBox,
     QFileDialog,
@@ -307,7 +308,10 @@ class PlaylistAddDialog(GenshinDialog):
 
         self.song_search = QLineEdit()
         self.song_search.setPlaceholderText("在上面搜索这首歌的名字 / 备注 / 路径")
-        self.song_search.setFixedHeight(30)
+        # Let the line edit keep its own height: the theme's padding plus a
+        # 19px font needs ~40px, a forced 30px clipped the text.
+        self.song_search.setMinimumHeight(38)
+        self.song_search.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.song_search.setClearButtonEnabled(True)
         self.song_search.textChanged.connect(self._apply_song_filter)
         right_col.insertWidget(1, self.song_search)

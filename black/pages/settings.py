@@ -199,11 +199,11 @@ class SettingsDialog(GenshinDialog):
         voice_row.setContentsMargins(0, 0, 0, 0)
         voice_row.setSpacing(6)
         self.voice_status = QLabel(
-            f"已导入 {voice_count} 条" if voice_count else "还没有导入语音"
+            f"已就绪 {voice_count} 条（内置 + 你自己的）" if voice_count else "还没有语音"
         )
         self.voice_status.setStyleSheet(f"font-size: 10px; color: {theme.MUTED};")
         voice_row.addWidget(self.voice_status, 1)
-        voice_open = QPushButton("打开 voice 文件夹")
+        voice_open = QPushButton("打开自定义语音目录")
         voice_open.setObjectName("Ghost")
         voice_open.setCursor(Qt.PointingHandCursor)
         voice_open.setFixedHeight(30)
@@ -211,7 +211,7 @@ class SettingsDialog(GenshinDialog):
         voice_row.addWidget(voice_open)
         self.voice_toggle = ToggleSwitch(bool(self.store.settings.get("voice_enabled", True)))
         s.addWidget(self._label("角色语音"), 6, 0)
-        s.addWidget(self._with_desc(self.voice_toggle, "把录音放进 data/voice/<角色>/，悄悄话会优先播放它。程序本身不带任何游戏音频。"), 6, 1)
+        s.addWidget(self._with_desc(self.voice_toggle, "内置了一批角色语音；把录音放进 data/voice/<角色>/ 可以覆盖它们。"), 6, 1)
         s.addLayout(voice_row, 7, 1)
         self.voice_loose = ToggleSwitch(bool(self.store.settings.get("voice_loose", True)))
         s.addWidget(self._label("宽松匹配"), 8, 0)
@@ -231,6 +231,16 @@ class SettingsDialog(GenshinDialog):
         self.tray_toggle = ToggleSwitch(bool(self.store.settings.get("close_to_tray", True)))
         b.addWidget(self._label("关闭到托盘"), 1, 0)
         b.addWidget(self._with_desc(self.tray_toggle, "点右上角关闭时隐藏到系统托盘，计时不会中断；从托盘菜单可以真正退出。"), 1, 1)
+        self.extra_art_toggle = ToggleSwitch(bool(self.store.settings.get("show_extra_art", True)))
+        b.addWidget(self._label("显示收集的立绘"), 2, 0)
+        b.addWidget(
+            self._with_desc(
+                self.extra_art_toggle,
+                "把 data/art_extra/ 里的同人图一起显示在角色选择中；关掉就只显示内置立绘。",
+            ),
+            2,
+            1,
+        )
         lay.addWidget(self._wrap(b))
 
         # -- music --
@@ -501,6 +511,7 @@ class SettingsDialog(GenshinDialog):
             "desktop_whisper": bool(self.whisper_toggle.isChecked()),
             "tts_enabled": bool(self.tts_toggle.isChecked()),
             "tts_rate": int(self.tts_rate.currentData() or 0),
+            "show_extra_art": bool(self.extra_art_toggle.isChecked()),
             "voice_enabled": bool(self.voice_toggle.isChecked()),
             "voice_loose": bool(self.voice_loose.isChecked()),
             "always_on_top": bool(self.top_toggle.isChecked()),

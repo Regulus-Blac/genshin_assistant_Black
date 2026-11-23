@@ -192,8 +192,8 @@ def main() -> int:
     query = args.query or f"{name} 原神"
     print(f"[art] {name}（{cid}）· 搜索「{query}」")
 
-    items = pixiv_search(query)
-    candidates = pick_candidates(items, name, args.tag, max(1, args.limit) * 4, args.name_tag)
+    items = pixiv_search(query, pages=5)
+    candidates = pick_candidates(items, name, args.tag, max(24, args.limit * 6), args.name_tag)
     print(f"[art] 候选 {len(candidates)} 张（共 {len(items)} 条结果）")
     if not candidates:
         print("[art] 没有合适的图，可以换一个 --query 或 --tag。")
@@ -205,19 +205,28 @@ def main() -> int:
     entries = list(manifest.get(cid, []))
     existing = {str(look.get("id")) for look in entries}
     folder = EXTRA_DIR / cid
-    saved = 0
-    rank = 0
-    for item in candidates:
-        if saved >= args.limit:
-            break
-        iid = str(item.get("id"))
-        detail = fetch_detail(iid)
+
+    # Rank by real bookmark count: pixiv's "popular_d" order still mixes in
+    # recent works, so fetch details for a wider pool and sort ourselves.
+    ranked = []
+    for item in candidates[:24]:
+        detail = fetch_detail(str(item.get("id")))
         if not detail:
             continue
         bookmarks = int(detail.get("bookmarkCount") or 0)
         likes = int(detail.get("likeCount") or 0)
         if args.min_bookmarks and bookmarks < args.min_bookmarks:
             continue
+        ranked.append((bookmarks, likes, item, detail))
+        time.sleep(0.25)
+    ranked.sort(key=lambda row: row[0], reverse=True)
+    print("[art] 收藏数前几名：" + "、".join(f"{row[0]}" for row in ranked[:6]))
+    saved = 0
+    rank = 0
+    for bookmarks, likes, item, detail in ranked:
+        if saved >= args.limit:
+            break
+        iid = str(item.get("id"))
         urls = detail.get("urls") or {}
         url = str(urls.get("regular") or urls.get("original") or "")
         if not url:

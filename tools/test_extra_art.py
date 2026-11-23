@@ -25,7 +25,7 @@ from PyQt5.QtTest import QTest  # noqa: E402
 from PyQt5.QtWidgets import QApplication  # noqa: E402
 
 from black import theme  # noqa: E402
-from black.characters import art_path, get_character  # noqa: E402
+from black.characters import art_path, get_character, set_show_extras  # noqa: E402
 from black.character_picker import CharacterPickerDialog  # noqa: E402
 from black.mainwindow import MainWindow  # noqa: E402
 from black.store import Store  # noqa: E402
@@ -67,6 +67,16 @@ def main() -> int:
     assert Path(extra["art"]).is_absolute()
     assert art_path(extra["art"]).exists()
     assert art_path("gallery/furina_splash.jpg").is_absolute()
+    # relative entries inside data/art_extra are resolved next to manifest.json
+    manifest_path = TEST / "data" / "art_extra" / "manifest.json"
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["jean"][0]["art"] = "jean/pxTEST.jpg"
+    data["jean"][0]["thumb"] = "jean/pxTEST_thumb.jpg"
+    manifest_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    from black.characters import extra_looks
+    look = extra_looks()["jean"][0]
+    print("relative resolved", Path(look["art"]).name)
+    assert Path(look["art"]).is_absolute() and Path(look["art"]).exists()
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -93,7 +103,19 @@ def main() -> int:
     QTest.qWait(200)
     print("stage art", win.stage._art_name if hasattr(win.stage, "_art_name") else "-")
     assert not win.stage._art.isNull()
+    # settings switch hides the collected art from the picker
+    set_show_extras(False)
+    try:
+        hidden = get_character("jean")
+        print("hidden looks", len(hidden["looks"]))
+        assert "人气测试" not in [look.get("label") for look in hidden["looks"]]
+    finally:
+        set_show_extras(True)
+    restored = get_character("jean")
+    assert "人气测试" in [look.get("label") for look in restored["looks"]]
+
     win._shutdown()
+    QTest.qWait(200)
     app.quit()
     print("OK")
     return 0

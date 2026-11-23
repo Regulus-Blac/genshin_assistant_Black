@@ -1,0 +1,930 @@
+{
+  "温迪": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·弹琴",
+      "text": "嗯…想接着听下去的话，送我一个苹果吧。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/76953456/292f11368aac80b89ad4b4acc7337a1b_609645774691430140.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·苹果酒",
+      "text": "嗯…好想坐在大树上，手边有喝不完的苹果酒。哎。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/76953456/b6ac89337181faf824d4bd59f7e58a87_3699223874911258301.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·诗篇",
+      "text": "动身吧，旅行者。佚失的诗篇，还在等着我们呢。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/76953456/1701da0bfc157a4df9bbb9b97e5bc264_607658407901320922.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候…",
+      "text": "来踩小水坑吧！看看谁溅出来的水花更大！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/76953456/2d0539ffd9f66adb38d4e9118080d7e9_5610432353894662605.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "雨过天晴…",
+      "text": "欸~这就天晴了？我还想多玩一会儿呢。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/76953456/d68074023d3ef4646f6109cdba83acbb_3618026102917559761.mp3"
+    }
+  ],
+  "钟离": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·旅程",
+      "text": "旅程总有一天会迎来终点，不必匆忙。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/eb4449700b7ad48aea7f0f141c2e5e32_8224205484657731946.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·游览",
+      "text": "接下来想去哪里?如果想游历璃月名胜的话，我有一些不错的参考方案。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/281b620f49561edc1c2790f33c2b5867_7343320555739482282.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·璃月",
+      "text": "为「流通」而造的船，遇到港口也会停泊，所以璃月是一切财富「沉淀」的地方。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/2d8b767bf4bfe5a0ae9cc367722c7740_5286508018540625388.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·怀旧",
+      "text": "欲买桂花同载酒···只可惜故人，何日再见呢?",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/12195ac5b3e411bb9754b12ebbdc585b_1147430888770623121.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "雨过天晴···",
+      "text": "「琉璃袋」这种植物，它偏爱潮湿的环境，最适合雨后采摘。如果发现的话，适当储备些吧。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/67a68f370242cdb567e57c62c100cc79_8255786145180616024.mp3"
+    }
+  ],
+  "胡桃": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·往生堂",
+      "text": "不如去我那喝杯茶？嘿~",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/14/4359827/4e3f8f009e89b4640ac396efe5ace533_8209442751760448309.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·客户",
+      "text": "一个客户，两个客户，三个客户···",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/14/4359827/2a3aef02bccdb7bcb02e3c45f23c69fd_6951049147655206259.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·偷懒",
+      "text": "太阳出来我晒太阳，月亮出来我晒月亮咯~",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/14/4359827/5402f5977c1bd4a573d9567da542b056_4548873219599584918.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候···",
+      "text": "哎呀···麻烦喽。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/14/4359827/7dd9aeb46459e99a4d4f4dc9f788de34_2998374840874536236.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候···",
+      "text": "打雷啦，起身啦。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/14/4359827/b1367e871684a6f264814923eb992ee0_7677210629611403765.mp3"
+    }
+  ],
+  "可莉": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "西风骑士团「火花骑士」，可莉，前来报到！…呃——后面该说什么词来着？可莉背不下来啦…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/31153611/685a7b9768bb0429d33cc12224f696a4_1287008207516253355.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "早上好···",
+      "text": "早安！带可莉出去玩吧！我们一起来冒险！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/31153611/140207273fb38f14fa3b14919d2e996d_2045963641562143201.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "中午好···",
+      "text": "午饭时间到了！吃什么呢？我来看看《提瓦特游览指南》…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/31153611/ff801003a5e4fb898c34c8feedf14da5_6115125358416604059.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "晚上好···",
+      "text": "晚上好！拜托你也帮我跟霍夫曼先生说说吧，可莉不是小孩子了，可莉晚上也可以出去玩。带我出去玩——",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/31153611/b17f7bc2352772bafcbdcefb4552839b_2891986986936537999.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "闲聊·收获",
+      "text": "可莉今天又勇敢地抓到了花纹奇怪的蜥蜴！从没见过这种图案，你要看看吗？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/31153611/3e6101d89d1f53e610515f9bda2c5ae6_8690071035385535653.mp3"
+    }
+  ],
+  "刻晴": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·耽误",
+      "text": "耽误太多时间，事情可就做不完了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/17/76953456/41941cbab6ccb6572efd29ce326b303c_3691026744967867861.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·放松",
+      "text": "劳逸结合是不错，但也别放松过头。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/17/76953456/01e61b641de1046af0ed19c2047f12d9_4971387128403986195.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·机会",
+      "text": "无论是冒险还是做生意，机会都稍纵即逝。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/26/76953456/ed0b4a4545a9df238a37f1ca6f675eae_2391902056180561221.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候…",
+      "text": "好大的雨…真耽误事。所以说他们的工作，明明昨天就能做完，为什么要拖到今天？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/26/76953456/e9d1b531f50c25f77d1f39373bc15976_8808410988160985999.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候…",
+      "text": "电闪雷鸣虽然有点吓人，但璃月港的防雷防火工事是一流的，不用担心。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/26/76953456/2d801ee13c45b8e53aad76f85a129cb4_5465136519574506593.mp3"
+    }
+  ],
+  "雷电将军": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·徒然",
+      "text": "徒然无事，对砚枯坐。哼。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/09/07/7531033/01e716f7f29e60c738667eec671da11f_5610884482284494225.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·浮世",
+      "text": "浮世景色百千年依旧，人之在世却如白露与泡影。虚无。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/09/07/7531033/8ea71b33c103cd23102bb07b63fa0df0_4488049195083094319.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·花鸟余情",
+      "text": "无人相陪，此般花鸟余情，也不过衬托我身不移不变的背景罢了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/09/07/7531033/55cebe96e06de23f03aa21112114f964_5069732911624368625.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候...",
+      "text": "只是雨滴有什么麻烦的。这还没有打雷呢。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/09/07/7531033/eab07e8060ac0747d02b3ef01d75b29b_7635056223285053709.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候...",
+      "text": "哎呀，你不会怕了吧。明明此世最为殊胜最为恐怖的雷霆化身就站在你身边。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/09/07/7531033/2f1f66e89f93315df47ae70f9bb48ac0_3799967913492663377.mp3"
+    }
+  ],
+  "八重神子": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊•创作体裁",
+      "text": "最近八重堂穿越异世的小说也太多了，哼，就对自己的世界如此不满吗。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/02/16/281568003/3d63db29c31757808704bdfffe4c4729_7756957807775398396.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊•故事",
+      "text": "很多人的一生，写于纸上也不过几行，大多都是些无聊的故事啊。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/02/16/281568003/c028aeef79bbff5eb616215554f7f83c_6141902387304610621.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊•尘世",
+      "text": "于我而言，不变也是一种美好，哎呀，可尘世哪是如此不变之物。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/02/16/281568003/eb082b276ede26c4f367d4b9ccc1d211_4155377446841999749.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候...",
+      "text": "下起雨后，浑身的毛发都会变得湿漉漉的…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/02/16/281568003/20f64ce07c6c30f924f4b9c9919985f5_711563557772232509.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候...",
+      "text": "很多人会害怕打雷，不过我听到雷声只会觉得亲近。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/02/16/281568003/c0b4c48901130301c0715b64da389244_6120287326543908907.mp3"
+    }
+  ],
+  "珊瑚宫心海": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·阅读",
+      "text": "八重堂出版的许多作品，深入浅出地阐明了兵法原理，我很喜欢。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/10/10/145906584/41c1e1f53b1b03d3e8b95538aeab4416_8750414964098620741.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·游鱼",
+      "text": "每个生灵的意志都值得尊重，就像海中的游鱼，也有自己的方向。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/10/10/145906584/7f4efece2b6d779265d6e5b7c2821e05_6849028206559775397.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·准备",
+      "text": "未雨绸缪，才能临危不乱。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/10/10/145906584/33261069376fa05e74d7eab2a519ca87_2230181015836661883.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候…",
+      "text": "雨中行军，可以隐蔽声息，但对体能却是很大的考验…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/10/10/145906584/a30d9535864d067c6aa48eabfd2c6cb3_4498149507092530232.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雪的时候…",
+      "text": "雪…真漂亮呀。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/10/10/145906584/a5131aca35468fd634ebadf59d6803ab_7483889415038921340.mp3"
+    }
+  ],
+  "宵宫": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·烟花",
+      "text": "烟花易逝，人情长存。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/08/23/145906584/22240b97aa61c41d1e14be08837cfa15_8389954138251369261.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·讲故事",
+      "text": "没事做的话，我来给你讲故事吧！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/08/23/145906584/786a37a4f54f0c0b645ee6909d56a3af_7253643028630632114.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·金鱼",
+      "text": "你养过金鱼吗？很乖巧很可爱哦。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/08/23/145906584/49f65b407e41d6398a1277d4e79e104f_8600016735752601678.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候…",
+      "text": "呜哇，烟花要湿透了！得找地方躲躲，啊，要来不及了！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/08/23/145906584/00fcc8b1fd039ad5095b8b4f61c717ab_8673164563494038824.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雪的时候…",
+      "text": "哈哈，看我搓个雪球，咻——",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/08/23/145906584/a744fcb263692191f57a9a418b03f847_1193125729826429373.mp3"
+    }
+  ],
+  "芭芭拉": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "芭芭拉，闪耀登场~治疗就交给我吧，不会让你失望的！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/20766f2955f5c335694bd9345e47bd0d_3286775389605697323.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·犯困",
+      "text": "再这样站下去，会...想睡觉的。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/532ce500eb38ac2fc15946a1e6dc9289_542798030647158829.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·激励",
+      "text": "大家应该都在努力着，那我们也不能偷懒，对吧？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/c066ccd7d6375f66fa270ad629040377_208088714529204035.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·提神秘诀",
+      "text": "欸？是没精神了吗？尝一尝我做的辣味饮料吧，很提神的哟~",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/6b0bf7a7d81d60b00d1fed8da9fc2854_7242570155488964041.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候···",
+      "text": "这样淋着不要紧吗？会感冒的吧？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/4359827/811df2db6cd74d469c0864b71386d640_5155364801000405101.mp3"
+    }
+  ],
+  "香菱": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·点心",
+      "text": "要吃点点心休息一下吗？我准备了一箩！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/d4fedea91d123b6d70bf361a95474591_6673307035456561171.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·火史莱姆",
+      "text": "火史莱姆，是椒盐···还是做成蒜香的好呢？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/92c24d0546c09f2b8e09e34a5b2ad106_7533461868295846934.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·觅食",
+      "text": "闲着也是闲着，还不如一起找找食材去~",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/8d05ec202b540f1ed9e2a7f593d5faea_6727958089799905703.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候·态度",
+      "text": "嗯···我不太喜欢雨天。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/b88d0ca84705a1668723fa40c8fe1ecb_2329360289853994118.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候·疏忽",
+      "text": "我想想···今天有没有晒衣服出去···",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/943d1ea9b810b120d4ac8cedd2a4c9fb_8584570649379506348.mp3"
+    }
+  ],
+  "凝光": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面…",
+      "text": "我是七星之「天权」，凝光。要做个交易吗？你来做我的贴身侍卫，而我，会教导你在璃月出人头地的技巧。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/6878652/2dac4753e90a11ba68cdf44806871e34_2268156472678192761.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·古玩",
+      "text": "就算古玩价值连城，给人的快乐也只有刚拥有的一瞬。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/6878652/ecd1bf3872bb6d2750139e60c72093c9_8904473815122953563.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·商战",
+      "text": "在商战中，完美的猎手不会留下任何痕迹。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/6878652/e68f3b32d09c76cbb5ce0bedd1cfcd21_5731733412343630525.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·投资",
+      "text": "找笔新的投资吧。无论如何，摩拉都不会嫌多。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/6878652/cf0a19e175f663b473761a8b24c1cfdc_1241034612363504589.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候…",
+      "text": "哦？下雨了啊。替我打伞吧。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/6878652/d945fe0c869aa002c8d0a6f52edc775c_7734015546314905723.mp3"
+    }
+  ],
+  "诺艾尔": [
+    {
+      "file": "line01.mp3",
+      "topic": "早上好···",
+      "text": "早上好，早餐已经做好了哦。我就待在你身边，如果哪里不合口味，请随时告诉我。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/ad113acb4874ca73f00eada2e867c739_8717621365793931136.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·帮忙",
+      "text": "交给我吧！什么都可以交给我！——对了，你要拜托我做什么来着？我还没来得及听…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/a2e0dd29da56041feb32075741fe7d2d_9076671587095383424.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·休息",
+      "text": "有点累了吗？那就在这里休息吧，我去为你沏茶，要全糖、半糖，还是无糖？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/e47ed8e084033235b4243886743293df_7286447526488420317.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·可靠",
+      "text": "只要你需要我，我随时都会出现在你的身边。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/c7818677bfec0c4922bef4c5fcad0a1b_8356013082763888698.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候···",
+      "text": "糟了，大家的衣服还晾在外面！我能不能现在回去收拾一下？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/17cd627f5408ac4bd4ce4588c765d3dc_5927070129613847918.mp3"
+    }
+  ],
+  "菲谢尔": [
+    {
+      "file": "line01.mp3",
+      "topic": "早上好·问候菲谢尔",
+      "text": "昼夜时空皆为虚像，命运的纽带却再次将你带到了我的永恒长夜中。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/bd2912d54aa5f929c1cc7418975086a1_2625159167317091353.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "早上好·问候奥兹",
+      "text": "奥兹：早上好！听说你要来，小姐在准备早点… 菲谢尔：奥兹！…咳，有何贵干？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/ffc2964920bac242a09bfc7a091fd2c7_2943577356561219037.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "中午好···",
+      "text": "（哈欠）…即使贵为皇女，在这样的时辰也不免困乏…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/fcf7e54f9e61adac129f215f8f15d6d6_5749241785197009877.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "晚上好···",
+      "text": "菲谢尔：天穹上的星光，都是奥兹在无尽的夜幕上啄出来的洞。 奥兹：是才怪啦！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/eff449409b735a8115d13bbef8be1c38_2718953780163278997.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "晚安···",
+      "text": "菲谢尔：你的深眠将平安无梦。毕竟，岂有梦魇，敢染指幽夜净土所祝圣之人… 奥兹：她说「晚安」。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/8073d31b6765f30b831825d55e5d221b_468537075888828585.mp3"
+    }
+  ],
+  "琴": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "蒲公英骑士，琴，申请入队。从今往后，我的荣誉与忠诚将与你同在！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/aaf3f91ee4b8c125d705d977882b1b19_243359684670373200.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·行动",
+      "text": "行动起来吧，我们不该在这里停留。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/b99179897893cd61c648a5428c653575_1878856794213058817.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·骑士团",
+      "text": "骑士团的大家…有没有认真工作呢？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/b0676a8616e330781b564a2ba053d313_5379327920008899784.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·目标",
+      "text": "走吧，前往下一个目标！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/3185d9377eae3e6798c14e9425b59d5a_8574252867260738569.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候···",
+      "text": "下雨也无法阻挡我的脚步。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/0c9c0b4a9a3a790d1b1f1bfddc5e42c5_8277558758469767513.mp3"
+    }
+  ],
+  "迪卢克": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面…",
+      "text": "蒙德城的迪卢克，应约而来。闲聊恕不奉陪，如果你是想做一番大事，我倒有点兴致。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/76953456/20aa35337a455d340d768d078c68b1a2_1350741812985750360.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·放松",
+      "text": "偶尔悠闲一下，也不错。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/76953456/adf5981c5cca2827c27aa8b91ba4bafa_484052869323523610.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·骑士团",
+      "text": "应该换骑士团的那些家伙来陪你。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/76953456/aae8960c42c402d88629abecb0ed0236_5626181726901545633.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·行会",
+      "text": "行会里还有很多事，你要么在这休息，我回去看看。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/76953456/b27047e9e7a2ba92d03aa58f71de1f16_5590130387027318259.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候·清洗",
+      "text": "雨吗，可惜洗刷不了那些污秽的心。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/07/29/145906584/81930a269b3c4e1f8af91aa75db75239_1921299136633044262.mp3"
+    }
+  ],
+  "安柏": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面…",
+      "text": "侦察骑士安柏，前来报到！今后有什么需要帮忙的，尽管说好啦！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/21/4359827/2623217118c979b87a2b892de47ec5b7_6122859712241743791.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·兴趣",
+      "text": "好想跑一会儿步呀。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/21/4359827/01042dd29e779427871eb5e7b69e67d9_2090675054405476089.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·挂念",
+      "text": "要是被琴发现我们在偷懒，她会不高兴的。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/21/4359827/94729496c43ba20bc413bc6c15064e39_5463848398778661774.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·新发现",
+      "text": "那边好像有什么奇怪的东西耶…不去看吗、不去看看吗？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/21/4359827/38675fd991d3e522e295e69b80be9512_4524027291268873815.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候·担忧",
+      "text": "下雨了…蝴蝶结会淋湿的…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/21/4359827/898ad56a78ba81c0bafa50b128c34745_1493441295538242291.mp3"
+    }
+  ],
+  "丽莎": [
+    {
+      "file": "line01.mp3",
+      "topic": "早上好···",
+      "text": "（哈欠）…早安，琴。嗯？不好意思，我看错了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/6ef4740fd88e2a7d2494cd986bf7d7fb_7324732990507901225.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "中午好···",
+      "text": "午休时间到了…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/8c448d0f1d924745cb08efe14dc06a25_4596793729304143192.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "晚上好···",
+      "text": "你还不睡吗？我已经困了呢…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/bcaa6bd7036f11c18a23ece51903ca63_8899518343302354406.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "晚安···",
+      "text": "你努力的样子，姐姐全都见到了哦。嗯…让我想想，给你什么奖励吧…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/a5853bf1b4db741f578d4827c3b4e8e3_3668771402048007847.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "闲聊·下午茶",
+      "text": "明明是该喝下午茶的时间。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/61e2e4f02c5884a9fd55e435cf104a2f_5817140800966223011.mp3"
+    }
+  ],
+  "凯亚": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "西风骑士团，凯亚。请让我与你同行吧。比起团里的差事，还是做你的护卫要有趣得多。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/55ffab03fe04278cd56293ce6de37dcb_4353195490944557832.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "早上好···",
+      "text": "享受这一天吧。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/7faccce8c760a31e035b7b4c9828246e_4918271488518368140.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "中午好···",
+      "text": "哟，要不要一起去酒馆坐坐？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/e4e09e19ea119d242c992a40a6703cb2_5914955885305703412.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "晚上好···",
+      "text": "你该不会怕黑吧...哦？那我…可找到新素材了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/2bbb05488d582f5194fb70febc701516_968787374635091515.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "晚安···",
+      "text": "这就要走了吗？那就下回见了，别让我等太久啊。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/31153611/8b31115490aac547211654c8d8b005b8_5055266408148678089.mp3"
+    }
+  ],
+  "北斗": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "我是北斗，听过我的「南十字」船队吗？如果你也喜欢冒险，那就跟着我吧。我罩你。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/13/4359827/b3f72afd42a465ad7cfec05747cf7d05_6322318510995647552.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·切磋",
+      "text": "想切磋的话，我随时奉陪。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/13/4359827/c34afea67b5876a68f0aa6587581b2e3_7084573988828115156.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·畅饮",
+      "text": "啊——干完活，喝口酒。真畅快。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/13/4359827/4a5885a4d5ef8fc4442ef8f2145d9b1d_6167845221562331858.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·陆地",
+      "text": "难得在陆地上逗留那么久，居然有点不习惯了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/13/4359827/94d20d02f1e22db2a939da426afe2c30_741819674892463495.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候···",
+      "text": "被困荒岛的时候，雨水就是宝贵的淡水来源。嗯···虽然现在是用不上啦。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/13/4359827/858d481154f62efbb01ad24f608db332_4518897075182946238.mp3"
+    }
+  ],
+  "班尼特": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·宝藏",
+      "text": "不如在周围找找看吧，说不定有宝藏呢！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/6878652/9f4496bc4fe34e9cb7b3a63fbb5040b5_521492205098704428.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·冒险",
+      "text": "好久没有和别人一起冒险了！我们走吧！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/6878652/9facdbc584c3d014f964c86e9bfd718f_3225988364590807134.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·调侃",
+      "text": "俗话说「等在原地是不会有好事发生的」，当然以我的运气来说，往哪里走都一样啦…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/6878652/a024499657ce61fd7c6a1f2e03169c50_1950164475838161124.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候…",
+      "text": "我冒险的时候，大多都是这种天气。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/6878652/ec699a2f4cf867039e1d108da8dcf051_7497676132989654465.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候…",
+      "text": "啊！别和我站得太近，这样雷就不会劈到你了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/28/6878652/307213d53abd485e27f2ac0a309e0dba_1733872461557484692.mp3"
+    }
+  ],
+  "重云": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·驱邪之法",
+      "text": "方士驱邪一靠咒术，二赖武艺。另辟蹊径亦可，但终非正道。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/11/76953456/c6acb7ef89c805abd44236cf7e6898b5_3991592702088142211.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·饮食",
+      "text": "寒食饮冰利于平神静气…清心泡水辅以冰块饮下，对身体最好。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/11/76953456/456ca77edccb9fe712dd21da57afacca_7957842768453852162.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·口诀",
+      "text": "驱邪缚魅，内外澄清，啊，呃…糟了，后半句口诀忘了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/11/76953456/44357d8530eda2fadb89605d5671a8fc_5416278137268852261.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候...",
+      "text": "雨是无根水，是最澄净的水，对驱邪除魔大有帮助。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/11/76953456/6fa1114ce30a1a8a1370649fdb41bf31_6917245051212446255.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候...",
+      "text": "这落雷好大阵仗，妖邪也会惧怕的吧。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/11/76953456/4cf7e594ab50259d7613582b8d313b9d_4017508652701574523.mp3"
+    }
+  ],
+  "行秋": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "在下行秋，不过书海一蠹。某虽不才，仍愿为君略尽绵薄。难得有机会说这种风格的台词，感觉还不错。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/c23f8a815b242ca004889d25c8c889a7_9199298264638937633.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·无人夜",
+      "text": "有时明月无人夜，独向昭潭制恶龙。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/35f1d2f0dd5da8767d23cc4621d1e047_261836780790953065.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·文章",
+      "text": "衣裓贮文章，自言学雕虫。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/6fa04099a589b0f77ef4f42c4620fc81_2545126132988547582.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·偷闲",
+      "text": "正所谓「偷得浮生半日闲」，哈哈。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/815c3fa112830db67d5f4cee14c6b934_5007770471436586208.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "闲聊·阅卷",
+      "text": "如此如此···这般这般···欸？欲知后事如何，且听下回分解？唔···",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/322b213fc3d9300cc0921791f94f04a4_4875132753078734312.mp3"
+    }
+  ],
+  "雷泽": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "你的气味···好闻。一起狩猎吧！",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/57f9b19a37c5673217de757ba631e490_7726149022378478606.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·气味",
+      "text": "唔，兔子的味道…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/517b0600eacd039c33d9a10535550b9a_5216473237197742422.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·饿",
+      "text": "走吗，肚子饿了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/88904b5e2e76c4f2fce796dcb6457911_3444549565503442091.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·望风",
+      "text": "我去望风，走了叫我。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/3e8786edeef356d9196e45c874a10fa3_4807634799787695756.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候·提醒",
+      "text": "怕就快点躲起来。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/1086efb96b2a60fadb37b796d6fc69f9_5000935986904234368.mp3"
+    }
+  ],
+  "迪奥娜": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·放松",
+      "text": "哈~~好舒服、身体都变得更柔软了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/597f64c448d27c105a7d705706d63cf0_7406325811245798327.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·思考",
+      "text": "蜥蜴尾巴、胡椒、星螺...还差点什么才能调出「难喝到头脑炸裂的酒」呢?呜…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/4061a4be16a5deb4bdf3737a39948f2c_7485751150978930926.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·等待",
+      "text": "才，才没有在等你。我只是，正好在休息而已!",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/f7a47adbe145de31fe8fd125207be1b5_5398353158016293881.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候···",
+      "text": "呜呜…讨厌下雨…去屋子里吧。唔，只是因为弄干衣服很麻烦!才不是什么怕水呢!",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/eb003aab91b423e58d6992be0be41280_4931210621779388868.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "打雷的时候···",
+      "text": "欸? ! 我没有在发抖!没有!… 呜…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/02/27/4359827/211554efb20603e502e96915b9956553_8311330344991989204.mp3"
+    }
+  ],
+  "砂糖": [
+    {
+      "file": "line01.mp3",
+      "topic": "中午好",
+      "text": "哇呜！别、别过来！啊……不是，我的意思是，不要靠得太近。我在做实验。这个……可能会爆炸的。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/b979fa1872caf9d0e070e54936850069_6752425851794061130.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "晚安",
+      "text": "不用等我，先去休息吧。嗯……有这么不放心吗？实验已经在收尾了，不会熬夜的，真的……",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/c5d3344042cda6fc3db8a32a982982d7_3761789767331305939.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·好奇",
+      "text": "那是什么？啊……不见了，我可以去看看吗？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/fefaa87e8d61f9ca75d95ab8e1db0be7_1674821846040575284.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·整理",
+      "text": "趁现在，赶快整理一下研究笔记...",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/bf798a27913637f01fcd40974be2154a_3545353614115449320.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "闲聊·深呼吸",
+      "text": "嗯！好久没出来透气了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/07/31153611/2f6020108f08b9ca4352ac3fdf650293_4624178672726357032.mp3"
+    }
+  ],
+  "七七": [
+    {
+      "file": "line01.mp3",
+      "topic": "初次见面···",
+      "text": "我是七七，是个僵尸..啊，还要说什么来着。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/f2d7232800ba5d7846e0068a6aff9228_9167176409536717866.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·自言自语",
+      "text": "咦，刚刚···我想说什么来着···",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/1ddfed7625af855c6e747f998d8b669a_6913767198252740682.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·怕热",
+      "text": "想去凉快点的地方。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/2475dfc1cb22a8e735756ac0273f1cac_2798590115117992873.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "闲聊·锻炼",
+      "text": "七二三四，七二三四···五六七七，五六七七···",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/37236a32e5d0f76d41b1130d315354fc_1641405458053317395.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雨的时候···",
+      "text": "又忘记带伞了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2021/03/12/4359827/a633f60f4ab16b369c337ef79f1997bd_8666369089243339664.mp3"
+    }
+  ],
+  "神里绫人": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·大少爷",
+      "text": "好像忘带什么东西了…算了，等想起来的时候再差人送来好了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/03/30/281568003/48c75a64ebbcfb05fc932e844eeed651_4673026710731406933.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·收网",
+      "text": "暗线已经布置妥当，嗯，差不多该收网了…",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/03/30/281568003/9d5dc51132f3375444d9d9bcfc560c4d_6488838811786390264.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·恶趣味",
+      "text": "一想起家臣们一脸焦急却又不敢开口阻拦的样子，就忍不住觉得有趣。呵，出来走走是不错。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/03/30/281568003/6efd270753977cf14cfbd9db56c4b9ce_9104018409907297101.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "下雨的时候…",
+      "text": "暂且先避下雨吧，不必着急，很快就会有人来送伞了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/03/30/281568003/89838780ae6815c88f7cdc1ed6b04b99_8142425883617929097.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雪的时候…",
+      "text": "如今的雪景，与多年前的那场雪…并无二致。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/03/30/281568003/193d2b8789ce2c6ed2eb006db0c6a4b8_3234685539986790871.mp3"
+    }
+  ],
+  "云堇": [
+    {
+      "file": "line01.mp3",
+      "topic": "闲聊·敏感话题",
+      "text": "这两天总觉得身上腰封有点紧，难道…我胖了？",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/01/06/145906584/c3061090dd2d9fc75194c2fe7eb27b46_1574302711964285925.mp3"
+    },
+    {
+      "file": "line02.mp3",
+      "topic": "闲聊·闲适",
+      "text": "不勒头，不画脸，今天乐得清闲。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/01/06/145906584/21377a9feb04621eef9b70922b624545_6085662200121832274.mp3"
+    },
+    {
+      "file": "line03.mp3",
+      "topic": "闲聊·清唱",
+      "text": "云婵娟来花婵娟，风流尽在山水间。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/01/06/145906584/ecc5bd607229607e1717ef3f20fd797d_4643464717496313939.mp3"
+    },
+    {
+      "file": "line04.mp3",
+      "topic": "打雷的时候…",
+      "text": "…嘶，你听、听见打雷没有？吓我一跳。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/01/06/145906584/7c03b58a814635b32acd1ad18bdefaaa_2298538050892740469.mp3"
+    },
+    {
+      "file": "line05.mp3",
+      "topic": "下雪的时候…",
+      "text": "喂呀，冻煞我了。",
+      "source": "https://uploadstatic.mihoyo.com/ys-obc/2022/01/06/145906584/2a6290632616384ad8a36cc69ce1dfe1_392799904786647373.mp3"
+    }
+  ]
+}

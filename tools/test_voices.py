@@ -50,10 +50,14 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    bank = VoiceBank()
+    # isolate the user folder for the resolution checks
+    bank = VoiceBank(folders=[VOICE_DIR])
     print("speakers", bank.speakers(), "count", bank.count())
     assert bank.speakers() == ["琴"]
     assert bank.count() == 2
+    merged = VoiceBank()
+    print("merged voices", merged.count(), "speakers", len(merged.speakers()))
+    assert merged.count() >= 2
     exact = bank.line_for("琴", "休息也是骑士团的规定。", loose=False)
     print("exact match", exact.name if exact else None)
     assert exact is not None and exact.name == "rest.wav"
@@ -71,7 +75,7 @@ def main() -> int:
     win.sounds.enabled = False
     win.show()
     QTest.qWait(500)
-    assert win.voices.count() == 2
+    assert win.voices.count() >= 2
     played = win._play_voice("琴", "休息也是骑士团的规定。")
     QTest.qWait(150)
     print("played", played, "file", Path(win.voice_player.current_file()).name)
@@ -84,6 +88,23 @@ def main() -> int:
     store.settings["voice_enabled"] = True
     store.settings["voice_loose"] = False
     assert win._play_voice("琴", "不对应的台词") is False
+    # whisper popup exposes a speaker toggle that reflects the setting
+    store.settings["whisper_avatar"] = "琴"
+    store.settings["voice_loose"] = True
+    win._show_whisper(manual=True)
+    QTest.qWait(300)
+    popup = win._whisper_popup
+    print("popup voice button", popup.voice_btn.isEnabled(), popup.voice_btn.isChecked())
+    assert popup.voice_btn.isEnabled() and popup.voice_btn.isChecked()
+    popup.voice_btn.click()
+    QTest.qWait(150)
+    assert store.settings["voice_enabled"] is False
+    assert popup.voice_btn.isChecked() is False
+    popup.voice_btn.click()
+    QTest.qWait(250)
+    assert store.settings["voice_enabled"] is True
+    assert popup.voice_btn.isChecked() is True
+
     win._shutdown()
     QTest.qWait(300)
     app.quit()

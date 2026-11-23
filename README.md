@@ -7,7 +7,7 @@ Black 是一个本地优先的 Windows 桌面学习助手：用提瓦特风格�
 - 修习计时、考试倒计时、60 级等级与连续修习（前期轻松，后期明显变慢）
 - 多个修习方向可以**同时计时**：比如一边背单词一边等编译，两边各自累计，互不影响；暂停其中一个，另一个继续走
 - 每日 Markdown 手札
-- 55 位角色、177 幅看板立绘，支持竖屏与横屏立绘；沃雅妮莎的 15 张资源已全部收录
+- 56 位角色、180 幅看板立绘，支持竖屏与横屏立绘；沃雅妮莎的 15 张资源已全部收录
 - 角色选择支持搜索（名字或称号），右键可以把喜欢的角色置顶或上下移动，排序会记住；默认沃雅妮莎在最前
 - 选角色时除了内置立绘，还会显示你自己收集到 `data/art_extra/` 的同人图（见 `tools/fetch_popular_art.py`）
 - 悄悄话可以播放你自己导入到 `data/voice/` 的角色语音；程序不内置任何游戏音频
@@ -119,9 +119,16 @@ python tools/fetch_music.py --convert "D:\Videos\video.mp4"
 
 B 站部分视频需要登录或大会员权限；下载内容请仅用于个人合法用途。
 
-## 角色语音（自行导入）
+## 角色语音
 
-程序**不内置任何原神语音**（原因与来源调研见 [docs/voice-research.md](docs/voice-research.md)）。如果本机已经有录音，把它放进 `data/voice/<角色名>/`，悄悄话会优先播放它：
+仓库内置了 **29 位角色、共 145 条**中文语音（约 13MB，位于 `assets/audio/voices/`）。悄悄话弹出时，右下角会有一个喇叭按钮：
+
+- 亮着 = 正在播放该角色的语音，点一下关闭、再点一下打开，选择会记住；
+- 没有该角色语音时按钮禁用，并提示可以把录音放进 `data/voice/`。
+
+设置页「角色语音」可以看已就绪条数、打开自定义语音目录、开关语音与「宽松匹配」（没有逐句对应的录音时随机播该角色一条）。
+
+想用自己的录音（会**优先于内置**，且 `data/` 不进 git）：
 
 ```text
 data/voice/琴/rest.mp3
@@ -133,15 +140,48 @@ data/voice/manifest.json      # 可选：把某句台词精确对应到某个文
 python tools/import_voices.py --list
 python tools/import_voices.py --speaker 琴 --source D:\my_voices
 python tools/import_voices.py --speaker 琴 --text "休息也是骑士团的规定。" --file rest.mp3
+python tools/fetch_voices.py --list          # 重新抓取/更新内置语音
+python tools/fetch_voices.py --all --limit 5
 ```
 
 支持 mp3 / wav / ogg / m4a / flac / opus；`manifest.json` 的格式是
-`{"琴": {"台词原文": "rest.mp3"}}`。设置里可以开关「角色语音」，并决定是否在找不到对应台词时随机播一条该角色的录音。
-`data/` 已被 `.gitignore` 忽略，这些文件不会进入仓库。
+`{"琴": {"台词原文": "rest.mp3"}}`。
 
-## 补充立绘（自行收集）
+内置语音的版权与来源说明见 [assets/audio/voices/README.md](assets/audio/voices/README.md)：音频版权归米哈游，
+本项目为非商业的个人学习工具，若权利方有异议会立即移除。
 
-除了内置的 177 幅立绘，还可以把自己收集的人物图放进 `data/art_extra/`，角色选择里会多出「人气 N」这一组：
+## 补充立绘（自行收集，不入库）
+
+仓库里只有内置的官方立绘；**同人图不随仓库分发**，需要你自己收集，固定放在：
+
+```text
+data/
+└── art_extra/
+    ├── manifest.json
+    └── jean/
+        ├── px144539345.jpg
+        └── px144539345_thumb.jpg
+```
+
+`manifest.json` 的格式（`art` / `thumb` 可以写相对 `data/art_extra/` 的路径，也可以写绝对路径）：
+
+```json
+{
+  "jean": [
+    {
+      "id": "pixiv-144539345",
+      "label": "人气 1",
+      "orientation": "portrait",
+      "art": "jean/px144539345.jpg",
+      "thumb": "jean/px144539345_thumb.jpg",
+      "source": "pixiv",
+      "credit": "作品名 / 作者 / https://www.pixiv.net/artworks/144539345"
+    }
+  ]
+}
+```
+
+最省事的做法是让脚本代劳（自动建目录、下载、按收藏数排序并写清单）：
 
 ```powershell
 python tools/fetch_popular_art.py --list
@@ -149,8 +189,9 @@ python tools/fetch_popular_art.py --character jean --limit 6
 python tools/fetch_popular_art.py --character 甘雨 --query "甘雨 原神" --name-tag "甘雨(原神)" --limit 8
 ```
 
-脚本只会下载公开的 pixiv 搜索结果（按人气排序），并把标题、作者和作品链接写进
-`data/art_extra/manifest.json` 方便署名；同人图版权归原作者，仅供个人本地使用，不要随仓库分发。
+脚本会抓 5 页候选、逐张取详情，再按**真实收藏数**从高到低排序，所以拿到的是人气最高的几张。
+放好之后打开「角色」选择器就能看到多出来的「人气 N」立绘；设置里的「显示收集的立绘」可以一键隐藏。
+同人图版权归原作者，仅供个人本地使用，请不要随仓库分发。
 米游社的接口需要登录签名，脚本未实现，想用米游社的图请手动保存到同样的目录并在清单里补一条。
 
 ## 数据与隐私

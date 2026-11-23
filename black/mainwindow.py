@@ -46,6 +46,7 @@ from . import content, render_mode, theme
 from .character_picker import CharacterPickerDialog
 from .dialogs import NoticeDialog
 from .characters import (
+    set_show_extras,
     DEFAULT_CHARACTER_ID,
     get_character,
     get_look,
@@ -184,6 +185,7 @@ class MainWindow(QMainWindow):
         self._whisper_popup = PaimonWhisperPopup()
         self._whisper_popup.another_requested.connect(self._whisper_another)
         self._whisper_popup.accepted.connect(lambda: self.sounds.interact())
+        self._whisper_popup.voice_toggled.connect(self._on_voice_toggled)
         self._rng = random.Random()
 
         flags = Qt.Window | Qt.FramelessWindowHint
@@ -198,6 +200,7 @@ class MainWindow(QMainWindow):
         self.timer = TimerEngine(self.store, self)
         self.sounds = Sounds(self)
         self.sounds.volume = float(self.store.settings.get("sound_volume", 80) or 0) / 100.0
+        set_show_extras(bool(self.store.settings.get("show_extra_art", True)))
         self.voices = VoiceBank()
         self.voice_player = VoicePlayer(self)
         self.tts = TTSService(self)
@@ -885,7 +888,10 @@ class MainWindow(QMainWindow):
             str(persona.get("role", "提瓦特的朋友")),
             str(persona.get("color", theme.GOLD)),
             duration_ms=18000,
+            voice_available=self._voice_available(persona["speaker"]),
+            voice_enabled=bool(self.store.settings.get("voice_enabled", True)),
         )
+        self._last_whisper = (str(persona["speaker"]), str(quote.get("text", "")))
         played = self._play_voice(persona["speaker"], str(quote.get("text", "")))
         if not played and self.store.settings.get("tts_enabled", False):
             self.speak(str(quote.get("text", "")))
@@ -902,10 +908,29 @@ class MainWindow(QMainWindow):
             str(persona.get("role", "提瓦特的朋友")),
             str(persona.get("color", theme.GOLD)),
             duration_ms=18000,
+            voice_available=self._voice_available(persona["speaker"]),
+            voice_enabled=bool(self.store.settings.get("voice_enabled", True)),
         )
+        self._last_whisper = (str(persona["speaker"]), str(quote.get("text", "")))
         played = self._play_voice(persona["speaker"], str(quote.get("text", "")))
         if not played and self.store.settings.get("tts_enabled", False):
             self.speak(str(quote.get("text", "")))
+
+    def _voice_available(self, speaker: str) -> bool:
+        try:
+            return bool(self.voices.files_for(speaker))
+        except Exception:
+            return False
+
+    def _on_voice_toggled(self, enabled: bool) -> None:
+        self.store.settings["voice_enabled"] = bool(enabled)
+        self.store.save()
+        speaker, text = getattr(self, "_last_whisper", ("", ""))
+        self._whisper_popup.set_voice_state(self._voice_available(speaker), bool(enabled))
+        if enabled:
+            self._play_voice(speaker, text)
+        else:
+            self.voice_player.stop()
 
     def _play_voice(self, speaker: str, text: str) -> bool:
         """Play a user-imported line from data/voice if there is one."""
@@ -976,7 +1001,9 @@ class MainWindow(QMainWindow):
     def _apply_settings(self, data: dict) -> None:
         self.store.settings.update(data)
         self.store.save()
+        set_show_extras(bool(self.store.settings.get("show_extra_art", True)))
         self.sounds.volume = float(self.store.settings.get("sound_volume", 80) or 0) / 100.0
+        set_show_extras(bool(self.store.settings.get("show_extra_art", True)))
         top = bool(data.get("always_on_top", False))
         if top != bool(self.windowFlags() & Qt.WindowStaysOnTopHint):
             visible = self.isVisible()
@@ -1080,6 +1107,7 @@ class MainWindow(QMainWindow):
         self._whisper_popup = PaimonWhisperPopup()
         self._whisper_popup.another_requested.connect(self._whisper_another)
         self._whisper_popup.accepted.connect(lambda: self.sounds.interact())
+        self._whisper_popup.voice_toggled.connect(self._on_voice_toggled)
 
     def _on_pin_toggled(self, checked: bool) -> None:
         self.store.settings["always_on_top"] = bool(checked)

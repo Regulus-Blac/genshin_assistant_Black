@@ -52,6 +52,7 @@ NEW_ROSTER = [
     ("Qiqi", "qiqi", "冻冻回魂夜"),
     ("Kamisato Ayato", "ayato", "磐祭叶守"),
     ("Yun Jin", "yunjin", "红毹婵娟"),
+    ("Odette", "odette", "翾风回雪"),
 ]
 
 
@@ -108,6 +109,20 @@ def main() -> int:
                 print("ok", cid, kind, len(got[kind]) // 1024, "KB")
             except Exception as exc:
                 print("miss", cid, kind, exc)
+        if not got:
+            # Newer characters are not on HoYo-Assets yet; Enka's gacha art is
+            # the same official splash illustration.
+            enka_name = route.replace(" ", "")
+            for base in ("https://enka.network/ui/", "https://gi.yatta.moe/assets/UI/"):
+                try:
+                    data = bg.download(f"{base}UI_Gacha_AvatarImg_{enka_name}.png", f"{cid}_wish.png")
+                    if data:
+                        got["wish"] = data
+                        got["splash"] = data
+                        print("ok", cid, "enka fallback", len(data) // 1024, "KB")
+                        break
+                except Exception as exc:
+                    print("enka fallback miss", cid, base, exc)
         return cid, got
 
     with ThreadPoolExecutor(max_workers=4) as pool:
