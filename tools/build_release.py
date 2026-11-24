@@ -85,7 +85,7 @@ def build(stage: Path) -> Path:
     version_file = WORK / "version_info.txt"
     WORK.mkdir(parents=True, exist_ok=True)
     write_version_file(version_file)
-    out = DIST / BUNDLE
+    out = DIST / NAME
     if out.exists():
         shutil.rmtree(out, ignore_errors=True)
     DIST.mkdir(parents=True, exist_ok=True)
@@ -123,10 +123,27 @@ def build(stage: Path) -> Path:
         "tkinter",
         "--exclude-module",
         "matplotlib",
+        # Anaconda drags numpy + Intel MKL in (~300MB) although the app never
+        # imports numpy at runtime; everything numeric lives in tools/.
+        "--exclude-module",
+        "numpy",
+        "--exclude-module",
+        "scipy",
+        "--exclude-module",
+        "pandas",
+        "--exclude-module",
+        "IPython",
+        "--exclude-module",
+        "pytest",
         SPEC_ENTRY,
     ]
     run(cmd, cwd=stage)
-    return out
+    target = DIST / BUNDLE
+    if out != target:
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+        out.rename(target)
+    return target
 
 
 def add_readme(out: Path) -> None:
@@ -159,6 +176,19 @@ def add_readme(out: Path) -> None:
 角色图片、语音版权归 HoYoverse 及各原作者，本项目为非商业个人学习工具。
 """
     (out / "使用说明.txt").write_text(text, encoding="utf-8")
+    bat_lines = [
+        "@echo off",
+        "chcp 65001 >nul",
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command "'
+        "$s=(New-Object -ComObject WScript.Shell).CreateShortcut("
+        "[Environment]::GetFolderPath('Desktop')+'\\Black.lnk'); "
+        "$s.TargetPath='%~dp0Black.exe'; $s.WorkingDirectory='%~dp0'; "
+        "$s.IconLocation='%~dp0Black.exe,0'; $s.Save(); Write-Host 'Created Black.lnk'"
+        '"',
+        "pause",
+    ]
+    # cmd.exe needs CRLF
+    (out / "创建桌面快捷方式.bat").write_bytes(("\r\n".join(bat_lines) + "\r\n").encode("utf-8"))
 
 
 def make_zip(out: Path) -> Path:
