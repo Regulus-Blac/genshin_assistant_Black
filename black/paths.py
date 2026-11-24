@@ -1,19 +1,29 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-ASSETS = ROOT / "assets"
+# When packed by PyInstaller, ``__file__`` lives inside the bundle directory
+# while user data must stay next to the .exe (writable, survives upgrades).
+if getattr(sys, "frozen", False):
+    APP_DIR = Path(sys.executable).resolve().parent
+    BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR))
+else:
+    APP_DIR = Path(__file__).resolve().parents[1]
+    BUNDLE_DIR = APP_DIR
+
+ROOT = APP_DIR
+ASSETS = BUNDLE_DIR / "assets"
 IMAGES = ASSETS / "images"
 AVATARS = ASSETS / "avatars"
 FONTS = ASSETS / "fonts"
 AUDIO = ASSETS / "audio"
 MUSIC = ASSETS / "music"
 
-DATA_DIR = Path(os.environ.get("BLACK_DATA_DIR", ROOT / "data"))
-JOURNAL_DIR = Path(os.environ.get("BLACK_JOURNAL_DIR", ROOT / "journal"))
-CACHE_DIR = Path(os.environ.get("BLACK_CACHE_DIR", ROOT / "cache"))
+DATA_DIR = Path(os.environ.get("BLACK_DATA_DIR", APP_DIR / "data"))
+JOURNAL_DIR = Path(os.environ.get("BLACK_JOURNAL_DIR", APP_DIR / "journal"))
+CACHE_DIR = Path(os.environ.get("BLACK_CACHE_DIR", APP_DIR / "cache"))
 # Sound overrides live inside the project tree so collected packs are easy to
 # find and share.  ``assets/audio`` keeps the bundled (original/CC0) sounds.
 CUSTOM_AUDIO = AUDIO / "custom"

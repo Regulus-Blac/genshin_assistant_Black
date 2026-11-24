@@ -31,6 +31,17 @@ Black 是一个本地优先的 Windows 桌面学习助手：用提瓦特风格�
 
 ## 安装与启动
 
+### 方式一：直接下载免安装版（推荐给不想装 Python 的人）
+
+到 [Releases](https://github.com/Regulus-Blac/genshin_assistant_Black/releases/latest) 下载
+`Black-<版本>-Windows-x64.zip`，解压后双击 `Black.exe` 即可。第一次运行会在同目录生成
+`data/`、`journal/`、`cache/`，整个文件夹拷走就是搬家。
+
+- 没有代码签名，Windows 可能提示“已保护你的电脑”，点「更多信息 → 仍要运行」即可；
+- 如果所在网络打不开 GitHub，请看 [docs/releasing.md](docs/releasing.md) 的「打不开 GitHub 的人怎么用」。
+
+### 方式二：从源码运行
+
 ```powershell
 git clone https://github.com/Regulus-Blac/genshin_assistant_Black.git
 cd genshin_assistant_Black
@@ -44,6 +55,15 @@ python app.py
 ```
 
 如果缺少依赖，也可以双击 `安装依赖.bat`。`launch_black.vbs` 是不弹出控制台的启动方式。
+
+自己打包免安装版（发版用）：
+
+```powershell
+python -m pip install pyinstaller
+python tools/build_release.py
+```
+
+产物在 `dist/`；完整的发版流程见 [docs/releasing.md](docs/releasing.md)。
 
 ### 双击没反应怎么办
 
