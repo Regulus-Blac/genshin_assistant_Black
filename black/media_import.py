@@ -72,12 +72,19 @@ def parse_duration(value) -> int:
 
 
 def ffmpeg_executable() -> str | None:
-    if imageio_ffmpeg is None:
-        return None
-    try:
-        return imageio_ffmpeg.get_ffmpeg_exe()
-    except Exception:
-        return None
+    if imageio_ffmpeg is not None:
+        try:
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass
+    # Packed builds: imageio_ffmpeg's binaries live under the bundle directory.
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
+    for candidate in base.glob("imageio_ffmpeg/binaries/ffmpeg*.exe"):
+        return str(candidate)
+    for candidate in base.glob("**/ffmpeg*.exe"):
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 
 def dependencies_ready() -> tuple[bool, str]:
